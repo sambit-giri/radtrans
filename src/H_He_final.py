@@ -309,10 +309,14 @@ def adaptive_mesh(r,x,lowtol,uptol):
     dr_grid = zeros(r.size - 1)
     for k in range(dr_grid.size):
         dr_grid[k] = r[k + 1] - r[k]
-    dr_prev = min(dr_grid)
-    dr_new = dr_prev /3
+    #dr_prev = min(dr_grid)
+    #dr_new = dr_prev /3
+    #r1 = r[0:lower]
+    #r2 = arange(r[lower], r[upper], dr_new)
+    N_prev = r[lower:upper].size
+    N_new = N_prev * 3 
     r1 = r[0:lower]
-    r2 = arange(r[lower], r[upper], dr_new)
+    r2 = logspace(log10(r[lower]), log10(r[upper]), N_new,base=10)
     r3 = r[upper + 1:]
     r_new = concatenate((r1, r2, r3))
     print('lower: ', r[lower],x[lower])
@@ -371,15 +375,17 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
     if filename_table is None: filename_table = 'qwerty'
     if filename_table is not None and not recalculate_table:
         if len(glob(filename_table)):
+            print(len(glob(filename_table)))
             Gamma_input_info = pickle.load(open(filename_table, 'rb'))
             print('Table read in.')
         else:
             recalculate_table = True
     else:
         recalculate_table = True
+        print(recalculate_table)
 
     if recalculate_table:
-        print('Creating table...')
+        print('Creating table...', recalculate_table)
         r_min = r_grid[0]
         dr = r_grid[1] - r_grid[0]
         if (param.source.type == 'Miniqsos'):  ### Choose the source type
@@ -627,14 +633,12 @@ class Source:
         self.r_start = r_start * u.Mpc if r_start is not None else 0.0001 * u.Mpc  # starting point from source
         self.r_end = r_end * u.Mpc if r_end is not None else 3 * u.Mpc  # maximal distance from source
         self.dn = dn 	
-        self.filename_table = filename_table
-        self.recalculate_table = recalculate_table
         self.Gamma_grid_info = None
         self.lifetime = lifetime
-        self.import_table = import_table
         self.C = C if C is not None else 1. # Clumping factor
 
-    def create_table(self, param, par=None, filename=None):
+
+    def create_table(self, param, par=None):
         """
         Call the function to create the interpolation tables.
 
@@ -644,6 +648,7 @@ class Source:
          Variables to pass on to the table generator. If none is given the parameters of the Source initialization will
          be used.
         """
+
         if par is None:
             M, z_reion = self.M, self.z
             alpha, sed = self.alpha, self.sed
@@ -662,6 +667,9 @@ class Source:
             n_HI, n_HeI = par['n_HI'], par['n_HeI']
             alpha, sed = par['alpha'], par['sed']
 
+        filename_table = param.table.filename_table
+        recalculate_table = param.table.recalculate_table
+
         alphas = {0.5: "table_alpha0_5_uv.p", 1: "table_alpha1_0_uv.p", 1.5: "table_alpha1_5_uv.p", 2: "table_alpha2_0_uv.p", 2.5: "table_alpha2_5_uv.p", 3: "table_alpha3_0_uv.p", 3.5: "table_alpha3_5_uv.p", 4: "table_alpha4_0_uv.p"}
         alphas_nouv = {0.5: "table_alpha0_5_uv.p", 1: "table_alpha1_0_uv.p", 1.5: "table_alpha1_5_uv.p", 2: "table_alpha2_0_uv.p", 2.5: "table_alpha2_5_uv.p", 3: "table_alpha3_0_uv.p", 3.5: "table_alpha3_5_uv.p", 4: "table_alpha4_0_uv.p"}
 
@@ -671,14 +679,14 @@ class Source:
                 print('Table for alpha =',alpha,'available and read in.')
             else:
                 E_0_ = E_0 ###eV, ionising photons have an influence on the IGM
-                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed, E_0_)
+                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed, E_0_, filename_table,recalculate_table)
         else:
             if alpha in alphas_nouv and self.import_table:
                 Gamma_grid_info = pickle.load(open(alphas_nouv[alpha], "rb"))
                 print('Table for alpha =',alpha,'available and read in.')
             else:
                 E_0_ = E_cut
-                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, n_HeII, alpha, sed, E_0_)
+                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed, E_0_,filename_table,recalculate_table)
 
         self.Gamma_grid_info = Gamma_grid_info
 
@@ -721,7 +729,7 @@ class Source:
 
         self.grid_param = grid_param
 
-    def solve(self,param ):
+    def solve(self,param):
         """
         Solves the radiative transfer equation for the given source and the parameters.
 
@@ -760,7 +768,7 @@ class Source:
         n_HeII_grid = zeros_like(r_grid0)
         n_HeIII_grid = zeros_like(r_grid0)
 
-        self.create_table(param)
+        self.create_table(param = param)
         N = r_grid.size
         n_HI = self.Gamma_grid_info['input']['n_HI']
         n_HeI = self.Gamma_grid_info['input']['n_HeI']
