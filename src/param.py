@@ -13,9 +13,11 @@ class Bunch(object):
 
 def source_par():
     par = {
-        "fc2ray": 4000,              # coefficient 
+        "fc2ray": 4000,              # coefficient for the galaxy model, Nion_dot
         "M_halo": 1e6,               # galaxy halo mass
+        "T_gal": 5e4 ,               # galaxy Temperature. We let it to 50 000K for now.
         "M_miniqso": 1e4,            # miniquasar mass in the case of miniqsos
+
         "type": 'Miniqsos',          # source type. Can be 'Galaxies' or 'Miniqsos' 
         }
     return Bunch(par)

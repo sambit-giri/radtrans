@@ -1,5 +1,6 @@
 import scipy.integrate as integrate
 from numpy import *
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.interpolate as interpolate
@@ -49,6 +50,7 @@ m_e = 9.10938 * 10 ** -28 * u.g
 sigma_s = 6.6524 * 10 ** -25 * u.cm ** 2
 M_sun = 1.988 * 10 ** 33 * u.g
 sec_per_year = 3600*24*365.25
+Hz_per_eV = 241799050402293
 
 ##Cosmology
 Om      = 0.31
@@ -57,6 +59,15 @@ Ol      = 1-Om-Ob
 h0      = 0.68
 ns      = 0.97
 s8      = 0.81
+
+h__ = 6.626e-34     ### [J.s] or [m2 kg / s]
+c__ = 2.99792e+8    ### [m/s]
+k__ = 1.380649e-23  ### [m 2 kg s-2 K-1]
+
+def BB_Planck( nu , T):  #  BB Spectrum [J s-1 m−2 Hz−1 ]
+    a_ = 2.0*h__*nu**3/c__**2
+    intensity = 4*pi*a_ / ( exp(h__*nu/(k__*T)) - 1.0)
+    return intensity
 
 
 # Photoionization and Recombination coefficients
@@ -392,6 +403,7 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
                 M = param.source.M_miniqso
                 L = 1.38 * 10 ** 37 * M
                 Ag = L / (4 * pi * facr ** 2 * (integrate.quad(lambda x: x ** -alpha, E_0, E_upp)[0]))
+                print('Miniqsos model chosen. M_qso is ', M)
                                 
                 # Spectral energy function, power law for a quasar source
                 def I(E):
@@ -407,18 +419,28 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
 
         elif (param.source.type == 'Galaxies'):
                 f_c2ray = param.source.fc2ray
-                M = param.source.M_halo                
+                M_halo = param.source.M_halo                
                 Delta_T = 10 ** 7 * sec_per_year
-                N_ion_dot = f_c2ray * M * M_sun /m_H * Ob/Om /Delta_T #### M_sun is in gramms
-                I__ =  N_ion_dot / (4 * pi * facr ** 2 * log(E_upp/E_0))
-                #print(I__, N_ion_dot)
-                def N(E, n_HI0, n_HeI0):
-            	        int = dr * facr * (n_HI0 * sigma_HI(E) + n_HeI0 * sigma_HeI(E)) 
-            	        return exp(-int) * I__ 	
+                N_ion_dot = f_c2ray * M_halo * M_sun /m_H * Ob/Om /Delta_T #### M_sun is in gramms
+                print('Galaxy model chosen. M_halo is ', M_halo)
+                nu_range=np.logspace(np.log10(1e11),18,1000,base=10)
+
+                T_Galaxy = param.source.T_gal
+
+                norm__ = np.trapz(BB_Planck(nu_range,T_Galaxy)/ h__,np.log(nu_range) ) ### BB between 1000K and 100 000K have a peak between 1e12 and 1e18 Hz. Hence nu_range.
+			
+                I__ =  N_ion_dot / (4 * pi * facr ** 2 * norm__)
+
+                def N(E, n_HI0, n_HeI0): ####[erg/sec/erg/cm^2]
+            	        nu_ = Hz_per_eV * E
+            	        int = dr * facr * (n_HI0 * sigma_HI(E) + n_HeI0 * sigma_HeI(E))
+            	        return exp(-int) * I__ * BB_Planck( nu_ , T_Galaxy)/h__
+
+		
                 
 
         else :
-                print('Source Type not available')
+                print('Source Type not available. Should be Galaxies or Miniqsos' )
                 exit()
         E_values = logspace(log10(E_0),log10(E_upp),10,base=10)
 
@@ -438,10 +460,9 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
 
         IT_2a = zeros((n_HI.size, n_HeI.size))
         IT_2b = zeros((n_HI.size, n_HeI.size))
-
+        print(n_HI.size,n_HeI.size)
         for k2 in tqdm(range(0, n_HI.size, 1)):
             for k3 in range(0, n_HeI.size, 1):
-
                 IHI_1[k2, k3] = \
                 integrate.quad(lambda x: sigma_HI(x) / x * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HI), E_upp)[0]
 			
