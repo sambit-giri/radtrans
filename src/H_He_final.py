@@ -63,6 +63,7 @@ s8      = 0.81
 h__ = 6.626e-34     ### [J.s] or [m2 kg / s]
 c__ = 2.99792e+8    ### [m/s]
 k__ = 1.380649e-23  ### [m 2 kg s-2 K-1]
+h_eV_sec = 4.135667e-15
 
 def BB_Planck( nu , T):  #  BB Spectrum [J s-1 m−2 Hz−1 ]
     a_ = 2.0*h__*nu**3/c__**2
@@ -314,7 +315,7 @@ def adaptive_mesh(r,x,lowtol,uptol):
         assert dr_grid_new[k] > 0
     """
 
-    # regular adaptive grid
+    # regular logspace adaptive grid
     lower = argmin(abs(x - lowtol))
     upper = argmin(abs(x - uptol))
     dr_grid = zeros(r.size - 1)
@@ -325,11 +326,12 @@ def adaptive_mesh(r,x,lowtol,uptol):
     #r1 = r[0:lower]
     #r2 = arange(r[lower], r[upper], dr_new)
     N_prev = r[lower:upper].size
-    N_new = N_prev * 3 
+    N_new = N_prev * 3
     r1 = r[0:lower]
     r2 = logspace(log10(r[lower]), log10(r[upper]), N_new,base=10)
     r3 = r[upper + 1:]
     r_new = concatenate((r1, r2, r3))
+    print('check:',N_prev,N_new,r.size,r1.size,r2.size,r3.size)
     print('lower: ', r[lower],x[lower])
     print('upper: ', r[upper], x[upper])
     dr_grid_new = zeros(r_new.size)
@@ -344,7 +346,7 @@ def adaptive_mesh(r,x,lowtol,uptol):
     """
     return r_new
 
-def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_table=None, recalculate_table=False):
+def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed):
     '''
     Generate the interpolation tables for the integrals for the radiative transfer equations.
 
@@ -367,7 +369,7 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
      Neutral helium density array in cm**-3 along r_grid. Typically a linear space grid starting from 0.
     n_HI : array_like
      HeII density array in cm**-3 along r_grid. Typically a linear space grid starting from 0.
-    E_0 : in eV, minimum energy of photons (depends on whether or not ionising photons get absorbed)
+    E_0 : in eV, minimum energy of photons (depends on whether or not ionising photons get absorbed), we then convert to erg.
     alpha : int, default -1
      Spectral index for a power-law source.
     sed : callable, optional, or string
@@ -383,23 +385,24 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
         Dictionary containing two sub-dictionaries: The first one containing the function variables and the second one
         containing the 12 tables for the integrals
     '''
-    if filename_table is None: filename_table = 'qwerty'
-    if filename_table is not None and not recalculate_table:
-        if len(glob(filename_table)):
-            print(len(glob(filename_table)))
-            Gamma_input_info = pickle.load(open(filename_table, 'rb'))
-            print('Table read in.')
-        else:
-            recalculate_table = True
-    else:
-        recalculate_table = True
-        print(recalculate_table)
+    E_0 = facE*param.source.E_upp 
+    E_upp = facE*param.source.E_0 ##erg
 
-    if recalculate_table:
-        print('Creating table...', recalculate_table)
+    if param.table.import_table :
+        if param.table.filename_table == None :
+            print('Asking to import a table but filename_table is None. Exit')
+            exit()
+        else :
+            Gamma_input_info = pickle.load(open(param.table.filename_table, 'rb'))
+            print('Reading in table ', param.table.filename_table)
+
+    else :
+
+        print('Calculating table...')
         r_min = r_grid[0]
         dr = r_grid[1] - r_grid[0]
-        if (param.source.type == 'Miniqsos'):  ### Choose the source type
+
+        if (param.source.type == 'Miniqsos'):  ### Choose the source type
                 M = param.source.M_miniqso
                 L = 1.38 * 10 ** 37 * M
                 Ag = L / (4 * pi * facr ** 2 * (integrate.quad(lambda x: x ** -alpha, E_0, E_upp)[0]))
@@ -423,26 +426,29 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
                 Delta_T = 10 ** 7 * sec_per_year
                 N_ion_dot = f_c2ray * M_halo * M_sun /m_H * Ob/Om /Delta_T #### M_sun is in gramms
                 print('Galaxy model chosen. M_halo is ', M_halo)
-                nu_range=np.logspace(np.log10(1e11),18,1000,base=10)
 
                 T_Galaxy = param.source.T_gal
 
-                norm__ = np.trapz(BB_Planck(nu_range,T_Galaxy)/ h__,np.log(nu_range) ) ### BB between 1000K and 100 000K have a peak between 1e12 and 1e18 Hz. Hence nu_range.
+                #nu_0 = E_0/h.value      ### This is in Hz (E_0 in erg and h in erg.s)
+                #nu_upp = E_upp/h.value
+                #nu_range=np.logspace(np.log10(nu_0),np.log10(nu_upp),500,base=10)
+
+                nu_range = np.logspace(np.log10(E_0 / h_eV_sec), np.log10(E_upp / h_eV_sec), 300, base=10)
+                norm__ = np.trapz( BB_Planck(nu_range,T_Galaxy)/ h__,np.log(nu_range) )
 			
                 I__ =  N_ion_dot / (4 * pi * facr ** 2 * norm__)
+                print('BB spectrum normalized to ',N_ion_dot, ' ionizing photons per s, in the energy range [',param.source.E_0,' ',param.source.E_upp, '] in eV')
 
                 def N(E, n_HI0, n_HeI0): ####[erg/sec/erg/cm^2]
             	        nu_ = Hz_per_eV * E
             	        int = dr * facr * (n_HI0 * sigma_HI(E) + n_HeI0 * sigma_HeI(E))
             	        return exp(-int) * I__ * BB_Planck( nu_ , T_Galaxy)/h__
-
-		
-                
+            	        #return exp(-int) * I__ *(2.0 *  nu_ ** 3 / c__ ** 2) * 4 * pi / (exp(h__ * nu_ / (k__ * T_Galaxy)) - 1.0)
 
         else :
                 print('Source Type not available. Should be Galaxies or Miniqsos' )
                 exit()
-        E_values = logspace(log10(E_0),log10(E_upp),10,base=10)
+        #E_values = logspace(log10(E_0),log10(E_upp),10,base=10)
 
         IHI_1 = zeros((n_HI.size, n_HeI.size))
         IHI_2 = zeros((n_HI.size, n_HeI.size))
@@ -460,7 +466,6 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
 
         IT_2a = zeros((n_HI.size, n_HeI.size))
         IT_2b = zeros((n_HI.size, n_HeI.size))
-        print(n_HI.size,n_HeI.size)
         for k2 in tqdm(range(0, n_HI.size, 1)):
             for k3 in range(0, n_HeI.size, 1):
                 IHI_1[k2, k3] = \
@@ -510,9 +515,17 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed, E_0, filename_tabl
 
         input_info = {'M': M, 'z': z,
                       'r_grid': r_grid,
-                      'n_HI': n_HI, 'n_HeI': n_HeI, }
+                      'n_HI': n_HI, 'n_HeI': n_HeI, 'E_0': param.source.E_0 , 'E_upp': param.source.E_upp}
 
         Gamma_input_info = {'Gamma': Gamma_info, 'input': input_info}
+
+        if param.table.filename_table is None:
+            filename_table = 'qwerty'
+            print('No filename_table given. We will call it qwerty.')
+        else :
+            filename_table = param.table.filename_table
+        print('saving table in pickle file ',filename_table)
+        pickle.dump(Gamma_input_info,open(filename_table,'wb'))
 
 
     return Gamma_input_info
@@ -638,25 +651,33 @@ class Source:
      be changed whether or not a external table is available.
     """
 
-    def __init__(self, param, M, z, evol, r_start=None, r_end=None, dn = 50, LE=None, alpha=None, sed=None, lifetime=None,
-                 filename_table=None,C = None, recalculate_table=False, import_table = True,import_profiles = False):
-		
-        self.M = M  # mass of the quasar
-        self.N_dot_gamma = M*10**49
-        self.z = z  # redshift
-        self.evol = (evol*10**6*365*24*60*60)*u.s  # evolution time, typically 3-10 Myr
-        self.LE = LE if LE is not None else True
-        self.lifetime = lifetime
+    def __init__(self, param):
 
-        self.alpha = alpha if alpha is not None else 1.
-        self.sed = sed
+        if param.source.type == 'Miniqsos':
+            self.M = param.source.M_miniqso
+        elif param.source.type == 'Galaxies':
+            self.M = param.source.M_halo
+        else :
+            print('source.type should be Galaxies or Miniqsos')
+            exit()
 
-        self.r_start = r_start * u.Mpc if r_start is not None else 0.0001 * u.Mpc  # starting point from source
-        self.r_end = r_end * u.Mpc if r_end is not None else 3 * u.Mpc  # maximal distance from source
-        self.dn = dn 	
+        self.z = param.solver.z  # redshift
+        self.evol = (param.solver.evol*10**6*365*24*60*60)*u.s  # evolution time, typically 3-10 Myr
+        self.LE = True #LE if LE is not None else True
+        self.lifetime = None
+
+        self.alpha = param.source.alpha
+        self.sed = None
+
+        self.r_start = param.solver.r_start * u.Mpc   # starting point from source
+        self.r_end = param.solver.r_end * u.Mpc       # maximal distance from source
+        self.dn = param.solver.dn
+        self.dn_table = param.solver.dn_table
         self.Gamma_grid_info = None
-        self.lifetime = lifetime
-        self.C = C if C is not None else 1. # Clumping factor
+        self.C = param.solver.C # Clumping factor
+
+        self.E_0 = facE*param.source.E_0     
+        self.E_upp = facE*param.source.E_upp # IN erg
 
 
     def create_table(self, param, par=None):
@@ -673,9 +694,10 @@ class Source:
         if par is None:
             M, z_reion = self.M, self.z
             alpha, sed = self.alpha, self.sed
-            dn = self.grid_param['dn']
+            dn_table = self.grid_param['dn_table']
 
-            r_grid =  linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn)
+            #r_grid =  logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
+            r_grid =  linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn_table)
 
             N = r_grid.size
             n_HI = linspace(0, 2*(N) * n_H(z_reion,self.C),100)
@@ -688,27 +710,7 @@ class Source:
             n_HI, n_HeI = par['n_HI'], par['n_HeI']
             alpha, sed = par['alpha'], par['sed']
 
-        filename_table = param.table.filename_table
-        recalculate_table = param.table.recalculate_table
-
-        alphas = {0.5: "table_alpha0_5_uv.p", 1: "table_alpha1_0_uv.p", 1.5: "table_alpha1_5_uv.p", 2: "table_alpha2_0_uv.p", 2.5: "table_alpha2_5_uv.p", 3: "table_alpha3_0_uv.p", 3.5: "table_alpha3_5_uv.p", 4: "table_alpha4_0_uv.p"}
-        alphas_nouv = {0.5: "table_alpha0_5_uv.p", 1: "table_alpha1_0_uv.p", 1.5: "table_alpha1_5_uv.p", 2: "table_alpha2_0_uv.p", 2.5: "table_alpha2_5_uv.p", 3: "table_alpha3_0_uv.p", 3.5: "table_alpha3_5_uv.p", 4: "table_alpha4_0_uv.p"}
-
-        if self.LE:
-            if alpha in alphas and self.import_table:
-                Gamma_grid_info = pickle.load(open(alphas[alpha], "rb"))
-                print('Table for alpha =',alpha,'available and read in.')
-            else:
-                E_0_ = E_0 ###eV, ionising photons have an influence on the IGM
-                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed, E_0_, filename_table,recalculate_table)
-        else:
-            if alpha in alphas_nouv and self.import_table:
-                Gamma_grid_info = pickle.load(open(alphas_nouv[alpha], "rb"))
-                print('Table for alpha =',alpha,'available and read in.')
-            else:
-                E_0_ = E_cut
-                Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed, E_0_,filename_table,recalculate_table)
-
+        Gamma_grid_info = generate_table(param, z_reion, r_grid, n_HI, n_HeI, alpha, sed)
         self.Gamma_grid_info = Gamma_grid_info
 
     def initialise_grid_param(self):
@@ -738,15 +740,15 @@ class Source:
         dn = self.dn  ####100
         r_start = self.r_start
         r_end = self.r_end
-
+        dn_table = self.dn_table
 
         grid_param['dn'] = dn
+        grid_param['dn_table'] = dn_table
         grid_param['r_start'] = r_start.value
         grid_param['r_end'] = r_end.value
         grid_param['t_life'] = t_life
         grid_param['dt_init'] = dt_init
         grid_param['C'] = C
-        grid_param['N_dot_gamma'] = self.N_dot_gamma
 
         self.grid_param = grid_param
 
@@ -779,8 +781,10 @@ class Source:
         dt_init = self.grid_param['dt_init']
         dn = self.grid_param['dn']
 
-        r_grid0 =  linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn)
-        r_grid = linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn)
+        #r_grid0 = linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn)
+        #r_grid  = linspace(self.grid_param['r_start'], self.grid_param['r_end'], dn)
+        r_grid0 = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
+        r_grid  = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
 
 
 
@@ -790,6 +794,7 @@ class Source:
         n_HeIII_grid = zeros_like(r_grid0)
 
         self.create_table(param = param)
+
         N = r_grid.size
         n_HI = self.Gamma_grid_info['input']['n_HI']
         n_HeI = self.Gamma_grid_info['input']['n_HeI']
@@ -829,6 +834,8 @@ class Source:
                 'HeII']
             JT_HI_1, JT_HeI_1, JT_HeII_1 = Gamma_info['T_HI_1'], Gamma_info['T_HeI_1'], Gamma_info['T_HeII_1']
             JT_2a, JT_2b = Gamma_info['T_2a'], Gamma_info['T_2b']
+
+            print('t_life is ',self.grid_param['t_life'])
             while l * self.grid_param['dt_init'].value <= self.grid_param['t_life']:
                 if l % 5 == 0 and l!=0:
                     print('Current Time step: ', l)
@@ -844,14 +851,13 @@ class Source:
                 K_HI = 0
                 K_HeI = 0
                 K_HeII = 0
-
+                #print('starting k loop. Gridsize is ',r_grid.size)
                 for k in (arange(0, r_grid.size, 1)):
 
                     table_grid = self.Gamma_grid_info['input']['r_grid']
                     dr_initial = table_grid[1]-table_grid[0]
                     dr_current = r_grid[1] - r_grid[0]
                     correction = dr_current / dr_initial
-
 
                     if k > 0:
                         dr_current = r_grid[k] - r_grid[k-1]
@@ -898,12 +904,13 @@ class Source:
 
                         r2 = r_grid[k] ** 2
                         n_corr = exp(-dr_current*diff*K_HeII)
-                        corr_ag = (integrate.quad(lambda x: x ** -self.alpha, E_0, E_upp)[0]) / (
+                        corr_ag = (integrate.quad(lambda x: x ** -self.alpha, self.E_0, self.E_upp)[0]) / (
                         integrate.quad(lambda x: x ** -self.alpha, E_0, 0.1 * E_upp)[0]) # numerical correction 
                         if self.M == self.Gamma_grid_info['input']['M']:
                             m_corr = 1
                         else:
                             m_corr = self.M/self.Gamma_grid_info['input']['M']
+
 
 
                         I1_HI = interpolate.interpn(points, JHI_1, (K_HI, K_HeI), method='linear') * n_corr * m_corr / r2 *corr_ag
@@ -922,6 +929,7 @@ class Source:
 
                         I2_Ta = interpolate.interpn(points, JT_2a, (K_HI, K_HeI), method='linear') * n_corr * m_corr / r2 *corr_ag
                         I2_Tb = interpolate.interpn(points, JT_2b, (K_HI, K_HeI), method='linear') * n_corr * m_corr / r2 *corr_ag
+
 
 
                     def rhs(t, n):
@@ -1067,7 +1075,6 @@ class Source:
                         n_HeII_grid[k] =  n_He(zstar, C)-n_HeIII_grid[k]
 
 
-
                 time_grid.append(l * self.grid_param['dt_init'].value)
                 Ion_front_grid.append(find_Ifront(n_HII_grid/n_H(zstar,C), r_grid, zstar))
                 l += 1
@@ -1076,6 +1083,7 @@ class Source:
             r2 = find_Ifront(n_HII_grid/n_H(zstar,C),  r_grid, zstar, show=True)
             time_step = datetime.datetime.now()
             print('The accuracy is: ', abs((r1 - r2) / min(abs(r1), abs(r2))), ' -> 0.05 needed. It took : ', time_step-t_start_solver)
+            print('r1 is ',r1,'r2 is',r2)
             if abs((r1 - r2) / min(abs(r1), abs(r2))) > 0.05 or r2 == self.r_start.value:
 
                 if r2 == self.r_start.value:
