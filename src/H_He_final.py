@@ -385,8 +385,8 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed):
         Dictionary containing two sub-dictionaries: The first one containing the function variables and the second one
         containing the 12 tables for the integrals
     '''
-    E_0 = facE*param.source.E_upp 
-    E_upp = facE*param.source.E_0 ##erg
+    E_0_erg = facE*param.source.E_0
+    E_upp_erg = facE*param.source.E_upp  ##erg
 
     if param.table.import_table :
         if param.table.filename_table == None :
@@ -405,7 +405,7 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed):
         if (param.source.type == 'Miniqsos'):  ### Choose the source type
                 M = param.source.M_miniqso
                 L = 1.38 * 10 ** 37 * M
-                Ag = L / (4 * pi * facr ** 2 * (integrate.quad(lambda x: x ** -alpha, E_0, E_upp)[0]))
+                Ag = L / (4 * pi * facr ** 2 * (integrate.quad(lambda x: x ** -alpha, E_0_erg, E_upp_erg)[0]))
                 print('Miniqsos model chosen. M_qso is ', M)
                                 
                 # Spectral energy function, power law for a quasar source
@@ -433,7 +433,7 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed):
                 #nu_upp = E_upp/h.value
                 #nu_range=np.logspace(np.log10(nu_0),np.log10(nu_upp),500,base=10)
 
-                nu_range = np.logspace(np.log10(E_0 / h_eV_sec), np.log10(E_upp / h_eV_sec), 300, base=10)
+                nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 300, base=10)
                 norm__ = np.trapz( BB_Planck(nu_range,T_Galaxy)/ h__,np.log(nu_range) )
 			
                 I__ =  N_ion_dot / (4 * pi * facr ** 2 * norm__)
@@ -469,43 +469,42 @@ def generate_table(param, z, r_grid, n_HI, n_HeI, alpha, sed):
         for k2 in tqdm(range(0, n_HI.size, 1)):
             for k3 in range(0, n_HeI.size, 1):
                 IHI_1[k2, k3] = \
-                integrate.quad(lambda x: sigma_HI(x) / x * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HI), E_upp)[0]
+                integrate.quad(lambda x: sigma_HI(x) / x * N(x, n_HI[k2], n_HeI[k3]),  E_HI, E_upp_erg)[0]
 			
                 IHI_2[k2, k3] = integrate.quad(
-                    lambda x: sigma_HI(x) * (x - E_HI) / (E_HI * x) * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HI),
-                    E_upp)[0]
+                    lambda x: sigma_HI(x) * (x - E_HI) / (E_HI * x) * N(x, n_HI[k2], n_HeI[k3]),  E_HI,
+                    E_upp_erg)[0]
                 IHI_3[k2, k3] = integrate.quad(
                     lambda x: sigma_HeI(x) * (x - E_HeI) / (x * E_HI) * N(x, n_HI[k2], n_HeI[k3]),
-                    max(E_0, E_HeI), E_upp)[0]
+                     E_HeI, E_upp_erg)[0]
 
                 IHeI_1[k2, k3] = \
-                integrate.quad(lambda x: sigma_HeI(x) / x * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HeI), E_upp)[0]
+                integrate.quad(lambda x: sigma_HeI(x) / x * N(x, n_HI[k2], n_HeI[k3]), E_HeI, E_upp_erg)[0]
                 IHeI_2[k2, k3] = integrate.quad(
                     lambda x: sigma_HeI(x) * (x - E_HeI) / (x * E_HeI) * N(x, n_HI[k2], n_HeI[k3]),
-                    max(E_0, E_HeI), E_upp)[0]
+                    E_HeI, E_upp_erg)[0]
                 IHeI_3[k2, k3] = integrate.quad(
-                    lambda x: sigma_HI(x) * (x - E_HI) / (x * E_HeI) * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HeI),
-                    E_upp)[0]
+                    lambda x: sigma_HI(x) * (x - E_HI) / (x * E_HeI) * N(x, n_HI[k2], n_HeI[k3]), E_HeI,
+                    E_upp_erg)[0]
 
                 IHeII[k2, k3] = \
-                integrate.quad(lambda x: sigma_HeII(x) / x * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HeII), E_upp)[
+                integrate.quad(lambda x: sigma_HeII(x) / x * N(x, n_HI[k2], n_HeI[k3]), E_HeII, E_upp_erg)[
                     0]
 
                 IT_HI_1[k2, k3] = \
-                integrate.quad(lambda x: sigma_HI(x) * (x - E_HI) / x * N(x, n_HI[k2], n_HeI[k3]), max(E_0, E_HI),
-                                E_upp)[0]
+                integrate.quad(lambda x: sigma_HI(x) * (x - E_HI) / x * N(x, n_HI[k2], n_HeI[k3]),  E_HI,
+                                E_upp_erg)[0]
                 IT_HeI_1[k2, k3] = \
                 integrate.quad(lambda x: sigma_HeI(x) * (x - E_HeI) / x * N(x, n_HI[k2], n_HeI[k3]),
-                                max(E_0, E_HeI), E_upp)[0]
+                                 E_HeI, E_upp_erg)[0]
                 IT_HeII_1[k2, k3] = \
                 integrate.quad(lambda x: sigma_HeII(x) * (x - E_HeII) / x * N(x, n_HI[k2], n_HeI[k3]),
-                                max(E_0, E_HeII), E_upp)[0]
+                               E_HeII, E_upp_erg)[0]
 
-                IT_2a[k2, k3] = integrate.quad(lambda x: N(x, n_HI[k2], n_HeI[k3]) * x, E_0, E_upp)[
+                IT_2a[k2, k3] = integrate.quad(lambda x: N(x, n_HI[k2], n_HeI[k3]) * x, E_0_erg, E_upp_erg)[
                     0]
                 IT_2b[k2, k3] = \
-                integrate.quad(lambda x: N(x, n_HI[k2], n_HeI[k3]) * (-4 * kb.value), E_0, E_upp)[0]
-
+                integrate.quad(lambda x: N(x, n_HI[k2], n_HeI[k3]) * (-4 * kb.value), E_0_erg, E_upp_erg)[0]
         print('...done')
 
         Gamma_info = {'HI_1': IHI_1, 'HI_2': IHI_2, 'HI_3': IHI_3,
@@ -680,7 +679,7 @@ class Source:
         self.E_upp = facE*param.source.E_upp # IN erg
 
 
-    def create_table(self, param, par=None):
+    def create_table(self, param,par=None):
         """
         Call the function to create the interpolation tables.
 

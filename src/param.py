@@ -30,7 +30,7 @@ def solver_par():
         "r_start" : 0.001,
         "r_end" : 3,
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
-        "dn_table" : 500, ## number of radial sample points for the table
+        "dn_table" : 100, ## number of radial sample points for the table
         "evol" : 10,      ## evolution time, typically 3-10 Myr
         "C" : 1,          ## Clumping factor
 
