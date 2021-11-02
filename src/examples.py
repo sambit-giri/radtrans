@@ -37,27 +37,33 @@ with rho_c = 2.775e11 * parameters.cosmo.h**2 * 2e30 / 1.67e-27 ### in Mpc**-3
 
 
 parameters = rad.par()
+parameters.cosmo.corr_fct = './radtrans/files/cosmofct.dat'   #####
+parameters.cosmo.ps = './radtrans/files/CDM_PLANCK_tk.dat'    ##### indicate here the path to
+
+
+
 parameters.solver.r_end   = 0.1
-parameters.solver.dn_table = 50
-parameters.solver.dn =100
+parameters.solver.dn_table = 40
+parameters.solver.dn =50
 parameters.solver.evol =3
 parameters.source.lifetime = 3
 parameters.solver.z =10
 parameters.table.import_table = False
+parameters.solver.Nt = 50
 
 
-#### Mini qsos model with Mass 1e4, minimum ionizing energy 200
+#### Mini qsos model
 parameters.table.filename_table = 'Miniqsos_1e4' # read or write in it
 parameters.source.type = 'Miniqsos'
 parameters.source.sed  = 1
-parameters.source.M_miniqso  = 1e4
-parameters.source.M_halo = 1e6   ## Halo mass is required for the miniqsos (for the bias)
+parameters.source.M_miniqso  = 1.6e4
+parameters.source.M_halo = 1e6    ## Halo mass is required for the miniqsos (for the bias)
 
 grid_model = rad.Source(parameters) 
 grid_model.solve(parameters)
 
 
-####Galaxy model with Halo Mass 1e8, minimum ionizing energy 200
+####Galaxy model
 parameters.table.filename_table = 'Galaxies_1e6'
 parameters.source.type = 'Galaxies'
 parameters.source.T_gal = 50000 # Kelvins

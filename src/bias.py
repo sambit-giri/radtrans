@@ -3,11 +3,6 @@ import scipy.integrate as integrate
 import math
 import numpy as np
 
-
-
-
-
-
 def bias(M ,z):
     dcz = dc / Dz[i]
     nu = dcz ** 2.0 / var
@@ -49,7 +44,7 @@ def read_powerspectrum(param):
     Linear power spectrum from file
     """
     names= 'k, P'
-    PS = np.genfromtxt(param.cosmo.ps,usecols=(0,1),comments='#',dtype=None, names=names)
+    PS = np.genfromtxt(param.cosmo.ps,usecols=(0,1),comments='#',dtype=None, names=names) #
     return PS
 
 def Variance_tophat(param,mm):

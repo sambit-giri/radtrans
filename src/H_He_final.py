@@ -15,6 +15,7 @@ import datetime
 import matplotlib.pyplot as plt
 from .bias import *
 
+import os
 
 
 ###Constants
@@ -314,7 +315,7 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
             L = 1.38 * 10 ** 37 * eV_per_erg * M  # eV.s-1 , assuming 10% Eddington lumi.
             E_range_E0 = np.logspace(np.log10(E_0_), np.log10(E_upp_), 100, base=10)
             Ag = L / (np.trapz(E_range_E0 ** -alpha, E_range_E0))
-            print('Miniqsos model chosen. M_qso is ', M, 'Ag is ', Ag)
+            print('Miniqsos model chosen. M_qso is ', M)
 
             # Spectral energy function [eV.s-1.eV-1], emitted from source
             def I(E):
@@ -332,7 +333,7 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
 
             E_range_HI_ = np.logspace(np.log10(13.6), np.log10(E_upp_), 1000, base=10)
             Ngam_dot = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
-            print('source emits', Ngam_dot, 'ionizing photons per seconds.')
+            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [',param.source.E_0,',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies'):
             f_c2ray = param.source.fc2ray
@@ -346,7 +347,7 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
             norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
 
             I__ = Ngam_dot / norm__
-            print('BB spectrum normalized to ', Ngam_dot, ' ionizing photons per s, in the energy range [',param.source.E_0, ' ', param.source.E_upp, '] in eV')
+            print('BB spectrum normalized to ', Ngam_dot, ' ionizing photons per s, in the energy range [',param.source.E_0, ' ', param.source.E_upp, '] eV')
 
             def N(E, n_HI0, n_HeI0, n_HeII0):
                 nu_ = Hz_per_eV * E
@@ -557,12 +558,10 @@ class Source:
         self.lifetime = param.source.lifetime * 1e6 * sec_per_year * u.s  # *10**6*365*24*60*60*u.s   #Myr, lifetime of the source
         self.alpha = param.source.alpha
 
-        self.r_start = param.solver.r_start  # starting point from source
         self.M_halo  = param.source.M_halo
         self.R_halo = R_halo(self.M_halo,self.z,param)  #physical halo size
         self.r_start = self.R_halo
         print('R_halo is :',self.R_halo,'Mpc')
-
         self.r_end = param.solver.r_end  # maximal distance from source
         self.dn = param.solver.dn
         self.Nt = param.solver.Nt
@@ -589,6 +588,7 @@ class Source:
         dn_table = self.dn_table
         r_grid  = self.r_grid
 
+
         # Profiles
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
@@ -604,8 +604,8 @@ class Source:
         nH_column  = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3
         nHe_column = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3  # maximum column densities
 
-        print('density profile : ',  self.nHI0_profile  * (1+self.z)**3)
-        print('n_H_column max : ', nH_column)
+        #print('density profile : ',  self.nHI0_profile  * (1+self.z)**3)
+        print('n_H_column max : ', nH_column ,'cm**-3.')
 
         # Column densities in cm**-2
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table,base=10)
@@ -678,7 +678,7 @@ class Source:
         This process is repeated until the desired accuracy is reached.
         """
 
-        print('Solving the radiative equations...')
+
         t_start_solver = datetime.datetime.now()
         self.initialise_grid_param()
         z = self.grid_param['z']
@@ -710,6 +710,8 @@ class Source:
         print('dtau is ',dr_max * sigma_HI(13.6) * max(self.nHI0_profile) * cm_per_Mpc + dr_max * sigma_HeI(E_HeI) * max(self.nHI0_profile)  * cm_per_Mpc )
         if dr_max * sigma_HI(13.6) * max(self.nHI0_profile) * cm_per_Mpc + dr_max * sigma_HeI(E_HeI) * max(self.nHI0_profile)  * cm_per_Mpc> 1:
             print('Need more spatial stepping. dtau > 1. Continue at your own risks.')
+
+        print('Solving the radiative equations...')
 
         while True:
 
