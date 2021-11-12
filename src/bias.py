@@ -3,14 +3,6 @@ import scipy.integrate as integrate
 import math
 import numpy as np
 
-def bias(M ,z):
-    dcz = dc / Dz[i]
-    nu = dcz ** 2.0 / var
-    # cooray and sheth
-    e1 = (q * nu - 1.0) / dc
-    E1 = 2.0 * p / dc / (1.0 + (q * nu) ** p)
-    bias += [1.0 + e1 + E1]
-
 
 
 #define Hubble factor H=H0*E

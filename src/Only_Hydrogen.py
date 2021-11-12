@@ -1,5 +1,4 @@
 
-from scipy.integrate import odeint
 from scipy.interpolate import splrep,splev
 import scipy.integrate as integrate
 from numpy import *
@@ -25,10 +24,7 @@ cm_per_Mpc = (facr.to(u.cm)).value
 eV_per_erg = 6.242 * 10 ** 11   #(1 * u.erg).to(u.eV).value
 
 # Hydro density and mass
-n_H_0  = 1.87 * 10 ** -7        # [cm**-3]
-n_He_0 = 1.5 * 10 ** -8         # [cm**-3]
-X_He_BBN = 0.27
-X_H_BBN  = 0.7 ## abundance of H and He according to BBN
+n_H_0  = 1.87 * 10 ** -12        # [cm**-3]
 m_H    = 1.6 * 10 ** - 27       # [kg]
 m_He   = 6.6464731 * 10 ** - 27 # [kg]
 
@@ -70,99 +66,9 @@ def BB_Planck( nu , T):  #  BB Spectrum [J s-1 m−2 Hz−1 ]
     intensity = 4 * pi * a_ / ( exp(h__*nu/(k__*T)) - 1.0)
     return intensity
 
-
-
-
-# H and He IGM densities
-def n_H(z,C):
+def n_H(z ,C):
     return C * n_H_0 * (1 + z) ** 3
-def n_He(z,C):
-    return C * n_He_0 * (1 + z) ** 3
 
-
-# Ionization and Recombination coefficients. Expressions taken from Fukugita and Kawasaki 1994.
-def alpha_HII(T):
-    """
-    Recombination coefficient for Hydrogen :  [cm3.s-1]
-    Input : temperature in K
-    """
-    return 2.6 * 10 ** -13 * (T / 10 ** 4) ** -0.85
-def alpha_HeII(T):
-    return 1.5 * 10 ** -10 * T ** -0.6353
-def alpha_HeIII(T):
-    return 3.36 * 10 ** -10 * T ** -0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / (4 * 10 ** 6)) ** 0.7) ** -1
-
-
-
-def beta_HI(T):
-    """
-    Collisional ionization coefficient for Hydrogen :  [cm3.s-1]
-    Input : temperature in K
-    """
-    return 5.85 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.578 * 10 ** 5 / T)
-def beta_HeI(T):
-    return 2.38 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-2.853 * 10 ** 5 / T)
-def beta_HeII(T):
-    return 5.68 * 10 ** -12 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-6.315 * 10 ** 5 / T)
-
-
-
-def xi_HI(T):
-    """
-    Collisional ionization cooling (see Fukugita & Kawazaki 1994) [eV.cm3.s-1]
-    """
-    return eV_per_erg * 1.27 * 10 ** -21 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.58 * 10 ** 5 / T)
-def xi_HeI(T):
-    return eV_per_erg * 9.38 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-2.85 * 10 ** 5 / T)
-def xi_HeII(T):
-    return eV_per_erg * 4.95 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-6.31 * 10 ** 5 / T)
-
-
-def eta_HII(T):
-    """
-    Recombination cooling [eV.cm3.s-1]
-    """
-    return eV_per_erg * 6.5 * 10 ** -27 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / 10 ** 6) ** 0.7) ** -1
-def eta_HeII(T):
-    return eV_per_erg * 1.55 * 10 ** -26 * T ** 0.3647
-def eta_HeIII(T):
-    return eV_per_erg * 3.48 * 10 ** -26 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / (4 * 10 ** 6)) ** 0.7) ** -1
-
-def omega_HeII(T):
-    """
-    Dielectronic recombination cooling [eV.cm3.s-1]
-    """
-    return eV_per_erg * 1.24 * 10 ** -13 * T ** -1.5 * exp(-4.7 * 10 ** 5 / T) * (1 + 0.3 * exp(-9.4 * 10 ** 4 / T))
-
-
-
-
-def psi_HI(T):
-    """
-    Collisional excitation cooling [eV.cm3.s-1]
-    """
-    return eV_per_erg * 7.5 * 10 ** -19 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.18 * 10 ** 5 / T)
-def psi_HeII(T):
-    return eV_per_erg * 5.54 * 10 ** -17 * T ** -0.397 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-4.73 * 10 ** 5 / T)
-def psi_HeI_nHeI(T, ne_, n_HeII_):
-    """
-    Equal to Psi * n_HeI. Hence unit is  [eV.s-1]
-    """
-    return eV_per_erg * 9.1 * 10 ** -27 * T ** -0.1687 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.31 * 10 ** 4 / T) * ne_ * n_HeII_
-
-
-def theta_ff(T):
-    """
-    Free-free cooling coefficient [eV.cm3.s-1]
-    """
-    return eV_per_erg * 1.3 * 1.42 * 10 ** -27 * (T) ** 0.5
-
-
-def zeta_HeII(T):
-    """
-    Dielectronic recombination[cm3.s-1]
-    """
-    return 1.9 * 10 ** -3 * T ** -1.5 * exp(-4.7 * 10 ** 5 / T) * (1 + 0.3 * exp(-9.4 * 10 ** 4 / T))
 
 
 def sigma_HI(E):
@@ -181,33 +87,49 @@ def sigma_HI(E):
     sigma = sigma_0 * F
     return sigma
 
-def sigma_HeI(E):
-    sigma_0 = 9.492 * 10 ** 2 * 10 ** -18
-    E_01 = 1.361 * 10 ** 1
-    y_a = 1.469
-    P = 3.188
-    y_w = 2.039
-    y_0 = 4.434 * 10 ** -1
-    y_1 = 2.136
-    x = E / E_01 - y_0
-    y = sqrt(x ** 2 + y_1 ** 2)
-    F = ((x - 1) ** 2 + y_w ** 2) * y ** (0.5 * P - 5.5) * (1 + sqrt(y / y_a)) ** -P
-    sigma = sigma_0 * F
-    return sigma
 
-def sigma_HeII(E):
-    sigma_0 = 1.369 * 10 ** 4 * 10 ** -18  # cm**2
-    E_01 = 1.72
-    y_a = 3.288 * 10 ** 1
-    P = 2.963
-    y_w = 0
-    y_0 = 0
-    y_1 = 0
-    x = E / E_01 - y_0
-    y = sqrt(x ** 2 + y_1 ** 2)
-    F = ((x - 1) ** 2 + y_w ** 2) * y ** (0.5 * P - 5.5) * (1 + sqrt(y / y_a)) ** -P
-    sigma = sigma_0 * F
-    return sigma
+# Ionization and Recombination coefficients. Expressions taken from Fukugita and Kawasaki 1994.
+def alpha_HII(T):
+    """
+    Recombination coefficient for Hydrogen :  [cm3.s-1]
+    Input : temperature in K
+    """
+    return 2.6 * 10 ** -13 * (T / 10 ** 4) ** -0.85
+
+
+def beta_HI(T):
+    """
+    Collisional ionization coefficient for Hydrogen :  [cm3.s-1]
+    Input : temperature in K
+    """
+    return 5.85 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.578 * 10 ** 5 / T)
+
+
+def xi_HI(T):
+    """
+    Collisional ionization cooling (see Fukugita & Kawazaki 1994) [eV.cm3.s-1]
+    """
+    return eV_per_erg * 1.27 * 10 ** -21 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.58 * 10 ** 5 / T)
+
+def eta_HII(T):
+    """
+    Recombination cooling [eV.cm3.s-1]
+    """
+    return eV_per_erg * 6.5 * 10 ** -27 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / 10 ** 6) ** 0.7) ** -1
+
+
+def psi_HI(T):
+    """
+    Collisional excitation cooling [eV.cm3.s-1]
+    """
+    return eV_per_erg * 7.5 * 10 ** -19 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.18 * 10 ** 5 / T)
+
+
+def theta_ff(T):
+    """
+    Free-free cooling coefficient [eV.cm3.s-1]
+    """
+    return eV_per_erg * 1.3 * 1.42 * 10 ** -27 * (T) ** 0.5
 
 
 def f_H(x_ion):
@@ -218,11 +140,6 @@ def f_H(x_ion):
     if isnan(x_ion):
         x_ion = 1
     return nan_to_num(0.3908 * (1 - max(min(x_ion,1),0) ** 0.4092) ** 1.7592)
-
-def f_He(x_ion):
-    if isnan(x_ion):
-        x_ion = 1
-    return nan_to_num(0.0554 * (1 - max(min(x_ion,1),0)  ** 0.4614) ** 1.6660)
 
 def f_Heat(xion):
     """
@@ -235,6 +152,34 @@ def f_Heat(xion):
     else :
         output = 0.15
     return output
+
+
+def gamma_HI(n_HIIx, n_HI ,Tx, I1_HI, I2_HI, gamma_2c):
+    """
+    Calculate gamma_HI given the densities and the temperature
+    Parameters
+    ----------
+    n_HIIx : float
+     Ionized hydrogen density in cm**-3.
+    n_HeIx : float
+     Neutral helium density in cm**-3.
+    n_HeIIx : float
+     Single ionized helium density in cm**-3.
+    n_HeIIIx : float
+     Double ionized helium density in cm**-3.
+    Tx : float
+     Temperature of the gas in K.
+    n_HI, n_HeI : float
+     Neutral H and He densities
+    Returns
+    -------
+    float
+     Gamma_HI for the radiative transfer equation. [s-1]
+    """
+    n_e = n_HIIx
+    X_HII = n_HIIx / (n_HIIx + n_HI)
+    return gamma_2c + beta_HI(Tx) * n_e + I1_HI + f_H(X_HII) * I2_HI
+
 
 
 
@@ -272,7 +217,8 @@ def find_Ifront(x, r, show=False):
     return front  #r[m]
 
 
-def generate_table(param, z, n_HI, n_HeI, n_HeII):
+
+def generate_table(param, z, n_HI):
     '''
     Generate the interpolation tables for the integrals for the radiative transfer equations.
 
@@ -295,7 +241,7 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
         Dictionary containing two sub-dictionaries: The first one containing the function variables and the second one
         containing the 12 tables for the integrals
     '''
-    E_0_   = param.source.E_0
+    E_0_ = param.source.E_0
     E_upp_ = param.source.E_upp  # [eV]
 
     if param.table.import_table:
@@ -324,17 +270,18 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
                 return Ag * miniqsos
 
             # Spectral energy function received after passing through column density n_HI0
-            def N(E, n_HI0, n_HeI0, n_HeII0):
+            def N(E, n_HI0):
                 """
                 input : E in eV, n_HIO in Mpc.cm**-3 (column density, see in generate table how column density are initialized)
                 output : Divide it by 4*pi*r**2 ,and you get a flux [eV.s-1.r-2.eV-1], r meaning the unit of r
                 """
-                int = cm_per_Mpc * (n_HI0 * sigma_HI(E)+ n_HeI0 * sigma_HeI(E) + n_HeII0 * sigma_HeII(E))
+                int = cm_per_Mpc * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I(E)
 
             E_range_HI_ = np.logspace(np.log10(13.6), np.log10(E_upp_), 1000, base=10)
             Ngam_dot = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
-            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [',param.source.E_0,',', param.source.E_upp, '] eV')
+            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [', param.source.E_0,
+                  ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies'):
             f_c2ray = param.source.fc2ray
@@ -344,15 +291,17 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
             print('Galaxy model chosen. M_halo is ', M)
 
             T_Galaxy = param.source.T_gal
-            nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000,base=10)
+            nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000,
+                                   base=10)
             norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
 
             I__ = Ngam_dot / norm__
-            print('BB spectrum normalized to ', Ngam_dot, ' ionizing photons per s, in the energy range [',param.source.E_0, ' ', param.source.E_upp, '] eV')
+            print('BB spectrum normalized to ', Ngam_dot, ' ionizing photons per s, in the energy range [',
+                  param.source.E_0, ' ', param.source.E_upp, '] eV')
 
-            def N(E, n_HI0, n_HeI0, n_HeII0):
+            def N(E, n_HI0):
                 nu_ = Hz_per_eV * E
-                int = cm_per_Mpc * (n_HI0 * sigma_HI(E)+ n_HeI0 * sigma_HeI(E) + n_HeII0 * sigma_HeII(E))
+                int = cm_per_Mpc * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__
 
             print('source emits', Ngam_dot, 'ionizing photons per seconds.')
@@ -361,60 +310,28 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
             print('Source Type not available. Should be Galaxies or Miniqsos')
             exit()
 
-        IHI_1 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
-        IHI_2 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
-        IHI_3 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
+        IHI_1 = zeros((n_HI.size))
+        IHI_2 = zeros((n_HI.size))
 
-        IHeI_1 = zeros((n_HI.size, n_HeI.size,n_HeII.size))  ## three integrals that goes into Gamma_HeI
-        IHeI_2 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
-        IHeI_3 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
+        IT_HI_1 = zeros((n_HI.size))
+        IT_2a = zeros((n_HI.size))
+        IT_2b = zeros((n_HI.size))
 
-        IHeII = zeros((n_HI.size, n_HeI.size,n_HeII.size))   ## single integral that goes into Gamma_HeII
-
-        IT_HI_1   = zeros((n_HI.size, n_HeI.size,n_HeII.size))
-        IT_HeI_1  = zeros((n_HI.size, n_HeI.size,n_HeII.size))## three integral that goes into Temperature equation
-        IT_HeII_1 = zeros((n_HI.size, n_HeI.size,n_HeII.size))
-
-        IT_2a = zeros((n_HI.size, n_HeI.size,n_HeII.size)) ## two part of the integral that goes into Temperature equation, for the Thomson heating term
-        IT_2b = zeros((n_HI.size, n_HeI.size,n_HeII.size)) ##  This one has to be multiplied later by T, that's why we separate the integrals (see Temperature equation)
-
-        E_range_HI   = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10)
-        E_range_HeI  = np.logspace(np.log10(E_HeI), np.log10(E_upp_), 1000, base=10)
-        E_range_HeII = np.logspace(np.log10(E_HeII), np.log10(E_upp_), 1000, base=10)
+        E_range_HI = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10)
         E_range_0    = np.logspace(np.log10(E_0_), np.log10(E_upp_), 1000, base=10)
 
-
-        for k2 in tqdm(range(0, n_HI.size, 1)):
-            for k3 in range(0, n_HeI.size, 1):
-
-                IHI_1[k2, k3, :]     = np.trapz( 1 / E_range_HI * N(E_range_HI,n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HI)
-                IHI_2[k2, k3, :]     = np.trapz( (E_range_HI - E_HI) / (E_HI * E_range_HI) * N(E_range_HI, n_HI[k2], n_HeI[k3],n_HeII[:, None]),E_range_HI)
-                IHI_3[k2, k3, :]     = np.trapz( (E_range_HeI - E_HeI) / (E_range_HeI * E_HI) * N(E_range_HeI, n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HeI)
-
-                IHeI_1[k2, k3, :]    = np.trapz( 1 / E_range_HeI * N(E_range_HeI, n_HI[k2], n_HeI[k3], n_HeII[:, None]), E_range_HeI)
-                IHeI_2[k2, k3, :]    = IHI_3[k2, k3, :] * E_HI / E_HeI
-                IHeI_3[k2, k3, :]    = np.trapz((E_range_HeI - E_HI) / (E_range_HeI * E_HeI) * N(E_range_HeI, n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HeI)
-
-                IHeII[k2, k3, :]     = np.trapz(1 / E_range_HeII * N(E_range_HeII, n_HI[k2], n_HeI[k3], n_HeII[:, None]),E_range_HeII)
-
-                IT_HI_1[k2, k3, :]   = np.trapz( (E_range_HI - E_HI) / E_range_HI * N(E_range_HI, n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HI)
-                IT_HeI_1[k2, k3, :]  = np.trapz( (E_range_HeI - E_HeI) / E_range_HeI * N(E_range_HeI, n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HeI)
-                IT_HeII_1[k2, k3,:]  = np.trapz( (E_range_HeII - E_HeII) / E_range_HeII * N(E_range_HeII, n_HI[k2], n_HeI[k3],n_HeII[:, None]), E_range_HeII)
-
-                IT_2a[k2, k3, :]     = np.trapz(N(E_range_0, n_HI[k2], n_HeI[k3], n_HeII[:, None]) * E_range_0, E_range_0)
-                IT_2b[k2, k3, :]     = np.trapz(N(E_range_0, n_HI[k2], n_HeI[k3], n_HeII[:, None]) * (-4 * kb_eV_per_K), E_range_0)
-
-
+        IHI_1[:] = np.trapz(1 / E_range_HI * N(E_range_HI, n_HI[:, None]), E_range_HI)  # sigma_HI(E_range_HI)
+        IHI_2[:] = np.trapz((E_range_HI - E_HI) / (E_HI * E_range_HI) * N(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_HI_1[:] = np.trapz((E_range_HI - E_HI) / E_range_HI * N(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_2a[:] = np.trapz(N(E_range_0, n_HI[:, None]) * E_range_0, E_range_0)
+        IT_2b[:] = np.trapz(N(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0)
 
         print('...done')
 
-        Gamma_info = {'HI_1': IHI_1, 'HI_2': IHI_2, 'HI_3': IHI_3,
-                      'HeI_1': IHeI_1, 'HeI_2': IHeI_2, 'HeI_3': IHeI_3, 'HeII': IHeII,
-                      'T_HI_1': IT_HI_1, 'T_HeI_1': IT_HeI_1, 'T_HeII_1': IT_HeII_1,
-                      'T_2a': IT_2a, 'T_2b': IT_2b}
+        Gamma_info = {'HI_1': IHI_1, 'HI_2': IHI_2,  'T_HI_1': IT_HI_1,'T_2a': IT_2a, 'T_2b': IT_2b}
 
-        input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot' : Ngam_dot,
-                      'n_HI': n_HI, 'n_HeI': n_HeI,'n_HeII': n_HeII, 'E_0': param.source.E_0,
+        input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot,
+                      'n_HI': n_HI,  'E_0': param.source.E_0,
                       'E_upp': param.source.E_upp}
 
         Gamma_input_info = {'Gamma': Gamma_info, 'input': input_info}
@@ -430,84 +347,51 @@ def generate_table(param, z, n_HI, n_HeI, n_HeII):
     return Gamma_input_info
 
 
-
-def gamma_HI(n_HIIx,n_HeIIx,n_HeIIIx, n_HI, n_HeI ,Tx, I1_HI, I2_HI, I3_HI, z, C, gamma_2c):
+def tau_refinement(r_grid, n_HII_grid, refin_needed):
     """
-    Calculate gamma_HI given the densities and the temperature
+    Refine the radial grid and the HII grid array in order to get Delta_Tau < 0.1 for cells below (inside) the ionization front.
+    This is to match the convergence criterion from C2ray Fig.1 (G. Mellema 2005)
+
+
     Parameters
     ----------
-    n_HIIx : float
-     Ionized hydrogen density in cm**-3.
-    n_HeIx : float
-     Neutral helium density in cm**-3.
-    n_HeIIx : float
-     Single ionized helium density in cm**-3.
-    n_HeIIIx : float
-     Double ionized helium density in cm**-3.
-    Tx : float
-     Temperature of the gas in K.
-    n_HI, n_HeI : float
-     Neutral H and He densities
-    Returns
-    -------
-    float
-     Gamma_HI for the radiative transfer equation. [s-1]
+    refin_needed :  array-like containing the indices where r_grid has to be refined.
+
     """
-    n_e = n_HIIx + n_HeIIx + 2 * n_HeIIIx
+    lower = np.min(refin_needed) - 1
+    upper = np.max(refin_needed)
 
-    if n_HI == 0 or n_HeI == 0:
-        if n_HI == 0 and n_HeI == 0:
-            factor = 1
-        else:
-            factor = 0
-    else:
-        factor = abs(n_HeI / n_HI)
+    N_prev = upper - lower
+    N_new = N_prev * 2  # 3
 
-    X_HII = n_HIIx / (n_HIIx + n_HI)
-    return gamma_2c + beta_HI(Tx) * n_e + I1_HI + f_H(X_HII) * I2_HI + f_H(X_HII) * factor * I3_HI
+    r1 = r_grid[0:lower]
+    r2 = logspace(log10(r_grid[lower]), log10(r_grid[upper]), N_new + 1, base=10)
+    r3 = r_grid[upper + 1:]
+    r_new = concatenate((r1, r2, r3))
 
+    new_NHII = concatenate((n_HII_grid[0:lower], np.repeat(n_HII_grid[lower:upper], 2), n_HII_grid[upper:]))
 
-def gamma_HeI(n_HIIx, n_HeIIx, n_HeIIIx, n_HI, n_HeI , I1_HeI, I2_HeI, I3_HeI, z, C):
-    """
-    Calculate gamma_HeI given the densities and the temperature
-    Parameters
-    ----------
-    n_HIIx : float
-     Ionized hydrogen density in cm**-3.
-    n_HeIx : float
-     Neutral helium density in cm**-3.
-    n_HeIIx : float
-     Single ionized helium density in cm**-3.
-    n_HeIIIx : float
-     Double ionized helium density in cm**-3.
-    Returns
-    -------
-    float
-     Gamma_HeI for the radiative transfer equation.
-    """
-    if n_HI == 0 or n_HeI == 0:
-        if n_HI == 0 and n_HeI == 0:
-            factor = 1
-        else:
-            factor = 0
-    else:
-        factor = abs(n_HeI / n_HI)
-
-    return I1_HeI + f_He(n_HIIx/(n_HIIx + n_HI)) * I2_HeI + f_He(n_HIIx/(n_HIIx + n_HI)) * factor * I3_HeI
-
-def gamma_HeII(I1_HeII):
-    """
-    Calculate gamma_HeII given the densities and the temperature
-    """
-    return I1_HeII
+    # print(r_new.shape == new_NHII.shape)
+    return r_new, new_NHII
 
 
+def adaptive_mesh(r, x, lowtol, uptol, refinement):
+    # logspace adaptive grid
+    lower = argmin(abs(x - lowtol))
+    upper = argmin(abs(x - uptol))
+    N_prev = r[lower:upper].size
+    N_new = N_prev * refinement  # 3
+    r1 = r[0:lower]
+    r2 = logspace(log10(r[lower]), log10(r[upper]), N_new, base=10)
+    r3 = r[upper + 1:]
+    r_new = concatenate((r1, r2, r3))
+    # print('check:',N_prev,N_new,r.size,r1.size,r2.size,r3.size)
+    # print('new: ',r_new,'old: ', r)
+    # print('lower, upper:',lower,upper)
+    return r_new
 
 
-
-
-
-class Source:
+class Source_Only_H:
     """
     Source which ionizes the surrounding H and He gas along a radial direction.
 
@@ -526,7 +410,7 @@ class Source:
     r_start : float, optional
      Starting point of the radial Mpc-grid in logspace, default value is log10(0.0001).
     r_end : float, optional
-     Ending point of the radial Mpc-grid in logspace, default value is log10(3). I
+     Ending point of the radial Mpc-grid in logspace, default value is log10(3).
     dn : number of initial subdivisions of the radial grid. Can increase significantly computing time.
     LE : bool, optional
      Decide whether to include UV ionizing photons, default is True (include).
@@ -559,10 +443,10 @@ class Source:
         self.lifetime = param.source.lifetime * 1e6 * sec_per_year * u.s  # *10**6*365*24*60*60*u.s   #Myr, lifetime of the source
         self.alpha = param.source.alpha
 
-        self.M_halo  = param.source.M_halo
-        self.R_halo = R_halo(self.M_halo,self.z,param)  #physical halo size
+        self.M_halo = param.source.M_halo
+        self.R_halo = R_halo(self.M_halo, self.z, param)  # physical halo size
         self.r_start = self.R_halo
-        print('R_halo is :',self.R_halo,'Mpc')
+        print('R_halo is :', self.R_halo, 'Mpc')
         self.r_end = param.solver.r_end  # maximal distance from source
         self.dn = param.solver.dn
         self.Nt = param.solver.Nt
@@ -572,10 +456,7 @@ class Source:
 
         self.E_0 = param.source.E_0
         self.E_upp = param.source.E_upp  # In eV
-        self.r_grid = linspace( self.r_start, self.r_end, self.dn )
-
-
-
+        self.r_grid = linspace(self.r_start, self.r_end, self.dn)
 
     def create_table(self, param):
         """
@@ -589,7 +470,7 @@ class Source:
         """
 
         dn_table = self.dn_table
-        r_grid  = self.r_grid
+        r_grid = self.r_grid
 
 
         # Profiles
@@ -601,33 +482,26 @@ class Source:
         # baryonic density profile in [cm**-3]
         norm_profile = profile(halo_bias,cosmo_corr,param, self.z) * param.cosmo.Ob / param.cosmo.Om * M_sun * param.cosmo.h **2 / (cm_per_Mpc)**3 / m_H
 
-        self.nHI0_profile  = norm_profile * X_H_BBN  # profiles at z = 0
-        self.nHeI0_profile = norm_profile * X_He_BBN # follows r_grid
+        self.nHI0_profile  = norm_profile * 1   # profiles at z = 0
 
-        nH_column  = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3
-        nHe_column = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3  # maximum column densities
+        nH_column  = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3  ###
 
         #print('density profile : ',  self.nHI0_profile  * (1+self.z)**3)
         print('n_H_column max : ', nH_column ,'cm**-3.')
 
         # Column densities in cm**-2
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table,base=10)
-        n_HeI  = logspace(log10(nHe_column * 1e-6),  log10(1.05 * nHe_column), dn_table,base=10)
-        n_HeII = logspace(log10(nHe_column * 1e-6),  log10(1.05 * nHe_column), dn_table,base=10)
 
         n_HI  = np.concatenate((np.array([0]), n_HI))
-        n_HeI = np.concatenate((np.array([0]), n_HeI))
-        n_HeII= np.concatenate((np.array([0]), n_HeII))
 
-        Gamma_grid_info = generate_table(param, self.z, n_HI, n_HeI,n_HeII)
+        Gamma_grid_info = generate_table(param, self.z, n_HI)
         self.Gamma_grid_info = Gamma_grid_info
-
 
     def initialise_grid_param(self):
         """
         Initialize the grid parameters for the solver.
 
-        The grid parameters and the initial conditions are saved in a dictionary. A initial time step size and an initial
+        The grid parameters and the initial conditions are saved in a dictionary. A initial time step size and a initial
          radial grid is chosen. T_gamma is the CMB temperature for the given redshift and gamma_2c is used to calculate
          the contribution from the background photons.
         """
@@ -635,7 +509,8 @@ class Source:
         grid_param = {'M': self.M, 'z': self.z}
 
         T_gamma = 2.725 * (1 + grid_param['z'])  # [K]
-        gamma_2c = alpha_HII(T_gamma) * 1e-6 * (m_e * kb * T_gamma / (2 * pi)) ** (3 / 2) / h__ ** 3 * exp(-3.4 / (T_gamma * kb_eV_per_K))  ## the 1e-6 factor is to go from cm**3 to m**3 for alpha_HII
+        gamma_2c = alpha_HII(T_gamma) * 1e-6 * (m_e * kb * T_gamma / (2 * pi)) ** (3 / 2) / h__ ** 3 * exp(
+            -3.4 / (T_gamma * kb_eV_per_K))  ## the 1e-6 factor is to go from cm**3 to m**3 for alpha_HII
         C = self.C
 
         grid_param['T_gamma'] = T_gamma
@@ -660,8 +535,6 @@ class Source:
 
         self.grid_param = grid_param
 
-
-
     def solve(self, param):
         """
         Solves the radiative transfer equation for the given source and the parameters.
@@ -681,53 +554,42 @@ class Source:
         This process is repeated until the desired accuracy is reached.
         """
 
-
+        print('Solving the radiative equations...')
         t_start_solver = datetime.datetime.now()
         self.initialise_grid_param()
         z = self.grid_param['z']
-        gamma_2c = self.grid_param['gamma_2c']
         T_gamma = self.grid_param['T_gamma']
+        gamma_2c = self.grid_param['gamma_2c']
         C = self.grid_param['C']
 
         dt_init = self.grid_param['dt_init']
 
-
+        # r_grid0 = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
+        # r_grid  = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
         r_grid = self.r_grid
-        n_HII_grid   = zeros_like(self.r_grid)
-        n_HeII_grid  = zeros_like(self.r_grid)
-        n_HeIII_grid = zeros_like(self.r_grid)
+
+        n_HII_grid = zeros_like(r_grid)
 
         self.create_table(param)
 
-        n_HI   = self.Gamma_grid_info['input']['n_HI']
-        n_HeI  = self.Gamma_grid_info['input']['n_HeI']
-        n_HeII = self.Gamma_grid_info['input']['n_HeII']
-
-        points = (n_HI, n_HeI, n_HeII)
+        n_HI = self.Gamma_grid_info['input']['n_HI']
 
         if self.M != self.Gamma_grid_info['input']['M']:
             print('correcting for different Qso Mass than table.')
 
         dr_max = r_grid[-1] - r_grid[-2]
-
-        print('dtau is ',dr_max * sigma_HI(13.6) * max(self.nHI0_profile) * cm_per_Mpc + dr_max * sigma_HeI(E_HeI) * max(self.nHI0_profile)  * cm_per_Mpc )
-        if dr_max * sigma_HI(13.6) * max(self.nHI0_profile) * cm_per_Mpc + dr_max * sigma_HeI(E_HeI) * max(self.nHI0_profile)  * cm_per_Mpc> 1:
-            print('Need more spatial stepping. dtau > 1. Continue at your own risks.')
-
-        print('Solving the radiative equations...')
+        
+        if dr_max * sigma_HI(13.6) * n_H_0 * cm_per_Mpc > 0.1:
+            print('needs more spatial stepping. taumax is ', dr_max * sigma_HI(13.6) * n_H_0 * cm_per_Mpc)
 
         while True:
 
             time_grid = []
             Ion_front_grid = []
 
-            n_HII0   = copy(n_HII_grid[:])
-            n_HeII0  = copy(n_HeII_grid[:])
-            n_HeIII0 = copy(n_HeIII_grid[:])
+            n_HII0 = copy(n_HII_grid[:])
 
-            n_HII_grid   = zeros_like(r_grid)
-            n_HeII_grid  = zeros_like(r_grid)
-            n_HeIII_grid = zeros_like(r_grid)
+            n_HII_grid = zeros_like(r_grid)
 
             T_grid = zeros_like(r_grid)
             T_grid += T_gamma * (1 + z) ** 1 / (1 + 250)
@@ -738,12 +600,12 @@ class Source:
 
             Gamma_info = self.Gamma_grid_info['Gamma']
 
-            JHI_1, JHI_2, JHI_3 = Gamma_info['HI_1'], Gamma_info['HI_2'], Gamma_info['HI_3']
-            JHeI_1, JHeI_2, JHeI_3, JHeII = Gamma_info['HeI_1'], Gamma_info['HeI_2'], Gamma_info['HeI_3'], Gamma_info['HeII']
-            JT_HI_1, JT_HeI_1, JT_HeII_1 = Gamma_info['T_HI_1'], Gamma_info['T_HeI_1'], Gamma_info['T_HeII_1']
+            JHI_1, JHI_2 = Gamma_info['HI_1'], Gamma_info['HI_2']
+            JT_HI_1       = Gamma_info['T_HI_1']
             JT_2a, JT_2b = Gamma_info['T_2a'], Gamma_info['T_2b']
 
-            print('Solver will solve for', param.solver.evol, ' Myr, turning off the source after',param.source.lifetime, 'Myr')
+            print('Solver will solve for', param.solver.evol, ' Myr, turning off the source after',
+                  param.source.lifetime, 'Myr')
 
 
             while l * dt_init <= self.grid_param['t_evol']:
@@ -757,48 +619,32 @@ class Source:
                 func = lambda z: pl.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, z)
 
+                nHI0_profile_z = self.nHI0_profile * (1 + zstep_l) ** 3
+
                 # Initialize the values to evaluate the integrals
-                K_HI   = 0
-                K_HeI  = 0
-                K_HeII = 0
-
-                nHI0_profile_z  = self.nHI0_profile  * (1+zstep_l) ** 3   #n_H(zstep_l,self.C) * r_grid ** 0
-                nHeI0_profile_z = self.nHeI0_profile * (1+zstep_l) ** 3  #n_He(zstep_l,self.C) * r_grid ** 0   #
-
+                K_HI = 0
 
                 for k in (arange(0, r_grid.size - 1, 1)):
-
-                    n_H_z_r  = (nHI0_profile_z[k]+nHI0_profile_z[k+1])/2
-                    n_He_z_r = (nHeI0_profile_z[k]+nHeI0_profile_z[k+1])/2   ### Helium and Hydrogen densities at z=z_step and r = rgrid[k]  #
+                    n_H_z_r = (nHI0_profile_z[k] + nHI0_profile_z[k + 1]) / 2
 
                     dr_current = r_grid[k + 1] - r_grid[k]
-                    n_HI00  = n_H_z_r  - n_HII_grid[k]
-                    n_HeI00 = n_He_z_r - n_HeII_grid[k] - n_HeIII_grid[k] #n_He(zstep_l, C)
-
+                    n_HI00 = n_H_z_r - n_HII_grid[k]
 
                     if n_HI00 < 0:
                         n_HI00 = 0
+
 
                     if n_HI00 > n_H_z_r:
                         n_HI00 = n_H_z_r
                         print('wtf')
 
-                    if n_HeI00 < 0:
-                        n_HeI00 = 0
-                    if n_HeI00 > n_He_z_r:
-                        n_HeI00 = n_He_z_r
+                    K_HI += dr_current * abs(nan_to_num(n_HI00))
+                    K_HI_previous = K_HI - dr_current * abs(nan_to_num(n_HI00))
 
-                    K_HI   += dr_current * abs(nan_to_num(n_HI00))
-                    K_HeI  += dr_current * abs(nan_to_num(n_HeI00))
-                    K_HeII += dr_current * abs(nan_to_num(n_HeII_grid[k]))
-
-                    K_HI_previous   = K_HI - dr_current * abs(nan_to_num(n_HI00))
-                    K_HeI_previous  = K_HeI - dr_current * abs(nan_to_num(n_HeI00))
-                    K_HeII_previous = K_HeII - dr_current * abs(nan_to_num(n_HeII_grid[k]))
 
                     if self.lifetime is not None and l * self.grid_param['dt_init'].value > self.lifetime.value:  ## after lifetime, turn off the source ! Set everything to zero
                         print('source is dead')
-                        I1_HI, I2_HI, I3_HI, I1_HeI,  I2_HeI, I3_HeI, I1_HeII,I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                        I1_HI = 0
 
                     else:
                         r2 = r_grid[k] ** 2
@@ -811,36 +657,19 @@ class Source:
                         if K_HI < np.min(n_HI) or K_HI < n_HI[0] or K_HI > np.max(n_HI):
                             print('Too narrow HI cumulative density range in tables init.')
 
-
-                        if n_HI00 == 0 :
-                            I1_HI, I2_HI, I3_HeI, I1_T_HI = 0,0,0,0
+                        if n_HI00 == 0:
+                            I1_HI, I2_HI = 0, 0
                         else :
-                            I1_HI = (interpolate.interpn(points, JHI_1, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHI_1, (K_HI, K_HeI_previous,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                            I2_HI = (interpolate.interpn(points, JHI_2, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHI_2, (K_HI, K_HeI_previous,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                            I3_HeI= (interpolate.interpn(points, JHeI_3, (K_HI_previous, K_HeI_previous, K_HeII_previous), method='linear') - interpolate.interpn(points, JHeI_3, (K_HI, K_HeI_previous, K_HeII_previous),method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                            I1_T_HI   = (interpolate.interpn(points, JT_HI_1  , (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JT_HI_1  , (K_HI, K_HeI_previous,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00  / dr_current
+                            I1_HI = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
+                            I2_HI = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
+                            I1_T_HI = (np.interp(K_HI_previous, n_HI, JT_HI_1) - np.interp(K_HI, n_HI, JT_HI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
 
-                        if n_HeI00 == 0 :
-                            I3_HI,I1_HeI,I2_HeI,I1_T_HeI = 0,0,0,0
-                        else:
-                            I3_HI = (interpolate.interpn(points, JHI_3, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHI_3, (K_HI_previous, K_HeI,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeI00 / dr_current
-                            I1_HeI = (interpolate.interpn(points, JHeI_1, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHeI_1, (K_HI_previous, K_HeI,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeI00 / dr_current
-                            I2_HeI = (interpolate.interpn(points, JHeI_2, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHeI_2, (K_HI_previous, K_HeI,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeI00 / dr_current
-                            I1_T_HeI  = (interpolate.interpn(points, JT_HeI_1 , (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JT_HeI_1 , (K_HI_previous, K_HeI,K_HeII_previous), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeI00 / dr_current
+                        I2_Ta = np.interp(K_HI_previous, n_HI, JT_2a) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
+                        I2_Tb =  np.interp(K_HI_previous, n_HI, JT_2b) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
 
-                        if n_HeII_grid[k] == 0:
-                            I1_HeII,I1_T_HeII = 0,0
+                        I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb ))
 
-                        else:
-                            I1_HeII = (interpolate.interpn(points, JHeII, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JHeII, (K_HI_previous, K_HeI_previous,K_HeII), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeII_grid[k] / dr_current
-                            I1_T_HeII = (interpolate.interpn(points, JT_HeII_1, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear') - interpolate.interpn(points, JT_HeII_1, (K_HI_previous, K_HeI_previous,K_HeII), method='linear')) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HeII_grid[k] / dr_current
-
-                        I2_Ta = interpolate.interpn(points, JT_2a, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear')  * m_corr / r2 / cm_per_Mpc**2 / 4 / pi
-                        I2_Tb = interpolate.interpn(points, JT_2b, (K_HI_previous, K_HeI_previous,K_HeII_previous), method='linear')  * m_corr / r2 / cm_per_Mpc**2 / 4 / pi
-
-                        I1_HI, I2_HI, I3_HI, I1_HeI,  I2_HeI, I3_HeI, I1_HeII,I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I3_HI, I1_HeI,  I2_HeI, I3_HeI, I1_HeII,I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb))
-
-
+                    #n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(1e4) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
 
 
                     def rhs(t, n):
@@ -862,8 +691,8 @@ class Source:
                          array_like
                           The RHS of the radiative transfer equations.
                          """
-                        if isnan(n[0]) or isnan(n[1]) or isnan(n[2]) or isnan(n[3]):
-                            #print('n is :',n)
+                        if isnan(n[0]) or isnan(n[1]) :
+                            # print('n is :',n)
                             print('Warning: calculations contain nan values, check the rhs')
 
                         n_HIIx = n[0]
@@ -880,65 +709,28 @@ class Source:
                             n_HIx = 0
 
                         if n_HIIx < 0:
-                            #print('n_HII becomes negative. Be careful.')
+                            # print('n_HII becomes negative. Be careful.')
                             n_HIIx = 0
                             n_HIx = n_H_z_r
 
-                        n_HeIIx = n[1]
-                        n_HeIIIx = n[2]
-                        n_HeIx = n_He_z_r - n[1] - n[2]
-
-                        if isnan(n_HeIIIx):
-                            n_HeIIIx = n_He_z_r
-                            n_HeIIx = 0
-                            n_HeIx = 0
-
-                        if n_HeII_grid[k] > n_He_z_r:
-                            # if n_HeII_grid > 1.01 * n_He(zstep_l, C):
-                            #    print('n_HeII becomes larger than mean n_He. Be careful.')
-                            n_HeII_grid[k] = n_He_z_r
-                            n_HeIII_grid[k] = 0
-
-                        if n_HeIIIx > n_He_z_r:
-                            # if n_HeIIIx > 1.01 * n_He(zstep_l, C):
-                            #    print('n_HeIII becomes larger than mean n_He. Be careful.')
-                            n_HeIIIx = n_He_z_r
-                            n_HeIIx = 0
-                            n_HeIx = 0
-
-                        if n_HeIIIx < 0:
-                            # print('n_HeIII becomes negative. Be careful.')
-                            n_HeIIIx = 0
-                            n_HeIIx = 0
-                            n_HeIx = n_He_z_r
-                        #
-                        Tx = n[3]
+                        Tx = n[1]
 
                         if isnan(Tx):
                             print('Tx is nan')
                         if (Tx < T_gamma * (1 + zstep_l) ** 1 / (1 + 250)):
                             Tx = T_gamma * (1 + zstep_l) ** 1 / (1 + 250)
 
-                        n_ee = n_HIIx + n_HeIIx + 2 * n_HeIIIx
+                        n_ee = n_HIIx
 
-                        mu = (n_H_z_r + 4 * n_He_z_r) / (n_H_z_r + n_He_z_r + n_ee)
-                        n_B = n_H_z_r + n_He_z_r + n_ee
+                        mu = (n_H_z_r ) / (n_H_z_r + n_ee)
+                        n_B = n_H_z_r  + n_ee
 
                         ##coeff for Temp eq
                         A1_HI = xi_HI(Tx) * n_HIx * n_ee
-                        A1_HeI = xi_HeI(Tx) * n_HeIx * n_ee
-                        A1_HeII = xi_HeII(Tx) * n_HeIIx * n_ee
                         A2_HII = eta_HII(Tx) * n_HIIx * n_ee
-                        A2_HeII = eta_HeII(Tx) * n_HeIIx * n_ee
-                        A2_HeIII = eta_HeIII(Tx) * n_HeIIIx * n_ee
-
-                        A3 = omega_HeII(Tx) * n_ee * n_HeIIIx
-
                         A4_HI = psi_HI(Tx) * n_HIx * n_ee
-                        A4_HeI = psi_HeI_nHeI(Tx, n_ee, n_HeIIx) * n_ee
-                        A4_HeII = psi_HeII(Tx) * n_HeIIx * n_ee
 
-                        A5 = theta_ff(Tx) * (n_HIIx + n_HeIIx + 4 * n_HeIIIx) * n_ee
+                        A5 = theta_ff(Tx) * (n_HIIx) * n_ee
 
                         H = pl.H(zstep_l)
                         H = H.to(u.s ** -1).value
@@ -947,58 +739,26 @@ class Source:
 
                         # A,B,C for the ionization equation. D for the Temp eq.
 
-                        A = gamma_HI(n_HIIx, n_HeIIx, n_HeIIIx,n_HIx,n_HeIx, Tx, I1_HI, I2_HI, I3_HI, zstep_l, C,
-                                     gamma_2c) * n_HIx - alpha_HII(Tx) * n_HIIx * n_ee
+                        A = gamma_HI(n_HIIx, n_HIx, Tx, I1_HI, I2_HI,gamma_2c) * n_HIx - alpha_HII(Tx) * n_HIIx * n_ee
 
-                        B = gamma_HeI(n_HIIx, n_HeIIx, n_HeIIIx, n_HIx,n_HeIx, I1_HeI, I2_HeI, I3_HeI, zstep_l,
-                                      C) * n_HeIx + beta_HeI(Tx) * n_ee * n_HeIx - beta_HeII(
-                            Tx) * n_ee * n_HeIIx - alpha_HeII(Tx) * n_ee * n_HeIIx + alpha_HeIII(
-                            Tx) * n_ee * n_HeIIIx - zeta_HeII(Tx) * n_ee * n_HeIIx
-                        Cc = gamma_HeII(I1_HeII) * n_HeIIx + beta_HeII(Tx) * n_ee * n_HeIIx - alpha_HeIII(
-                            Tx) * n_ee * n_HeIIIx
+                        D = (2 / 3) * mu / (kb_eV_per_K * n_B) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
 
-                        D = (2 / 3) * mu / (kb_eV_per_K * n_B) * (f_Heat(n_HIIx / n_H_z_r) * (
-                                    n_HIx * I1_T_HI + n_HeIx * I1_T_HeI + n_HeIIx * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (
-                                                                              I2_Ta + Tx * I2_Tb) - (
-                                                                              A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
+                        return ravel(array([A, D]))
 
-                        return ravel(array([A, B, Cc, D]))
-
-
-                    y0    = zeros(4)
+                    y0 = zeros(2)
                     y0[0] = n_HII_grid[k]
-                    y0[1] = n_HeII_grid[k]
-                    y0[2] = n_HeIII_grid[k]
-                    y0[3] = T_grid[k]
+                    y0[1] = T_grid[k]
                     sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')
-                    #print('sol is',sol)
+                    # print('sol is',sol)
 
-                    n_HII_grid[k]   = sol.y[0, -1]
-                    n_HeII_grid[k]  = sol.y[1, -1]
-                    n_HeIII_grid[k] = sol.y[2, -1]
-                    T_grid[k] = nan_to_num(sol.y[3, -1])
+                    n_HII_grid[k] = sol.y[0, -1]
+                    T_grid[k] = nan_to_num(sol.y[1, -1])
 
                     if isnan(n_HII_grid[k]):
                         n_HII_grid[k] = n_H_z_r
 
                     if n_HII_grid[k] > n_H_z_r:
                         n_HII_grid[k] = n_H_z_r
-
-                    if n_HeII_grid[k] > n_He_z_r:
-                        n_HeII_grid[k]  = n_He_z_r
-                        n_HeIII_grid[k] = 0
-
-                    if n_HeIII_grid[k] > n_He_z_r:
-                        n_HeIII_grid[k] = n_He_z_r
-                        n_HeII_grid[k]  = 0
-
-                    if isnan(n_HeIII_grid[k]):
-                        n_HeIII_grid[k] = n_He_z_r
-
-                    if isnan(n_HeII_grid[k]):
-                        print('Warning: Calculations contains NaNs.')
-                        n_HeII_grid[k] = n_He_z_r - n_HeIII_grid[k]
-
 
                 time_grid.append(l * self.grid_param['dt_init'].value)
 
@@ -1011,10 +771,11 @@ class Source:
 
             r1 = find_Ifront(n_HII0 / nHI0_profile_z, self.r_grid, show=True)
             r2 = find_Ifront(n_HII_grid / nHI0_profile_z, self.r_grid, show=True)
+
             time_step = datetime.datetime.now()
 
 
-            print('(r1,r2)= ',r1,r2,'The accuracy is: ', abs((r1 - r2) / min(abs(r1), abs(r2))), ' -> ', param.solver.precision,'needed. Timer from start : ', time_step - t_start_solver)
+            print('The accuracy is: ', abs((r1 - r2) / min(abs(r1), abs(r2))), ' -> ', param.solver.precision,'needed. Careful we changed this (old was 0.05). It took : ', time_step - t_start_solver)
 
 
             if (abs((r1 - r2) / min(abs(r1), abs(r2))) > param.solver.precision or r2 == self.r_start):     ### This is to check for convergence when increasing the time stepping
@@ -1042,11 +803,7 @@ class Source:
         znow = fsolve(func, self.z)
 
         nHI0_profile_now = (self.nHI0_profile[1:] + self.nHI0_profile[:-1])/2  * (1 + znow) ** 3   #n_H(znow,self.C)
-        nHeI0_profile_now = (self.nHeI0_profile[1:] + self.nHeI0_profile[:-1])/2 * (1 + znow) ** 3 #n_He(znow,self.C)#
         nHI0_profile_now  = np.concatenate((nHI0_profile_now,[nHI0_profile_now[-1]]))
-        nHeI0_profile_now  = np.concatenate((nHeI0_profile_now,[nHeI0_profile_now[-1]]))
-
-
 
 
         self.n_HI_grid = nHI0_profile_now - n_HII_grid
@@ -1056,6 +813,7 @@ class Source:
         self.time_grid = time_grid
         self.Ion_front_grid = Ion_front_grid
         self.z_now = znow
+
 
 
     def fit(self):
