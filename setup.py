@@ -14,6 +14,6 @@ setup(name='radtrans',
       package_dir = {'radtrans' : 'src'},
       packages=['radtrans'],
       package_data={'share':['*'],},
-      install_requires=['numpy','scipy', 'tools21cm@git+https://github.com/sambit-giri/tools21cm.git', 'joblib', 'tqdm'],
+      install_requires=['numpy','scipy', 'joblib', 'tqdm'],# 'tools21cm@git+https://github.com/sambit-giri/tools21cm.git', 'joblib', 'tqdm'],
       #include_package_data=True,
 )
