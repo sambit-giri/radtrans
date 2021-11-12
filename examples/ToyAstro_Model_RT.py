@@ -1,5 +1,7 @@
 from scipy.signal import fftconvolve
 import radtrans as rad
+from scipy.interpolate import splrep,splev
+import numpy as np
 import pickle
 from radtrans.Only_Hydrogen import cm_per_Mpc, BB_Planck, profile_1D
 from radtrans.bias import bias,profile
@@ -68,7 +70,7 @@ parameters.cosmo.h = 0.7
 parameters.cosmo.corr_fct = './radtrans/files/cosmofct.dat'
 parameters.cosmo.ps = './radtrans/files/CDM_PLANCK_tk.dat'
 
-parameters.table.import_table = True
+parameters.table.import_table = False
 
 for Mhalo in M_Bin:
     for zz_ in z_Bin:
