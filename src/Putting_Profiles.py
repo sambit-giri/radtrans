@@ -140,13 +140,10 @@ def Spreading_Excess(Grid_Storage):
 
     if np.any(Grid > 1):
         print('okay thats it')
-
-
-    print('i: ', i, 'sum: ', np.sum(Grid))
+    print('final xion sum: ', np.sum(Grid))
     X_Ion_Tot_f = np.sum(Grid)
     if int(X_Ion_Tot_f) != int(X_Ion_Tot_i) :
         print('smtg is wrong when spreading xion_excess.')
-
     return Grid
 
 
