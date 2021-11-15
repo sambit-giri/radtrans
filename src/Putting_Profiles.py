@@ -138,7 +138,7 @@ def Spreading_Excess(Grid_Storage):
                     print('2. Thats where we trigger', aaaa)
                     break
 
-        if np.any(Grid[boundary] > 1):
+        if np.any(Grid > 1):
             print('okay thats it')
             # print('we distributed : ',sum_distributed_xion==initial_excess)
 
