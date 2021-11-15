@@ -649,7 +649,7 @@ class Source_Only_H:
                     else:
                         r2 = r_grid[k] ** 2
 
-                        if self.M == self.Gamma_grid_info['input']['M'] or param.source.type is not 'Miniqsos':
+                        if self.M == self.Gamma_grid_info['input']['M'] or param.source.type != 'Miniqsos':
                             m_corr = 1
                         else:
                             m_corr = self.M / self.Gamma_grid_info['input']['M']
