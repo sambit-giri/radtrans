@@ -962,7 +962,7 @@ class Source:
                                                                               I2_Ta + Tx * I2_Tb) - (
                                                                               A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
 
-                        return ravel(array([A, B, Cc, D]))
+                        return ravel(array([A, B, Cc, D], dtype="object"))
 
 
                     y0    = zeros(4)

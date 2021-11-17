@@ -743,7 +743,7 @@ class Source_Only_H:
 
                         D = (2 / 3) * mu / (kb_eV_per_K * n_B) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
 
-                        return ravel(array([A, D]))
+                        return ravel(array([A, D], dtype="object"))
 
                     y0 = zeros(2)
                     y0[0] = n_HII_grid[k]
