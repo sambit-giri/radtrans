@@ -1017,9 +1017,10 @@ class Source:
             print('(r1,r2)= ',r1,r2,'The accuracy is: ', abs((r1 - r2) / min(abs(r1), abs(r2))), ' -> ', param.solver.precision,'needed. Timer from start : ', time_step - t_start_solver)
 
 
-            if (abs((r1 - r2) / min(abs(r1), abs(r2))) > param.solver.precision or r2 == self.r_start):     ### This is to check for convergence when increasing the time stepping
-                if r2 == self.r_start:
-                    print('Ionization front is still at the starting point. Starting again with smaller steps... ')
+
+            if param.solver.refinement == True and ((abs((r1 - r2) / min(abs(r1), abs(r2))) > param.solver.precision or r2 == self.r_start)):     ### This is to check for convergence when increasing the time stepping
+                #if r2 == self.r_start:
+                #   print('Ionization front is still at the starting point. Starting again with smaller steps... ')
                 dt_init = dt_init / 2
                 print('Refining time step. New Nt : ', 2 * self.Nt)
                 self.grid_param['dt_init'] = self.grid_param['dt_init'] / 2

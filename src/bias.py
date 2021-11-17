@@ -89,8 +89,10 @@ def rhoNFW_fct(rbin,param):
 def R_halo(M_halo,z,param):
     """
     M_halo in Msol.
+    Halo radius is physical unit [pMpc]
     """
     return (3*M_halo/(4*math.pi*200*rhoc_of_z(param,z)*(1+z)**3))**(1.0/3)
+
 
 def rhoc_of_z(param,z):
     """
@@ -105,6 +107,6 @@ def rhoc_of_z(param,z):
 
 def profile(bias_,cosmo_corr_,param, z):
     """
-    Global profile, in (Msol/h)/(Mpc/h)**3, normalized to the total matter density.
+    Global profile, in Msol/Mpc**3, normalized to the total matter density.
     """
     return rho_2h(bias_, cosmo_corr_, param, z) #+ rhoNFW_fct(rbin,param)

@@ -33,6 +33,7 @@ def solver_par():
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
         "Nt"  : 150,      ## number of time slices
         "dn_table" : 100, ## number of radial sample points for the table
+        "refinement": False, ## Bool, wheter or not to refine.
         "precision": 0.05, ## degree of precision for the ionization front (to decide when to stop the refinement)
         "evol" : 10,      ## evolution time, typically 3-10 Myr
         "C" : 1,          ## Clumping factor
