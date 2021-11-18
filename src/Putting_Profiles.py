@@ -1,3 +1,4 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import fftconvolve
@@ -6,7 +7,7 @@ from astropy.cosmology import Planck15 as cosmo
 from astropy import constants as const
 from skimage.measure import label
 from scipy.ndimage import distance_transform_edt
-
+from astropy.convolution import convolve_fft
 
 def profile_1D(r, c1=2, c2=5):  #
     """
@@ -50,7 +51,8 @@ def put_profiles_Middle(profile_kern, nGrid=None):
     source_grid = np.zeros((nGrid, nGrid, nGrid))
     source_grid[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = 1
 
-    out = fftconvolve(source_grid, profile_kern, mode='same')
+    out = convolve_fft(source_grid, profile_kern, boundary='wrap', normalize_kernel=False)
+    #out = fftconvolve(source_grid, profile_kern, mode='same')
     return out
 
 
@@ -75,6 +77,9 @@ def put_profiles_Sources(out, source_pos, nGrid=None):
 
 
 def Spreading_Excess(Grid_Storage):
+    '''''''''
+    Spread the excess photons using  scipy.measure.label and distance_transform_edt. For each connected regions, spread the photons to the first closest set of pixels
+    '''''''''
     Grid = np.copy(Grid_Storage)
     nGrid = Grid.shape[0]
     Binary_Grid = np.copy(Grid)
@@ -93,11 +98,10 @@ def Spreading_Excess(Grid_Storage):
 
     if X_Ion_Tot_i > Grid.size :
         print('Universe is fully ionized.')
-        Grid[:] = 1
+        Grid = 1
 
     else:
         for i in range(1, Nbr_regions):
-            print(i)
             connected_indices = np.where(connected_regions == i)
             Grid_connected = np.copy(Grid_of_0)  ## Grid with the fiducial value only for the region i.
             Grid_connected[connected_indices] = Grid[connected_indices]
@@ -112,8 +116,8 @@ def Spreading_Excess(Grid_Storage):
             Inverted_grid[connected_indices] = 0
 
             sum_distributed_xion = 0
-            print(excess_ion)
-            if excess_ion > 0:
+           # print(excess_ion)
+            if excess_ion > 1e-7:  ### small value but non zero to avoid doing that step when excess ion is very small
                 dist_from_boundary = distance_transform_edt(Inverted_grid)
                 dist_from_boundary[np.where(dist_from_boundary == 0)] = 2 * nGrid  ### eliminate pixels inside boundary
                 dist_from_boundary[np.where(
@@ -131,7 +135,7 @@ def Spreading_Excess(Grid_Storage):
                 else:
 
                     while np.sum(1 - Grid[boundary]) < excess_ion:
-                        print('have to go for more than 1 layer')
+                        #print('have to go for more than 1 layer')
                         sum_distributed_xion += np.sum(1 - Grid[boundary])
                         excess_ion = excess_ion - np.sum(1 - Grid[boundary])
                         Grid[boundary] = 1
