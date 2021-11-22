@@ -195,7 +195,6 @@ def Spreading_Excess_HR(Grid_Storage):
     else:
         for i in range(1, Nbr_regions):
 
-            #t1 = datetime.datetime.now()
             connected_indices = np.where(connected_regions == i)
             Grid_connected = np.copy(Grid_of_0)  ## Grid with the fiducial value only for the region i.
             Grid_connected[connected_indices] = Grid[connected_indices]
@@ -210,11 +209,9 @@ def Spreading_Excess_HR(Grid_Storage):
             Inverted_grid[connected_indices] = 0
 
             sum_distributed_xion = 0
-           # t2 = datetime.datetime.now()
             if excess_ion > 1e-8:
                 print('region:', i, 'excess', excess_ion)
 
-               # t3 = datetime.datetime.now()
 
                 Delta_pixel = int(excess_ion ** (1. / 3) / 2) + 1
 
@@ -225,36 +222,32 @@ def Spreading_Excess_HR(Grid_Storage):
                 Center_X, Center_Y, Center_Z = int((Min_X + Max_X) / 2), int((Min_Y + Max_Y) / 2), int(
                     (Min_Z + Max_Z) / 2)
 
-                N_subgrid = Delta_max + 2 * Delta_pixel  ## length of subgrid embedding the connected region
+                N_subgrid = 2 * (Delta_max + 2 * Delta_pixel)  ## length of subgrid embedding the connected region
                 if N_subgrid % 2 == 1:
                     N_subgrid += 1  ###Nsubgrid needs to be even to make things easier
 
                 if N_subgrid > nGrid:
                     dist_from_boundary = distance_transform_edt(Inverted_grid)
-                    dist_from_boundary[np.where(dist_from_boundary == 0)] = 2 * nGrid  ### eliminate pixels inside boundary
-                    dist_from_boundary[np.where(Grid > 1)] = 2 * nGrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
+                    dist_from_boundary[
+                        np.where(dist_from_boundary == 0)] = 2 * nGrid  ### eliminate pixels inside boundary
+                    dist_from_boundary[np.where(
+                        Grid > 1)] = 2 * nGrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
                     minimum = np.min(dist_from_boundary)
-                    boundary = np.where(dist_from_boundary == minimum)  # np.where((dist_from_boundary == minimum )& ( Grid<1))
+                    boundary = np.where(
+                        dist_from_boundary == minimum)  # np.where((dist_from_boundary == minimum )& ( Grid<1))
 
-                    if np.sum(1 - Grid[boundary]) > excess_ion:  # if their is room for the excess ion,
-                        #  you add in each cell a fraction of the neutral fraction available.
-                        Grid[boundary] += (1 - Grid[boundary]) * excess_ion / np.sum(1 - Grid[boundary])
-                        if np.any(Grid[boundary] > 1):
-                            print('1. Thats where we trigger')
-                        sum_distributed_xion += excess_ion
-                    else:
-                        print('have to go for more than 1 layer')
-                        while np.sum(1 - Grid[boundary]) < excess_ion:
-                            sum_distributed_xion += np.sum(1 - Grid[boundary])
-                            excess_ion = excess_ion - np.sum(1 - Grid[boundary])
-                            Grid[boundary] = 1
-                            dist_from_boundary[boundary] = nGrid * 2  ### exclude this layer for next step
-                            minimum = np.min(dist_from_boundary)
-                            boundary = np.where(dist_from_boundary == minimum)  ### new closest region to fill with excess ion
+                    while np.sum(1 - Grid[boundary]) < excess_ion:
+                        sum_distributed_xion += np.sum(1 - Grid[boundary])
+                        excess_ion = excess_ion - np.sum(1 - Grid[boundary])
+                        Grid[boundary] = 1
+                        dist_from_boundary[boundary] = nGrid * 2  ### exclude this layer for next step
+                        minimum = np.min(dist_from_boundary)
+                        boundary = np.where(dist_from_boundary == minimum)  ### new closest region to fill with excess ion
                         # you go out of the *while* when np.sum(1 - Grid[boundary]) > excess_ion
-                        residual_excess = (1 - Grid[boundary]) * excess_ion / np.sum(1 - Grid[boundary])
-                        Grid[boundary] += residual_excess
-                        sum_distributed_xion += excess_ion
+                    residual_excess = (1 - Grid[boundary]) * excess_ion / np.sum(1 - Grid[boundary])
+                    Grid[boundary] += residual_excess
+                    sum_distributed_xion += excess_ion
+
 
 
                 else:
@@ -275,7 +268,9 @@ def Spreading_Excess_HR(Grid_Storage):
                                       (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
                                       (0, int(N_subgrid / 2) - Center_Z))]
 
-                    while np.sum(1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion. We therefore increase N_subgrid
+                    while np.sum(
+                            1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion.
+                        print('jutilise')
                         N_subgrid = N_subgrid + 2
                         Sub_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 0)
                         Sub_Grid = Sub_Grid.astype('float64')
@@ -308,10 +303,13 @@ def Spreading_Excess_HR(Grid_Storage):
                     Sub_Grid_Initiale = np.copy(Sub_Grid)
 
                     dist_from_boundary = distance_transform_edt(Sub_Inverted_Grid)
-                    dist_from_boundary[np.where(dist_from_boundary == 0)] = 2 * N_subgrid  ### eliminate pixels inside boundary
-                    dist_from_boundary[np.where(Sub_Grid > 1)] = 2 * N_subgrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
+                    dist_from_boundary[
+                        np.where(dist_from_boundary == 0)] = 2 * N_subgrid  ### eliminate pixels inside boundary
+                    dist_from_boundary[np.where(
+                        Sub_Grid > 1)] = 2 * N_subgrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
                     minimum = np.min(dist_from_boundary)
                     boundary = np.where(dist_from_boundary == minimum)
+                    #
 
                     excess_ion_i = excess_ion
                     while np.sum(1 - Sub_Grid[boundary]) < excess_ion:
@@ -347,8 +345,6 @@ def Spreading_Excess_HR(Grid_Storage):
                         print('loosing photons')
                         exit()
 
-                    ##t4 = datetime.datetime.now()
-                    # print(t2-t1,t3-t2,t4-t3)
 
         if np.any(Grid > 1):
             print('okay thats it')
@@ -357,6 +353,7 @@ def Spreading_Excess_HR(Grid_Storage):
         X_Ion_Tot_f = np.sum(Grid)
         if int(X_Ion_Tot_f) != int(X_Ion_Tot_i):
             print('smtg is wrong when spreading xion_excess.')
+
 
     return Grid
 
