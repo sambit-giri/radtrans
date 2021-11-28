@@ -56,11 +56,14 @@ def Variance_tophat(param,mm):
     return Var #, dlnVar_dlnM
 
 
-def bias(z,param):
+def bias(z,param,Mass = None):
     q = 0.73 # sometimes called a
     p = 0.15
     dcz = delt_c(z,param)
-    M = param.source.M_halo * param.cosmo.h ### Msol/h
+    if Mass == None :
+        M = param.source.M_halo * param.cosmo.h ### Msol/h
+    else :
+        M = Mass
     var = Variance_tophat(param,M)
     nu = dcz ** 2.0 / var
     # cooray and sheth

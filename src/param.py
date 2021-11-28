@@ -23,7 +23,20 @@ def source_par():
         "E_0" : 10.4,                # minimum energy of ionizing photons in eV
         "E_upp" : 10000,             # minimum energy of ionizing photons in e
         "lifetime" : 10,             # time [Myr] until which we switch off the photon production from the source
-        }
+        "alpha_MAR" : 0.79,              # coefficient for exponential MAR
+        'f_st': 0.05,
+        'Mp': 1e11,
+        'g1': 0.49,
+        'g2': -0.61,
+        'Mt': 1e7,
+        'g3': 4,
+        'g4': -1,
+        'Nion': 2665,
+        "f0_esc": 0.15,  # photon escape fraction f_esc = f0_esc * (M/Mp)^pl_esc
+        "Mp_esc": 1e10,
+        "pl_esc": 0.0,
+    }
+
     return Bunch(par)
 
 def solver_par():
@@ -54,6 +67,7 @@ def cosmo_par():
     'corr_fct' : None,
     }
     return Bunch(par)
+
 
 
 def table_par():
