@@ -442,7 +442,7 @@ class Source_MAR:
 
         # Column densities in physical cm**-2
         nH_column = np.trapz( self.profiles(param,self.z_initial,Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
-        print('n_H_column max : ', nH_column, 'cm**-3.')
+        print('n_H_column max : ', nH_column, 'cm**-2.')
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
@@ -578,7 +578,21 @@ class Source_MAR:
 
 
             while zstep_l > param.solver.z_end :    # l * dt_init <= self.grid_param['t_evol']:
-                if l % 5 == 0 and l != 0:
+                if l % 100 == 0 and l != 0:
+                    time_grid.append(l * self.grid_param['dt_init'].value)
+                    Ion_front_grid.append(front_step)
+                    Mh_history.append(Mh_step_l)
+                    z_grid.append(zstep_l[0])
+                    Ng_dot_history.append(Ngam_dot_step_l)
+                    try:
+                        Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
+                        c1, c2 = Fit_[0][0], Fit_[0][1]
+                    except Exception:
+                        c1, c2 = 0, 0
+
+                    c1_history.append(c1)
+                    c2_history.append(c2)
+
                     print('Current Time step: ', l, 'z is ', zstep_l[0],'; ion front is :',front_step,' ; Temperature kick is :',kick[1])
 
                 # Calculate the redshift z(t)
@@ -586,7 +600,9 @@ class Source_MAR:
                 age  = age.to(u.s)
                 age += l * self.grid_param['dt_init']
                 func = lambda z: pl.age(z).to(u.s).value - age.value
-                zstep_l = fsolve(func, z)
+                zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
+                if zstep_l == 25 and l!=0:
+                    aa=ww
 
 
                 ##### CMB temperature for the collisional coupling
@@ -748,13 +764,10 @@ class Source_MAR:
                     if n_HII_grid[k] > n_H_z_r:
                         n_HII_grid[k] = n_H_z_r
 
-                time_grid.append(l * self.grid_param['dt_init'].value)
+
 
                 front_step = find_Ifront(n_HII_grid / nHI0_profile_z, self.r_grid)
-                Ion_front_grid.append(front_step)
-                Mh_history.append(Mh_step_l)
-                z_grid.append(zstep_l[0])
-                Ng_dot_history.append(Ngam_dot_step_l)
+
 
 
                 nHI0_profile_step = (self.nHI0_profile[1:] + self.nHI0_profile[:-1]) / 2 * ( 1 + zstep_l) ** 3  # n_H(znow,self.C)
@@ -762,16 +775,6 @@ class Source_MAR:
 
                 p0 = [30 / front_step, front_step]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
                 xdata, ydata = self.r_grid, (nHI0_profile_step- n_HII_grid)/ nHI0_profile_step
-
-                try :
-                    Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
-                    c1, c2 = Fit_[0][0], Fit_[0][1]
-                except Exception:
-                    c1, c2 = 0, 0
-
-                c1_history.append(c1)
-                c2_history.append(c2)
-
 
 
                 l += 1
