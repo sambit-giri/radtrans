@@ -731,7 +731,7 @@ class Source_MAR:
                         n_HII_grid[k] = sol.y[0, -1]
                         T_grid[k] = nan_to_num(sol.y[1, -1])
 
-                    if param.solver.method == 'bruteforce' :
+                    if param.solver.method == 'bruteforce':
                         kick = rhs(l * dt_init.value, y0)
                         n_HII_grid[k] += dt_init.value * kick[0]
                         T_grid[k] += dt_init.value * kick[1]
@@ -784,11 +784,10 @@ class Source_MAR:
             print('solver took :', time_end_solve - t_start_solver)
             break
 
-        age = pl.age(self.z)
-        age = age.to(u.s)
-        age += self.evol
-        func = lambda z: pl.age(z).to(u.s).value - age.value
-        znow = fsolve(func, self.z)
+
+
+
+        znow = zstep_l[0]
 
         nHI0_profile_now = (self.nHI0_profile[1:] + self.nHI0_profile[:-1])/2  * (1 + znow) ** 3   #n_H(znow,self.C)
         nHI0_profile_now  = np.concatenate((nHI0_profile_now,[nHI0_profile_now[-1]]))
