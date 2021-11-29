@@ -579,7 +579,7 @@ class Source_MAR:
 
             while zstep_l > param.solver.z_end :    # l * dt_init <= self.grid_param['t_evol']:
                 if l % 5 == 0 and l != 0:
-                    print('Current Time step: ', l, 'z is ', zstep_l)
+                    print('Current Time step: ', l, 'z is ', zstep_l[0],'; ion front is :',front_step,' ; Temperature kick is :',kick[1])
 
                 # Calculate the redshift z(t)
                 age  = pl.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
@@ -632,7 +632,7 @@ class Source_MAR:
                         print('Too narrow HI cumulative density range in tables init.')
 
                     if n_HI00 == 0:
-                        I1_HI, I2_HI = 0, 0
+                        I1_HI, I2_HI, I1_T_HI = 0, 0, 0
                     else :
                        I1_HI = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
                        I2_HI = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
@@ -690,6 +690,7 @@ class Source_MAR:
 
                         if isnan(Tx):
                             print('Tx is nan')
+
                         if (Tx < T_gamma * (1 + zstep_l) ** 1 / (1 + 250)):
                             Tx = T_gamma * (1 + zstep_l) ** 1 / (1 + 250)
 
@@ -716,15 +717,17 @@ class Source_MAR:
 
                         D = (2 / 3) * mu / (kb_eV_per_K * n_B) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
 
+                        if np.isnan(A) or np.isnan(D):
+                            print('A or D is nan ')
+
                         return ravel(array([A, D], dtype="object"))
-
-
 
 
 
                     y0 = zeros(2)
                     y0[0] = n_HII_grid[k]
                     y0[1] = T_grid[k]
+
 
                     if param.solver.method == 'sol':
                         sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')

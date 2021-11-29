@@ -306,6 +306,8 @@ def generate_table(param, z, n_HI):
 
             print('source emits', Ngam_dot, 'ionizing photons per seconds.')
 
+
+
         else:
             print('Source Type not available. Should be Galaxies or Miniqsos')
             exit()
@@ -477,7 +479,7 @@ class Source_Only_H:
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
-        cosmo_corr = splev(r_grid * (1+self.z), corr_tck) # r_grid * (1+self.z) is the comoving value of r_grid at z. To reche the correct scales for the correlation fucntion
+        cosmo_corr = splev(r_grid * (1+self.z), corr_tck) # r_grid * (1+self.z) is the comoving value of r_grid at z. To reach the correct scales for the correlation fucntion
         halo_bias = bias(self.z, param)
         # baryonic density profile in [cm**-3]
         norm_profile = profile(halo_bias,cosmo_corr,param, self.z) * param.cosmo.Ob / param.cosmo.Om * M_sun * param.cosmo.h **2 / (cm_per_Mpc)**3 / m_H
@@ -658,7 +660,7 @@ class Source_Only_H:
                             print('Too narrow HI cumulative density range in tables init.')
 
                         if n_HI00 == 0:
-                            I1_HI, I2_HI = 0, 0
+                            I1_HI, I2_HI,I1_T_HI = 0, 0,0
                         else :
                             I1_HI = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
                             I2_HI = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
