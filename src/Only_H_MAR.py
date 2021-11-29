@@ -351,48 +351,7 @@ def generate_table(param, z, n_HI):
     return Gamma_input_info
 
 
-def tau_refinement(r_grid, n_HII_grid, refin_needed):
-    """
-    Refine the radial grid and the HII grid array in order to get Delta_Tau < 0.1 for cells below (inside) the ionization front.
-    This is to match the convergence criterion from C2ray Fig.1 (G. Mellema 2005)
 
-
-    Parameters
-    ----------
-    refin_needed :  array-like containing the indices where r_grid has to be refined.
-
-    """
-    lower = np.min(refin_needed) - 1
-    upper = np.max(refin_needed)
-
-    N_prev = upper - lower
-    N_new = N_prev * 2  # 3
-
-    r1 = r_grid[0:lower]
-    r2 = logspace(log10(r_grid[lower]), log10(r_grid[upper]), N_new + 1, base=10)
-    r3 = r_grid[upper + 1:]
-    r_new = concatenate((r1, r2, r3))
-
-    new_NHII = concatenate((n_HII_grid[0:lower], np.repeat(n_HII_grid[lower:upper], 2), n_HII_grid[upper:]))
-
-    # print(r_new.shape == new_NHII.shape)
-    return r_new, new_NHII
-
-
-def adaptive_mesh(r, x, lowtol, uptol, refinement):
-    # logspace adaptive grid
-    lower = argmin(abs(x - lowtol))
-    upper = argmin(abs(x - uptol))
-    N_prev = r[lower:upper].size
-    N_new = N_prev * refinement  # 3
-    r1 = r[0:lower]
-    r2 = logspace(log10(r[lower]), log10(r[upper]), N_new, base=10)
-    r3 = r[upper + 1:]
-    r_new = concatenate((r1, r2, r3))
-    # print('check:',N_prev,N_new,r.size,r1.size,r2.size,r3.size)
-    # print('new: ',r_new,'old: ', r)
-    # print('lower, upper:',lower,upper)
-    return r_new
 
 
 class Source_MAR:
@@ -571,8 +530,6 @@ class Source_MAR:
         # r_grid  = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
         r_grid = self.r_grid
 
-        n_HII_grid = zeros_like(r_grid)
-
         self.create_table(param)
 
         n_HI = self.Gamma_grid_info['input']['n_HI']
@@ -620,7 +577,7 @@ class Source_MAR:
 
 
 
-            while zstep_l > 6 :    # l * dt_init <= self.grid_param['t_evol']:
+            while zstep_l > param.solver.z_end :    # l * dt_init <= self.grid_param['t_evol']:
                 if l % 5 == 0 and l != 0:
                     print('Current Time step: ', l, 'z is ', zstep_l)
 
@@ -685,6 +642,7 @@ class Source_MAR:
                     I2_Tb = np.interp(K_HI_previous, n_HI, JT_2b) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
 
                     I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb )) * Ngam_dot_step_l / Ng_dot_initial ### added correctrion for halo growth
+
 
 
                     def rhs(t, n):
@@ -760,14 +718,26 @@ class Source_MAR:
 
                         return ravel(array([A, D], dtype="object"))
 
+
+
+
+
                     y0 = zeros(2)
                     y0[0] = n_HII_grid[k]
                     y0[1] = T_grid[k]
-                    sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')
-                    # print('sol is',sol)
 
-                    n_HII_grid[k] = sol.y[0, -1]
-                    T_grid[k] = nan_to_num(sol.y[1, -1])
+                    if param.solver.method == 'sol':
+                        sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')
+                        n_HII_grid[k] = sol.y[0, -1]
+                        T_grid[k] = nan_to_num(sol.y[1, -1])
+
+                    if param.solver.method == 'bruteforce' :
+                        kick = rhs(l * dt_init.value, y0)
+                        n_HII_grid[k] += dt_init.value * kick[0]
+                        T_grid[k] += dt_init.value * kick[1]
+                        # n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(T_grid[k]) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
+
+
 
                     if isnan(n_HII_grid[k]):
                         n_HII_grid[k] = n_H_z_r

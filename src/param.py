@@ -42,6 +42,7 @@ def source_par():
 def solver_par():
     par = {
         "z" : 6,
+        "z_end" : 6,       ## Only for MAR. Redshift where to stop the solver
         "r_end" : 3,
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
         "Nt"  : 150,      ## number of time slices
@@ -50,6 +51,7 @@ def solver_par():
         "precision": 0.05, ## degree of precision for the ionization front (to decide when to stop the refinement)
         "evol" : 10,      ## evolution time, typically 3-10 Myr
         "C" : 1,          ## Clumping factor
+        "method": 'sol',  ## sol for using the clean solver and bruteforce to just solve the equation by discretizing independently nH and T
 
     }
     return Bunch(par)
