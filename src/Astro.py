@@ -105,6 +105,7 @@ def f_esc(param,Mh):
 
 def Ng_dot_Snapshot(param,rock_catalog):
     """
+    WORKS FOR EXP MAR
     Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1]
     rock_catalog : rockstar halo cataloa
     """
@@ -112,7 +113,7 @@ def Ng_dot_Snapshot(param,rock_catalog):
     H_Masses, z = Halos['M'], Halos['z']
     dMh_dt = param.source.alpha_MAR * H_Masses * (z+1) * Hubble(z, param) ## [(Msol/h) / yr]
     dNg_dt = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob/param.cosmo.Om * f_esc(param, H_Masses) * param.source.Nion /sec_per_year /m_H * M_sun  #[s**-1]
-    return np.sum(dNg_dt) / Halos['Lbox'] ** 3
+    return z, np.sum(dNg_d t) / Halos['Lbox'] ** 3
 
 
 
