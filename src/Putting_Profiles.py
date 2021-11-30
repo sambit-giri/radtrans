@@ -120,8 +120,7 @@ def Spreading_Excess(Grid_Storage):
             if excess_ion > 1e-7:  ### small value but non zero to avoid doing that step when excess ion is very small
                 dist_from_boundary = distance_transform_edt(Inverted_grid)
                 dist_from_boundary[np.where(dist_from_boundary == 0)] = 2 * nGrid  ### eliminate pixels inside boundary
-                dist_from_boundary[np.where(
-                    Grid > 1)] = 2 * nGrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
+                dist_from_boundary[np.where(Grid > 1)] = 2 * nGrid  ### eliminate pixels that already have excess x_ion (belonging to another connected regions..)
                 minimum = np.min(dist_from_boundary)
                 boundary = np.where(
                     dist_from_boundary == minimum)  # np.where((dist_from_boundary == minimum )& ( Grid<1))
@@ -130,7 +129,7 @@ def Spreading_Excess(Grid_Storage):
                     #  you add in each cell a fraction of the neutral fraction available.
                     Grid[boundary] += (1 - Grid[boundary]) * excess_ion / np.sum(1 - Grid[boundary])
                     if np.any(Grid[boundary] > 1):
-                        print('1. Thats where we trigger')
+                        print('x_ion > 1')
                     sum_distributed_xion += excess_ion
                 else:
 
@@ -149,11 +148,11 @@ def Spreading_Excess(Grid_Storage):
                     sum_distributed_xion += excess_ion
 
                     if np.any(Grid[boundary] > 1):
-                        print('2. Thats where we trigger', aaaa)
+                        print('x_ion > 1 at the end of the process', aaaa)
                         break
 
         if np.any(Grid > 1):
-            print('okay thats it')
+            print('3. x_ion > 1 ')
 
         print('final xion sum: ', np.sum(Grid))
         X_Ion_Tot_f = np.sum(Grid)
@@ -202,7 +201,6 @@ def Spreading_Excess_HR(Grid_Storage):
             overlap = np.where(Grid_connected > 1)
 
             excess_ion = np.sum(Grid_connected[overlap] - 1)
-            initial_excess = excess_ion
             Grid[overlap] = 1
 
             Inverted_grid = np.copy(Grid_of_1)
@@ -210,9 +208,6 @@ def Spreading_Excess_HR(Grid_Storage):
 
             sum_distributed_xion = 0
             if excess_ion > 1e-8:
-                print('region:', i, 'excess', excess_ion)
-
-
                 Delta_pixel = int(excess_ion ** (1. / 3) / 2) + 1
 
                 Min_X, Max_X = np.min(connected_indices[0]), np.max(connected_indices[0])
@@ -268,9 +263,7 @@ def Spreading_Excess_HR(Grid_Storage):
                                       (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
                                       (0, int(N_subgrid / 2) - Center_Z))]
 
-                    while np.sum(
-                            1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion.
-                        print('jutilise')
+                    while np.sum(1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion.
                         N_subgrid = N_subgrid + 2
                         Sub_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 0)
                         Sub_Grid = Sub_Grid.astype('float64')
@@ -338,16 +331,15 @@ def Spreading_Excess_HR(Grid_Storage):
                         (0, int(N_subgrid / 2) - Center_Z))] = Sub_Grid[:]
 
                     if np.any(Sub_Grid[boundary] > 1) or np.any(np.isnan(Sub_Grid[boundary])):
-                        print('2. Thats where we trigger')
-                        a = caca
+                        print('2. xion>1')
 
-                    if int(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
+                    if round(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
                         print('loosing photons')
                         exit()
 
 
         if np.any(Grid > 1):
-            print('okay thats it')
+            print('3. xion>1.')
 
         print('final xion sum: ', np.sum(Grid))
         X_Ion_Tot_f = np.sum(Grid)
