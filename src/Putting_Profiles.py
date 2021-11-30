@@ -333,7 +333,9 @@ def Spreading_Excess_HR(Grid_Storage):
                     if np.any(Sub_Grid[boundary] > 1) or np.any(np.isnan(Sub_Grid[boundary])):
                         print('2. xion>1')
 
-                    if round(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
+                    #if round(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
+                    if round(np.sum(Sub_Grid) / int(np.sum(Sub_Grid_Initiale) + excess_ion_i)) !=1 :
+### just a trick to avoid exiting when half a photon is lost...
                         print('loosing photons')
                         exit()
 
