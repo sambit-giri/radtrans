@@ -77,9 +77,9 @@ def put_profiles_Sources(out, source_pos, nGrid=None):
 
 
 def Spreading_Excess(Grid_Storage):
-    '''''''''
-    Spread the excess photons using  scipy.measure.label and distance_transform_edt. For each connected regions, spread the photons to the first closest set of pixels
-    '''''''''
+    """
+    Spread the excess photons using scipy.measure.label and distance_transform_edt. For each connected regions, spread the photons to the first closest set of pixels, The last boundary will be filled with an equal fraction of the remaining excess x_ion.
+    """
     Grid = np.copy(Grid_Storage)
     nGrid = Grid.shape[0]
     Binary_Grid = np.copy(Grid)
@@ -98,7 +98,7 @@ def Spreading_Excess(Grid_Storage):
 
     if X_Ion_Tot_i > Grid.size :
         print('Universe is fully ionized.')
-        Grid = 1
+        return 1
 
     else:
         for i in range(1, Nbr_regions):
@@ -166,7 +166,7 @@ def Spreading_Excess(Grid_Storage):
 
 def Spreading_Excess_HR(Grid_Storage):
     """
-    Same function than previously, except that we added a step to speed up the procedure (relevant when choosing High Resolution Grids (>256)) : for each connected region we run distance transform for a subbox centered on the connected region.-
+    Same function than *Spreading_Excess*, but we add a step to speed up the procedure (relevant when choosing HR Grids (>=256**3)) : for each connected region we run distance_transform only for a subbox centered on the connected region.
     The size of the sub-boxes is N_subgrid.
 
     """
@@ -180,8 +180,6 @@ def Spreading_Excess_HR(Grid_Storage):
     Nbr_regions = np.max(connected_regions) + 1
 
     Grid_of_1 = np.full(((nGrid, nGrid, nGrid)), 1)
-    Grid_of_0 = np.zeros((nGrid, nGrid, nGrid))
-
     # When i = 0, the region if the full region outside the bubbles
     X_Ion_Tot_i = np.sum(Grid)
     print('initial sum of ionized fraction :', np.sum(Grid))
@@ -189,25 +187,23 @@ def Spreading_Excess_HR(Grid_Storage):
 
     if X_Ion_Tot_i > Grid.size:
         print('Universe is fully ionized.')
-        Grid[:] = 1
+        Grid = 1
 
     else:
         for i in range(1, Nbr_regions):
 
             connected_indices = np.where(connected_regions == i)
-            Grid_connected = np.copy(Grid_of_0)  ## Grid with the fiducial value only for the region i.
-            Grid_connected[connected_indices] = Grid[connected_indices]
-            ## take sub grid with only the connected region, find pixels where xion>1, sum the excess, and set these pixels to 1.
-            overlap = np.where(Grid_connected > 1)
+            overlap = np.where(Grid[connected_indices] > 1)[0]
+            initial_excess = np.sum(Grid[connected_indices][overlap] - 1)
+            Grid[connected_indices] = np.where(Grid[connected_indices] > 1, 1, Grid[connected_indices])
+            excess_ion = initial_excess
 
-            excess_ion = np.sum(Grid_connected[overlap] - 1)
-            Grid[overlap] = 1
-
-            Inverted_grid = np.copy(Grid_of_1)
-            Inverted_grid[connected_indices] = 0
-
-            sum_distributed_xion = 0
             if excess_ion > 1e-8:
+
+                Inverted_grid = np.copy(Grid_of_1)
+                Inverted_grid[connected_indices] = 0
+                sum_distributed_xion = 0
+
                 Delta_pixel = int(excess_ion ** (1. / 3) / 2) + 1
 
                 Min_X, Max_X = np.min(connected_indices[0]), np.max(connected_indices[0])
@@ -335,7 +331,7 @@ def Spreading_Excess_HR(Grid_Storage):
 
                     #if round(np.sum(Sub_Grid)) != int(np.sum(Sub_Grid_Initiale) + excess_ion_i):
                     if round(np.sum(Sub_Grid) / int(np.sum(Sub_Grid_Initiale) + excess_ion_i)) !=1 :
-### just a trick to avoid exiting when half a photon is lost...
+                    ### just a trick to avoid exiting when half a photon is lost...
                         print('loosing photons')
                         exit()
 
