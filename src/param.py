@@ -67,6 +67,7 @@ def cosmo_par():
     's8': None,
     'ps': None,
     'corr_fct' : None,
+    'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
     }
     return Bunch(par)
 

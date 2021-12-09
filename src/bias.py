@@ -56,26 +56,46 @@ def Variance_tophat(param,mm):
     return Var #, dlnVar_dlnM
 
 
-def bias(z,param,Mass = None):
-    q = 0.73 # sometimes called a
-    p = 0.15
-    dcz = delt_c(z,param)
-    if Mass == None :
-        M = param.source.M_halo * param.cosmo.h ### Msol/h
-    else :
+def bias(z,param,Mass = None,bias_type='Tinker'):
+    if Mass == None:
+        M = param.source.M_halo * param.cosmo.h  ### Msol/h
+    else:
         M = Mass
-    var = Variance_tophat(param,M)
-    nu = dcz ** 2.0 / var
-    # cooray and sheth
-    e1 = (q * nu - 1.0) / delta_c
-    E1 = 2.0 * p / delta_c / (1.0 + (q * nu) ** p)
-    bias = 1.0 + e1 + E1
+
+    if bias_type == 'ST':
+        #ST bias
+        q = 0.707 # sometimes called a
+        p = 0.3
+        dcz = delt_c(z,param)
+        var = Variance_tophat(param,M)
+        nu = dcz ** 2.0 / var
+        # cooray and sheth
+        e1 = (q * nu - 1.0) / delta_c
+        E1 = 2.0 * p / dcz / (1.0 + (q * nu) ** p)
+        bias = 1.0 + e1 + E1
+
+    elif (bias_type == 'Tinker'):
+
+        # tinker bias
+        dcz = delt_c(z,param)
+        dc = delta_c
+        var = Variance_tophat(param,M)
+        nu = dcz ** 2.0 / var
+        y = np.log10(200)
+        A = 1 + 0.24 * y * np.exp(-(4 / y) ** 4)
+        a = 0.44 * y - 0.88
+        B = 0.183
+        b = 1.5
+        C = 0.019 + 0.107 * y + 0.19 * np.exp(-(4 / y) ** 4)
+        c = 2.4
+        bias = 1 - A * nu ** (a / 2) / (nu ** (a / 2) + dc ** a) + B * nu ** (b / 2) + C * nu ** (c / 2)
+
     return bias
 
 
 
 def rho_2h(bias_, cosmo_corr_ ,param, z):
-    return (bias_ * cosmo_corr_ + 1.0) * param.cosmo.Om * rhoc_of_z(param, z)
+    return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) + 1.0) * param.cosmo.Om * rhoc_of_z(param, z)
 
 
 def rhoNFW_fct(rbin,param):
@@ -92,7 +112,7 @@ def rhoNFW_fct(rbin,param):
 def R_halo(M_halo,z,param):
     """
     M_halo in Msol.
-    Halo radius is physical unit [pMpc]
+    Output : Halo radius is physical unit [pMpc]
     """
     return (3*M_halo/(4*math.pi*200*rhoc_of_z(param,z)*(1+z)**3))**(1.0/3)
 
@@ -104,12 +124,13 @@ def rhoc_of_z(param,z):
     Outputs is in Msol/Mpc**3
     """
     Om = param.cosmo.Om
-    rhoc = 2.775e11 * param.cosmo.h**2 ## in Msol/Mpc**3
+    rhoc = 2.775e11 * param.cosmo.h**2  ## in Msol/Mpc**3
     return rhoc * (Om * (1.0 + z) ** 3.0 + (1.0 - Om)) / (1.0 + z) ** 3.0
 
 
 def profile(bias_,cosmo_corr_,param, z):
     """
-    Global profile, in Msol/Mpc**3, normalized to the total matter density.
+    Global profile of total matter, in Msol/Mpc**3
+    This is a comoving density [(Msol)/(cMpc)**3] as a function of comoving radius [cMpc/h]
     """
     return rho_2h(bias_, cosmo_corr_, param, z) #+ rhoNFW_fct(rbin,param)
