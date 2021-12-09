@@ -347,7 +347,7 @@ def Spreading_Excess_HR(Grid_Storage):
     return Grid
 
 
-def Spreading_Excess_Fast(Grid_input):
+def Spreading_Excess_Fast(Grid_input,plot__=False):
     """
     Last and fastest version of the function.
     Input : Grid_Storage, the cosmological mesh grid (X,X,X) with the ionized fractions, with overlap (pixels where x_ion>1). (X can be 256, 512 ..)
@@ -363,8 +363,8 @@ def Spreading_Excess_Fast(Grid_input):
     Grid = np.copy(Grid_input)
 
     Binary_Grid = np.copy(Grid)
-    Binary_Grid[np.where(Grid < 1.)] = 0
-    Binary_Grid[np.where(Grid >= 1.)] = 1
+    Binary_Grid[np.where(Grid < 0.9999999)] = 0
+    Binary_Grid[np.where(Grid >= 0.9999999)] = 1
 
     # The first region (i=0) is the still neutral IGM, in between the bubbles
     connected_regions = label(Binary_Grid)
@@ -403,8 +403,9 @@ def Spreading_Excess_Fast(Grid_input):
 
         # Then do the spreading individually for large regions
         for i, ir in enumerate(large_regions_labels):
-            #if i % 100 == 0:
-            #    print('doing region ', i, 'over ', len(large_regions_labels), ' region in total')
+            if plot__:
+                if i % 100 == 0:
+                    print('doing region ', i, 'over ', len(large_regions_labels), ' region in total')
             connected_indices = np.where(connected_regions == ir)
             Grid = Spread_Single(Grid, connected_indices, Grid_of_1 = Grid_of_1, print_time=None)
 
