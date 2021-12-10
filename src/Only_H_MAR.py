@@ -409,7 +409,7 @@ class Source_MAR:
         self.alpha = param.source.alpha
 
         self.M_halo = param.source.M_halo
-        self.R_halo = R_halo(self.M_halo, self.z, param)  # physical halo size
+        self.R_halo = R_halo(self.M_halo, self.z, param)  # physical halo size in Mpc
         self.r_start = self.R_halo
         print('R_halo is :', self.R_halo, 'Mpc')
         self.r_end = param.solver.r_end  # maximal distance from source
@@ -421,7 +421,7 @@ class Source_MAR:
 
         self.E_0 = param.source.E_0
         self.E_upp = param.source.E_upp  # In eV
-        self.r_grid = linspace(self.r_start, self.r_end, self.dn)
+        self.r_grid = linspace(self.r_start, self.r_end, self.dn) #Mpc/h
 
     def create_table(self, param):
         """
@@ -442,7 +442,7 @@ class Source_MAR:
 
         # Column densities in physical cm**-2
         nH_column = np.trapz( self.profiles(param,self.z_initial,Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
-        print('n_H_column max : ', nH_column, 'cm**-2.')
+        print('n_H_column max : ', nH_column, 'Mpc.cm**-3.')
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
@@ -452,14 +452,17 @@ class Source_MAR:
 
 
     def profiles(self,param,z,Mass = None):
+        """
+        2h profiles in nbr of [H atoms /cm**3] (physical cm, not comoving)
+        """
         # Profiles
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
-        cosmo_corr = splev(self.r_grid * (1 + z),corr_tck)  # r_grid * (1+self.z) is the comoving value of r_grid at z. To reach the correct scales for the correlation fucntion
+        cosmo_corr = splev(self.r_grid * (1 + z) * param.cosmo.h, corr_tck)  # r_grid * (1+self.z) * h in cMpc/h --> To reach the correct scales and units for the correlation fucntion
         halo_bias = bias(z, param,Mass)
         # baryonic density profile in [cm**-3]
-        norm_profile = profile(halo_bias, cosmo_corr, param,z) * param.cosmo.Ob / param.cosmo.Om * M_sun * param.cosmo.h ** 2 / (cm_per_Mpc) ** 3 / m_H
+        norm_profile = profile(halo_bias, cosmo_corr, param,z) * param.cosmo.Ob / param.cosmo.Om * M_sun / (cm_per_Mpc) ** 3 / m_H
         return norm_profile
 
 
@@ -551,6 +554,7 @@ class Source_MAR:
             Ng_dot_history = []
             z_grid = []
             c1_history, c2_history = [], []
+            T_History = {} #create a ictionnary to store the temperature profile at the desired redshifts
 
 
             n_HII_grid = zeros_like(r_grid)
@@ -577,13 +581,16 @@ class Source_MAR:
 
 
 
-            while zstep_l > param.solver.z_end :    # l * dt_init <= self.grid_param['t_evol']:
+            while zstep_l > param.solver.z_end :
+
+
                 if l % 100 == 0 and l != 0:
                     time_grid.append(l * self.grid_param['dt_init'].value)
                     Ion_front_grid.append(front_step)
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     Ng_dot_history.append(Ngam_dot_step_l)
+                    T_History[str(zstep_l[0])] = T_grid
                     try:
                         Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
                         c1, c2 = Fit_[0][0], Fit_[0][1]
@@ -601,8 +608,6 @@ class Source_MAR:
                 age += l * self.grid_param['dt_init']
                 func = lambda z: pl.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
-                if zstep_l == 25 and l!=0:
-                    aa=ww
 
 
                 ##### CMB temperature for the collisional coupling
@@ -779,8 +784,10 @@ class Source_MAR:
 
                 l += 1
 
+
                 if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1:
                     print('np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
+                    #exit()
 
             time_grid = array([time_grid])
             time_grid = time_grid.reshape(time_grid.size, 1)
@@ -811,6 +818,7 @@ class Source_MAR:
         self.Mh_History = Mh_history
         self.c1_history = c1_history
         self.c2_history = c2_history
+        self.T_history  = T_History
 
 
 

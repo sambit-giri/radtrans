@@ -43,7 +43,7 @@ def solver_par():
     par = {
         "z" : 6,
         "z_end" : 6,       ## Only for MAR. Redshift where to stop the solver
-        "r_end" : 3,
+        "r_end" : 3,        #### pMpc
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
         "Nt"  : 150,      ## number of time slices
         "dn_table" : 100, ## number of radial sample points for the table
