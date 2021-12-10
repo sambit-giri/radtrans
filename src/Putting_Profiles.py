@@ -75,6 +75,17 @@ def put_profiles_Sources(out, source_pos, nGrid=None):
     return out_
 
 
+def put_profiles_group(source_pos, profile_kern, nGrid=None):
+    '''
+    Bin halos masses to do this. Then in a given bin all halos are assumed to have the same profile. This speeds up dramatically this step.
+    '''
+    if nGrid is None: nGrid = profile_kern.shape[0]
+    source_grid = np.zeros((nGrid, nGrid, nGrid))
+    for i, j, k in source_pos:
+        source_grid[i, j, k] = 1
+    out = convolve_fft(source_grid, profile_kern,boundary='wrap',normalize_kernel = False,allow_huge=True)
+
+    return out
 
 
 
