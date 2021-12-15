@@ -13,7 +13,7 @@ import datetime
 
 def profile_1D(r, c1=2, c2=5):  #
     """
-    1D profile, sigmoid function.
+    1D ionization profile, sigmoid function. 1 when ionized, 0 when neutral.
 
     Parameters
     ----------
@@ -33,7 +33,7 @@ def profile_to_3Dkernel(profile, nGrid, LB):
     Parameters
     ----------
     profile  : profile_1D(r, c1=2, c2=5).
-    nGrid, LB  : number of grids and boxsize (in Mpc) respectively
+    nGrid, LB  : number of grids and boxsize (in cMpc/h) respectively
 
     Returns
     -------

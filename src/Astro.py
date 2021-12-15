@@ -5,12 +5,18 @@ Contains functions to compute measurable quantities from an N-body snapshot. eit
 import numpy as np
 from .constants import *
 import pickle
+from .cosmo import Hubble
 
-def Hubble(z,param):
-    """""
-    Hubble factor [yr-1] 
-    """""
-    return param.cosmo.h * 100.0 * sec_per_year / km_per_Mpc * np.sqrt(param.cosmo.Om**(1+z)**3+(1-param.cosmo.Om*-param.cosmo.Ol)*(1+z)**2+param.cosmo.Ol)
+
+
+def BB_Planck( nu , T):
+    """
+    Input : nu in [Hz], T in [K]
+    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
+    """
+    a_ = 2.0 * h__ * nu**3 / c__**2
+    intensity = 4 * np.pi * a_ / ( np.exp(h__*nu/(k__*T)) - 1.0)
+    return intensity
 
 
 
@@ -41,7 +47,7 @@ def NGamDot(param):
         z = param.solver.z
         M_halo = param.source.M_halo
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-        Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun  # [s**-1]
+        Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h   # [s**-1]
         return Ngam_dot
 
     else:
@@ -49,11 +55,41 @@ def NGamDot(param):
         exit()
 
 
+def UV_emissivity(z,zprime,Mhalo,nu,param) :
+    """
+    UV SED of the stellar component. [photons / s**-1 Hz**-1]
+    We use it to compute the lyman-alpha flux.
+    It is equal to Mstar_dot * eps_alpha
+    ------
+
+    Input :
+    -z : arrival redshift
+    -zprime : emission redshift
+    -Mhalo : Halo Mass [Msol/h] at redshift z
+    -nu [Hz] photon freq at arrival (usually Lyman series nu_n)
+
+    Elements :
+    - nu_prime photon frequency at emission
+    - Mhalo * np.exp(alpha*(z-zprime)) halo mass at emission according to exp MAR
+    """
+
+
+    nu_prime = nu * (1+zprime) / (1+z)  ## redshift at emission
+    alpha = param.source.alpha_MAR
+    dMh_dt = alpha * Mhalo * np.exp(alpha*(z-zprime)) * (zprime + 1) * Hubble(zprime, param)  ## MAR [(Msol/h) / yr] at emission
+    Ngam_dot = dMh_dt * f_star_Halo(param, Mhalo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,Mhalo * np.exp(alpha*(z-zprime))) * param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h  #[nbrphotons. s**-1] at emission
+    T_Galaxy = param.source.T_gal
+    nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000, base=10) ## range to normalize
+    norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
+    I__ = Ngam_dot / norm__
+
+    return I__ * BB_Planck(nu_prime, T_Galaxy) / h__  # [s^-1.Hz^-1]
+
 
 def Read_Rockstar(file):
     """
     Read in a rockstar halo catalog and return a dictionnary with all the information stored.
-    R is in kpc/h
+    R is in ckpc/h
     """
 
     Halo_File = []

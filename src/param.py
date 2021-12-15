@@ -1,7 +1,7 @@
 """
 External Parameters
 """
-
+import pkg_resources
 class Bunch(object):
     """
     translates dic['name'] into dic.name 
@@ -43,7 +43,7 @@ def solver_par():
     par = {
         "z" : 6,
         "z_end" : 6,       ## Only for MAR. Redshift where to stop the solver
-        "r_end" : 3,        #### pMpc
+        "r_end" : 3,        #### physical Mpc/h
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
         "Nt"  : 150,      ## number of time slices
         "dn_table" : 100, ## number of radial sample points for the table
@@ -65,8 +65,8 @@ def cosmo_par():
     'rho_c' : 2.775e11,
     'h' : 0.7,
     's8': None,
-    'ps': None,
-    'corr_fct' : None,
+    'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),
+    'corr_fct' : pkg_resources.resource_filename('radtrans', "files/cosmofct.dat"),
     'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
     }
     return Bunch(par)

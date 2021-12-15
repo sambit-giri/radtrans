@@ -19,36 +19,10 @@ import copy
 import os
 from scipy.optimize import curve_fit
 
-
 ###Constants
 facr = 1 * u.Mpc
 cm_per_Mpc = (facr.to(u.cm)).value
 eV_per_erg = 6.242 * 10 ** 11   #(1 * u.erg).to(u.eV).value
-
-# Hydro density and mass
-n_H_0  = 1.87 * 10 ** -12        # [cm**-3]
-m_H    = 1.6 * 10 ** - 27       # [kg]
-m_He   = 6.6464731 * 10 ** - 27 # [kg]
-
-# Energy limits and ionization energies, in [eV]
-E_0 = 10.4
-E_HI = 13.6
-E_HeI = 24.5
-E_HeII = 54.42
-
-# Constants
-c = 2.99792 * 10 ** 10    # [cm/s]
-kb = 1.380649 * 10 ** -23 # [J/K] or [kg.m2.s-2.K-1 ]
-kb_eV_per_K = 8.61733e-5  # [eV/K]
-
-m_e = 9.10938 * 10 ** -31 # [kg]
-m_e_eV = 511e3            # [eV], 511keV
-
-sigma_s = 6.6524 * 10 ** -25 # [cm**2]
-M_sun = 1.988 * 10 ** 30     # [kg]
-sec_per_year = 3600*24*365.25
-Hz_per_eV = 241799050402293
-
 
 ##Cosmology
 Om      = 0.31
@@ -58,12 +32,12 @@ h0      = 0.68
 ns      = 0.97
 s8      = 0.81
 
-h__ = 6.626e-34         ## [J.s] or [m2 kg / s]
-c__ = 2.99792e+8        ## [m/s]
-k__ = 1.380649e-23      ## [m 2 kg s-2 K-1]
-h_eV_sec = 4.135667e-15 ## [eV.s]
 
-def BB_Planck( nu , T):  #  BB Spectrum [J s-1 m−2 Hz−1 ]
+def BB_Planck( nu , T):
+    """
+    Input : nu in [Hz], T in [K]
+    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
+    """
     a_ = 2.0 * h__ * nu**3 / c__**2
     intensity = 4 * pi * a_ / ( exp(h__*nu/(k__*T)) - 1.0)
     return intensity
@@ -235,7 +209,7 @@ def generate_table(param, z, n_HI):
     z : float
      Redshift of the source.
     n_HI n_HeI n_HeII: array_like
-     Cumulative (column density) Neutral hydrogen, HeI, HeII density array in cm**-2 along r_grid.
+     Cumulative (column density) Neutral hydrogen, HeI, HeII density array in Mpc/h.cm**-3 along r_grid.
     E_upp_ is the maximum energy above which we cut the integral. It's in a sense the max energy of the ionizing photon in our model
     Returns
     ------
@@ -274,16 +248,15 @@ def generate_table(param, z, n_HI):
             # Spectral energy function received after passing through column density n_HI0
             def N(E, n_HI0):
                 """
-                input : E in eV, n_HIO in Mpc.cm**-3 (column density, see in generate table how column density are initialized)
+                input : E in eV, n_HIO in Mpc/h.cm**-3 (column density, see in generate table how column density are initialized)
                 output : Divide it by 4*pi*r**2 ,and you get a flux [eV.s-1.r-2.eV-1], r meaning the unit of r
                 """
-                int = cm_per_Mpc * (n_HI0 * sigma_HI(E))
+                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I(E)
 
             E_range_HI_ = np.logspace(np.log10(13.6), np.log10(E_upp_), 1000, base=10)
             Ngam_dot = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
-            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [', param.source.E_0,
-                  ',', param.source.E_upp, '] eV')
+            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [', param.source.E_0, ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies_MAR'):
             z = param.solver.z
@@ -303,7 +276,7 @@ def generate_table(param, z, n_HI):
 
             def N(E, n_HI0):
                 nu_ = Hz_per_eV * E
-                int = cm_per_Mpc * (n_HI0 * sigma_HI(E))
+                int = cm_per_Mpc/ param.cosmo.h * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__
 
             print('source emits', Ngam_dot, 'ionizing photons per seconds.')
@@ -421,7 +394,7 @@ class Source_MAR:
 
         self.E_0 = param.source.E_0
         self.E_upp = param.source.E_upp  # In eV
-        self.r_grid = linspace(self.r_start, self.r_end, self.dn) #Mpc/h
+        self.r_grid = linspace(self.r_start, self.r_end, self.dn) #Mpc/h, phyisical distance from halo center
 
     def create_table(self, param):
         """
@@ -435,14 +408,14 @@ class Source_MAR:
         """
 
         dn_table = self.dn_table
-        r_grid = self.r_grid
+        r_grid = self.r_grid  # phyisical distance from halo center in cMpc/h
 
         self.M_initial = param.source.M_halo
         self.z_initial = param.solver.z
 
-        # Column densities in physical cm**-2
-        nH_column = np.trapz( self.profiles(param,self.z_initial,Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
-        print('n_H_column max : ', nH_column, 'Mpc.cm**-3.')
+        # Column densities in physical Mpc/h.cm**-3.
+        nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
+        print('n_H_column max : ', nH_column, 'Mpc/h.cm**-3.')
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
@@ -453,19 +426,17 @@ class Source_MAR:
 
     def profiles(self,param,z,Mass = None):
         """
-        2h profiles in nbr of [H atoms /cm**3] (physical cm, not comoving)
+        2h profiles in nbr of [H atoms /co-cm**3] (comoving cm)
         """
         # Profiles
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
-        cosmo_corr = splev(self.r_grid * (1 + z) * param.cosmo.h, corr_tck)  # r_grid * (1+self.z) * h in cMpc/h --> To reach the correct scales and units for the correlation fucntion
-        halo_bias = bias(z, param,Mass)
+        cosmo_corr = splev(self.r_grid * (1 + z), corr_tck)  # r_grid * (1+self.z) in cMpc/h --> To reach the correct scales and units for the correlation fucntion
+        halo_bias = bias(z, param, Mass, bias_type='ST')
         # baryonic density profile in [cm**-3]
         norm_profile = profile(halo_bias, cosmo_corr, param,z) * param.cosmo.Ob / param.cosmo.Om * M_sun / (cm_per_Mpc) ** 3 / m_H
         return norm_profile
-
-
 
 
     def initialise_grid_param(self):
@@ -574,10 +545,11 @@ class Source_MAR:
             JT_2a, JT_2b  = Gamma_info['T_2a'], Gamma_info['T_2b']
             Ng_dot_initial= self.Gamma_grid_info['input']['N_ion_ph_dot']
 
-            print('Solver will solve for', param.solver.evol, ' Myr, turning off the source after',param.source.lifetime, 'Myr')
+
+            print('Solver will solve from z=', self.z_initial, 'until z=',param.solver.z_end, ', without turning off the source.')
 
             copy_param = copy.deepcopy(param)
-
+            count__ = 0
 
 
 
@@ -590,7 +562,7 @@ class Source_MAR:
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     Ng_dot_history.append(Ngam_dot_step_l)
-                    T_History[str(zstep_l[0])] = T_grid
+                    T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     try:
                         Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
                         c1, c2 = Fit_[0][0], Fit_[0][1]
@@ -600,7 +572,8 @@ class Source_MAR:
                     c1_history.append(c1)
                     c2_history.append(c2)
 
-                    print('Current Time step: ', l, 'z is ', zstep_l[0],'; ion front is :',front_step,' ; Temperature kick is :',kick[1])
+                    #print('Current Time step: ', l, 'z is ', zstep_l[0],'; ion front is :',front_step,' ; Temperature kick is :',kick[1])
+
 
                 # Calculate the redshift z(t)
                 age  = pl.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
@@ -645,7 +618,6 @@ class Source_MAR:
                     K_HI_previous = K_HI - dr_current * abs(nan_to_num(n_HI00))
 
 
-
                     r2 = r_grid[k] ** 2
                     m_corr = 1
 
@@ -655,8 +627,8 @@ class Source_MAR:
                     if n_HI00 == 0:
                         I1_HI, I2_HI, I1_T_HI = 0, 0, 0
                     else :
-                       I1_HI = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                       I2_HI = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
+                       I1_HI   = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
+                       I2_HI   = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
                        I1_T_HI = (np.interp(K_HI_previous, n_HI, JT_HI_1) - np.interp(K_HI, n_HI, JT_HI_1)) * m_corr / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
 
                     I2_Ta = np.interp(K_HI_previous, n_HI, JT_2a) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
@@ -712,7 +684,7 @@ class Source_MAR:
                         if isnan(Tx):
                             print('Tx is nan')
 
-                        if (Tx < T_gamma * (1 + zstep_l) ** 1 / (1 + 250)):
+                        if (Tx <= 2.725 * (1 + z) ** 2 / (1 + 250)): ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
                             Tx = T_gamma * (1 + zstep_l) ** 1 / (1 + 250)
 
                         n_ee = n_HIIx
@@ -781,12 +753,12 @@ class Source_MAR:
                 p0 = [30 / front_step, front_step]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
                 xdata, ydata = self.r_grid, (nHI0_profile_step- n_HII_grid)/ nHI0_profile_step
 
-
                 l += 1
 
 
-                if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1:
-                    print('np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
+                if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1 and count__==0:
+                    print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
+                    count__ = 1 # just to print this only once
                     #exit()
 
             time_grid = array([time_grid])
@@ -798,8 +770,6 @@ class Source_MAR:
             break
 
 
-
-
         znow = zstep_l[0]
 
         nHI0_profile_now = (self.nHI0_profile[1:] + self.nHI0_profile[:-1])/2  * (1 + znow) ** 3   #n_H(znow,self.C)
@@ -808,7 +778,7 @@ class Source_MAR:
 
         self.n_HI_grid = nHI0_profile_now - n_HII_grid
         self.n_HII_grid = n_HII_grid
-        self.n_H = nHI0_profile_now
+        self.n_H = nHI0_profile_now ## total density in nbr of Hatoms per p-cm**3
         self.T_grid = T_grid
         self.time_grid = time_grid
         self.Ion_front_grid = Ion_front_grid

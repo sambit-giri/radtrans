@@ -2,6 +2,8 @@
 import scipy.integrate as integrate
 import math
 import numpy as np
+from scipy.interpolate import splrep,splev,interp1d
+from .constants import *
 
 
 
@@ -57,11 +59,7 @@ def Variance_tophat(param,mm):
 
 
 def bias(z,param,Mass = None,bias_type='Tinker'):
-    if Mass == None:
-        M = param.source.M_halo * param.cosmo.h  ### Msol/h
-    else:
-        M = Mass
-
+    M = Mass
     if bias_type == 'ST':
         #ST bias
         q = 0.707 # sometimes called a
@@ -95,6 +93,9 @@ def bias(z,param,Mass = None,bias_type='Tinker'):
 
 
 def rho_2h(bias_, cosmo_corr_ ,param, z):
+    """
+    Large scale 2halo profile, matter density around a halo. In Msol/cMpc**3
+    """
     return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) + 1.0) * param.cosmo.Om * rhoc_of_z(param, z)
 
 
@@ -120,11 +121,11 @@ def R_halo(M_halo,z,param):
 def rhoc_of_z(param,z):
     """
     Redshift dependence of critical density
-    (in comoving units where rho_b=const; same as in AHF)
-    Outputs is in Msol/Mpc**3
+    (in comoving units)
+    Outputs is in Msol/cMpc**3
     """
     Om = param.cosmo.Om
-    rhoc = 2.775e11 * param.cosmo.h**2  ## in Msol/Mpc**3
+    rhoc = 2.775e11 * param.cosmo.h**2  ## in Msol/cMpc**3
     return rhoc * (Om * (1.0 + z) ** 3.0 + (1.0 - Om)) / (1.0 + z) ** 3.0
 
 
@@ -133,4 +134,21 @@ def profile(bias_,cosmo_corr_,param, z):
     Global profile of total matter, in Msol/Mpc**3
     This is a comoving density [(Msol)/(cMpc)**3] as a function of comoving radius [cMpc/h]
     """
-    return rho_2h(bias_, cosmo_corr_, param, z) #+ rhoNFW_fct(rbin,param)
+    return rho_2h(bias_, cosmo_corr_, param, z)     #+ rhoNFW_fct(rbin,param)
+
+
+
+def bar_density_2h(rgrid,param,z,Mass):
+    """
+    2h profiles in nbr of [baryons /co-cm**3]
+    rgrid : radial coordinates in physical units [pMpc/h].
+    """
+    # Profiles
+    cosmofile = param.cosmo.corr_fct
+    vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
+    corr_tck = splrep(vc_r, vc_corr, s=0)
+    cosmo_corr = splev(rgrid * (1 + z) , corr_tck)  # r_grid * (1+self.z)  in cMpc/h --> To reach the correct scales and units for the correlation fucntion
+    halo_bias = bias(z, param,Mass)
+    # baryonic density profile in [co-cm**-3]
+    norm_profile = profile(halo_bias, cosmo_corr, param, z) * param.cosmo.Ob / param.cosmo.Om * M_sun / (cm_per_Mpc) ** 3 / m_H
+    return norm_profile
