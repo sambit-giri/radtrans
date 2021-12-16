@@ -1,24 +1,13 @@
 
-import scipy.integrate as integrate
 import math
 import numpy as np
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
+from .cosmo import D, rhoc_of_z
 
 
 
-#define Hubble factor H=H0*E
-def E(x,param):
-    return math.sqrt(param.cosmo.Om*(x**(-3))+1-param.cosmo.Om)
 
-#define D(a) non-normalized
-def D_non_normalized(a,param):
-    w=integrate.quad(lambda u: 1/(u*E(u,param))**3,0,a)[0]
-    return  (5*param.cosmo.Om*E(a,param)/(2))*w
-
-#define D normalized
-def D(a,param):
-    return D_non_normalized(a,param)/D_non_normalized(1,param)
 
 delta_c = 1.686
 
@@ -118,15 +107,6 @@ def R_halo(M_halo,z,param):
     return (3*M_halo/(4*math.pi*200*rhoc_of_z(param,z)*(1+z)**3))**(1.0/3)
 
 
-def rhoc_of_z(param,z):
-    """
-    Redshift dependence of critical density
-    (in comoving units)
-    Outputs is in Msol/cMpc**3
-    """
-    Om = param.cosmo.Om
-    rhoc = 2.775e11 * param.cosmo.h**2  ## in Msol/cMpc**3
-    return rhoc * (Om * (1.0 + z) ** 3.0 + (1.0 - Om)) / (1.0 + z) ** 3.0
 
 
 def profile(bias_,cosmo_corr_,param, z):
@@ -145,7 +125,7 @@ def bar_density_2h(rgrid,param,z,Mass):
     """
     # Profiles
     cosmofile = param.cosmo.corr_fct
-    vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
+    vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
     corr_tck = splrep(vc_r, vc_corr, s=0)
     cosmo_corr = splev(rgrid * (1 + z) , corr_tck)  # r_grid * (1+self.z)  in cMpc/h --> To reach the correct scales and units for the correlation fucntion
     halo_bias = bias(z, param,Mass)

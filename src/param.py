@@ -14,7 +14,7 @@ class Bunch(object):
 def source_par():
     par = {
         "fc2ray": 4000,              # coefficient for the galaxy model, Nion_dot
-        "M_halo": 1e6,               # galaxy halo mass, miniqso halo mass (required for the profiles, i.e. for the bias )
+        "M_halo": 1e6,               # galaxy halo mass, miniqso halo mass (required for the profiles, i.e. for the bi  as )
         "C_halo": 1,                 # halo concentration. Needed for the profiles
         "T_gal": 5e4,                # galaxy Temperature. We let it to 50 000K for now.
         "M_miniqso": 1e4,            # miniquasar mass in the case of miniqsos (Msol)
@@ -65,8 +65,8 @@ def cosmo_par():
     'rho_c' : 2.775e11,
     'h' : 0.7,
     's8': None,
-    'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),
-    'corr_fct' : pkg_resources.resource_filename('radtrans', "files/cosmofct.dat"),
+    'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),      ### This is the path to the input Linear Power Spectrum
+    'corr_fct' : pkg_resources.resource_filename('radtrans', "files/corr_fct.dat"),  ### This is the path where the corresponding correlation function will be stored. You can change it to anything.
     'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
     }
     return Bunch(par)

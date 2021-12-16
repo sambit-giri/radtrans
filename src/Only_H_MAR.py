@@ -3,20 +3,16 @@ from scipy.interpolate import splrep,splev
 import scipy.integrate as integrate
 from numpy import *
 import numpy as np
-import scipy.interpolate as interpolate
-from tqdm import tqdm
 from astropy import units as u
 from astropy.cosmology import WMAP7 as pl
 from scipy.optimize import fsolve
 from sys import exit
 import pickle
 import datetime
-import matplotlib.pyplot as plt
 from .bias import *
-from .constants import *
 from .Astro import *
+from .cosmo import T_adiab, correlation_fct
 import copy
-import os
 from scipy.optimize import curve_fit
 
 ###Constants
@@ -256,7 +252,7 @@ def generate_table(param, z, n_HI):
 
             E_range_HI_ = np.logspace(np.log10(13.6), np.log10(E_upp_), 1000, base=10)
             Ngam_dot = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
-            print('source emits', Ngam_dot, 'ionizing photons per seconds, in the energy range [', param.source.E_0, ',', param.source.E_upp, '] eV')
+            print('source emits', '{:.2e}'.format(Ngam_dot), 'ionizing photons per seconds, in the energy range [', param.source.E_0, ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies_MAR'):
             z = param.solver.z
@@ -264,14 +260,14 @@ def generate_table(param, z, n_HI):
             M = M_halo
             dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
             Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
-            print('Galaxies_MAR model chosen. M_halo is ', M_halo)
+            print('Galaxies_MAR model chosen. M_halo is ', '{:.2e}'.format(M_halo))
 
             T_Galaxy = param.source.T_gal
             nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000,base=10)
             norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
 
             I__ = Ngam_dot / norm__
-            print('BB spectrum normalized to ', Ngam_dot, ' ionizing photons per s, in the energy range [',
+            print('BB spectrum normalized to ', '{:.2e}'.format(Ngam_dot), ' ionizing photons per s, in the energy range [',
                   param.source.E_0, ' ', param.source.E_upp, '] eV')
 
             def N(E, n_HI0):
@@ -279,7 +275,7 @@ def generate_table(param, z, n_HI):
                 int = cm_per_Mpc/ param.cosmo.h * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__
 
-            print('source emits', Ngam_dot, 'ionizing photons per seconds.')
+            print('source emits', '{:.2e}'.format(Ngam_dot), 'ionizing photons per seconds.')
 
 
 
@@ -384,7 +380,7 @@ class Source_MAR:
         self.M_halo = param.source.M_halo
         self.R_halo = R_halo(self.M_halo, self.z, param)  # physical halo size in Mpc
         self.r_start = self.R_halo
-        print('R_halo is :', self.R_halo, 'Mpc')
+        print('R_halo is :', '{:.2e}'.format(self.R_halo), 'Mpc')
         self.r_end = param.solver.r_end  # maximal distance from source
         self.dn = param.solver.dn
         self.Nt = param.solver.Nt
@@ -395,6 +391,10 @@ class Source_MAR:
         self.E_0 = param.source.E_0
         self.E_upp = param.source.E_upp  # In eV
         self.r_grid = linspace(self.r_start, self.r_end, self.dn) #Mpc/h, phyisical distance from halo center
+        correlation_fct(param)
+
+
+
 
     def create_table(self, param):
         """
@@ -415,7 +415,7 @@ class Source_MAR:
 
         # Column densities in physical Mpc/h.cm**-3.
         nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
-        print('n_H_column max : ', nH_column, 'Mpc/h.cm**-3.')
+        print('n_H_column max : ', '{:.2e}'.format(nH_column), 'Mpc/h.cm**-3.')
         n_HI   = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
@@ -430,7 +430,7 @@ class Source_MAR:
         """
         # Profiles
         cosmofile = param.cosmo.corr_fct
-        vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
+        vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
         cosmo_corr = splev(self.r_grid * (1 + z), corr_tck)  # r_grid * (1+self.z) in cMpc/h --> To reach the correct scales and units for the correlation fucntion
         halo_bias = bias(z, param, Mass, bias_type='ST')
@@ -531,7 +531,7 @@ class Source_MAR:
             n_HII_grid = zeros_like(r_grid)
 
             T_grid = zeros_like(r_grid)
-            T_grid += 2.725 * (1 + z) ** 2 / (1 + 250) ### assume gas decoupled from cmb at z=250 and then adiabatically cooled
+            T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=250 and then adiabatically cooled
 
             l = 0
             zstep_l = self.z_initial
@@ -546,7 +546,7 @@ class Source_MAR:
             Ng_dot_initial= self.Gamma_grid_info['input']['N_ion_ph_dot']
 
 
-            print('Solver will solve from z=', self.z_initial, 'until z=',param.solver.z_end, ', without turning off the source.')
+            print('Solver will solve from z=', self.z_initial, 'to z=',param.solver.z_end, ', without turning off the source.')
 
             copy_param = copy.deepcopy(param)
             count__ = 0

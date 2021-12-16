@@ -402,12 +402,11 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         excess_ion = initial_excess
 
         print('there are ', len(Small_regions_labels),'connected regions with less than 10 pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
-
+        
 
         Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None)                               # Do the spreading for the small regions
         if np.any(Grid[small_regions] > 1):
             print('small regions not correctly spread')
-
 
         all_regions_labels = np.array(range(1, Nbr_regions))  # the remaining larges overlapping ionized regions
         large_regions_labels = all_regions_labels[np.where(np.isin(all_regions_labels, Small_regions_labels) == False)[0]]  # indices of regions that have more than 10 pixels
@@ -442,7 +441,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
     - print_time : if it's not None, will print the time taken, along with the message contained in "print_time".
     - Grid_of_1 : grid full of 1 that we generate in Spread_excess_HR.
 
-    Return : the same grid but with the excess  ion fraction of the connected region spread around.
+    Return : the same grid but with the excess ion fraction of the connected region spread around.
 
     Trick : we run distance_transform only for a sub-box centered on the connected region. This is particularly important for high resolution grids, when distance_transform_edt starts to take time (~s, but multilplied by the number of connected regions >1e4, starts taking time...)
         the size of the subbox is N_subgrid. It is called Sub_Grid.
@@ -511,8 +510,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
                               (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
                               (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_Z))]
 
-            while np.sum(1 - Sub_Grid) < excess_ion:  ### for very small regions there might be no room for excess ion.
-                print('jutilise')
+            while np.sum(1 - Sub_Grid) < excess_ion:  ### just check if Sub_Grid has enough room for excess_ion. If not, increase its size N_subgrid.
                 N_subgrid = N_subgrid + 2
                 Sub_Grid = np.full(((N_subgrid, N_subgrid, N_subgrid)), 0)
                 Sub_Grid = Sub_Grid.astype('float64')
