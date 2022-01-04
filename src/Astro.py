@@ -24,8 +24,8 @@ def NGamDot(param):
     """
     Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1]
     """
-    E_0_ = param.source.E_0
-    E_upp_ = param.source.E_upp
+    E_0_ = param.source.E_min_sed_ion
+    E_upp_ = param.source.E_max_sed_ion
     if (param.source.type == 'Miniqsos'):  ### Choose the source type
         alpha = param.source.alpha
         M = param.source.M_miniqso  # Msol
@@ -49,6 +49,18 @@ def NGamDot(param):
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
         Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h   # [s**-1]
         return Ngam_dot
+
+    elif (param.source.type == 'SED' ):
+
+        z = param.solver.z
+        M_halo = param.source.M_halo
+        dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
+        Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,
+                                                                                                     M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+        E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
+
+
+        return Ngam_dot_ion, E_dot_xray * eV_per_erg
 
     else:
         print('Source Type not available. Should be Galaxies or Miniqsos')
@@ -79,7 +91,7 @@ def UV_emissivity(z,zprime,Mhalo,nu,param) :
     dMh_dt = alpha * Mhalo * np.exp(alpha*(z-zprime)) * (zprime + 1) * Hubble(zprime, param)  ## MAR [(Msol/h) / yr] at emission
     Ngam_dot = dMh_dt * f_star_Halo(param, Mhalo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,Mhalo * np.exp(alpha*(z-zprime))) * param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h  #[nbrphotons. s**-1] at emission
     T_Galaxy = param.source.T_gal
-    nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000, base=10) ## range to normalize
+    nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec), np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10) ## range to normalize
     norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
     I__ = Ngam_dot / norm__
 
