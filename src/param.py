@@ -24,6 +24,7 @@ def source_par():
         "E_upp" : 10000,             # minimum energy of ionizing photons in e
         "lifetime" : 10,             # time [Myr] until which we switch off the photon production from the source
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
+        "M_min" : 1e5,               # Minimum mass of star forming halo.
         'f_st': 0.05,
         'Mp': 1e11,
         'g1': 0.49,

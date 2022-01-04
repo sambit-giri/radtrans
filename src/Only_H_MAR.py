@@ -552,27 +552,30 @@ class Source_MAR:
             count__ = 0
 
 
+            Mh_step_l = self.M_initial
 
-            while zstep_l > param.solver.z_end :
-
+            while Mh_step_l < param.source.M_min : ## while Mh(z) <Mmin, nothing happens
+                age  = pl.age(self.z_initial)
+                age  = age.to(u.s)
+                age += l * self.grid_param['dt_init']
+                func = lambda z: pl.age(z).to(u.s).value - age.value
+                zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
+                Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
 
                 if l % 100 == 0 and l != 0:
                     time_grid.append(l * self.grid_param['dt_init'].value)
-                    Ion_front_grid.append(front_step)
+                    Ion_front_grid.append(0)
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
-                    Ng_dot_history.append(Ngam_dot_step_l)
-                    T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
-                    try:
-                        Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
-                        c1, c2 = Fit_[0][0], Fit_[0][1]
-                    except Exception:
-                        c1, c2 = 0, 0
+                    Ng_dot_history.append(0)
+                    T_History[str(round(zstep_l[0],2))] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
+                    c1_history.append(0)
+                    c2_history.append(0)
 
-                    c1_history.append(c1)
-                    c2_history.append(c2)
+                l += 1
 
-                    #print('Current Time step: ', l, 'z is ', zstep_l[0],'; ion front is :',front_step,' ; Temperature kick is :',kick[1])
+
+            while zstep_l > param.solver.z_end :
 
 
                 # Calculate the redshift z(t)
@@ -746,20 +749,36 @@ class Source_MAR:
                 front_step = find_Ifront(n_HII_grid / nHI0_profile_z, self.r_grid)
 
 
-
                 nHI0_profile_step = (self.nHI0_profile[1:] + self.nHI0_profile[:-1]) / 2 * ( 1 + zstep_l) ** 3  # n_H(znow,self.C)
                 nHI0_profile_step = np.concatenate((nHI0_profile_step, [nHI0_profile_step[-1]]))
 
                 p0 = [30 / front_step, front_step]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
                 xdata, ydata = self.r_grid, (nHI0_profile_step- n_HII_grid)/ nHI0_profile_step
 
-                l += 1
-
 
                 if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1 and count__==0:
                     print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
                     count__ = 1 # just to print this only once
                     #exit()
+
+                if l % 100 == 0 and l != 0:
+                    time_grid.append(l * self.grid_param['dt_init'].value)
+                    Ion_front_grid.append(front_step)
+                    Mh_history.append(Mh_step_l)
+                    z_grid.append(zstep_l[0])
+                    Ng_dot_history.append(Ngam_dot_step_l)
+                    T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
+                    try:
+                        Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
+                        c1, c2 = Fit_[0][0], Fit_[0][1]
+                    except Exception:
+                        c1, c2 = 0, 0
+                    c1_history.append(c1)
+                    c2_history.append(c2)
+
+                l += 1
+
+
 
             time_grid = array([time_grid])
             time_grid = time_grid.reshape(time_grid.size, 1)
@@ -783,9 +802,9 @@ class Source_MAR:
         self.time_grid = time_grid
         self.Ion_front_grid = Ion_front_grid
         self.z_now = znow
-        self.z_history = z_grid
+        self.z_history = np.array(z_grid)
         self.Ngdot_history = Ng_dot_history
-        self.Mh_History = Mh_history
+        self.Mh_History = np.array(Mh_history)
         self.c1_history = c1_history
         self.c2_history = c2_history
         self.T_history  = T_History
