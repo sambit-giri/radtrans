@@ -14,6 +14,7 @@ from .Astro import *
 from .cosmo import T_adiab, correlation_fct
 import copy
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 ###Constants
 facr = 1 * u.Mpc
@@ -213,8 +214,8 @@ def generate_table(param, z, n_HI):
         Dictionary containing two sub-dictionaries: The first one containing the function variables and the second one
         containing the 12 tables for the integrals
     '''
-    E_0_ = param.source.E_0
-    E_upp_ = param.source.E_upp  # [eV]
+    E_0_ = param.source.E_min_sed_ion
+    E_upp_ = param.source.E_max_sed_ion  # [eV]
 
     if param.table.import_table:
         if param.table.filename_table == None:
@@ -251,36 +252,67 @@ def generate_table(param, z, n_HI):
                 return exp(-int) * I(E)
 
             E_range_HI_ = np.logspace(np.log10(13.6), np.log10(E_upp_), 1000, base=10)
-            Ngam_dot = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
-            print('source emits', '{:.2e}'.format(Ngam_dot), 'ionizing photons per seconds, in the energy range [', param.source.E_0, ',', param.source.E_upp, '] eV')
+            Ngam_dot_ion = np.trapz(I(E_range_HI_) / E_range_HI_, E_range_HI_)
+            print('source emits', '{:.2e}'.format(Ngam_dot_ion), 'ionizing photons per seconds, in the energy range [', param.source.E_min_sed_ion, ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies_MAR'):
             z = param.solver.z
             M_halo = param.source.M_halo
             M = M_halo
             dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-            Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
             print('Galaxies_MAR model chosen. M_halo is ', '{:.2e}'.format(M_halo))
 
             T_Galaxy = param.source.T_gal
-            nu_range = np.logspace(np.log10(param.source.E_0 / h_eV_sec), np.log10(param.source.E_upp / h_eV_sec), 3000,base=10)
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec), np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000,base=10)
             norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
 
-            I__ = Ngam_dot / norm__
-            print('BB spectrum normalized to ', '{:.2e}'.format(Ngam_dot), ' ionizing photons per s, in the energy range [',
-                  param.source.E_0, ' ', param.source.E_upp, '] eV')
+            I__ = Ngam_dot_ion / norm__
+            print('BB spectrum normalized to ', '{:.2e}'.format(Ngam_dot_ion), ' ionizing photons per s, in the energy range [',
+                  param.E_min_sed_ion, ' ', param.source.E_max_sed_ion, '] eV')
 
             def N(E, n_HI0):
                 nu_ = Hz_per_eV * E
                 int = cm_per_Mpc/ param.cosmo.h * (n_HI0 * sigma_HI(E))
                 return exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__
 
-            print('source emits', '{:.2e}'.format(Ngam_dot), 'ionizing photons per seconds.')
+            print('source emits', '{:.2e}'.format(Ngam_dot_ion), 'ionizing photons per seconds.')
 
+
+
+        elif (param.source.type == 'SED'):
+            z = param.solver.z
+            M_halo = param.source.M_halo
+            M = M_halo
+            dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
+            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+            E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
+
+            sed_ion = param.source.alS_ion
+            sed_xray = param.source.alS_xray
+
+            norm_ion = (1 - sed_ion) / ((param.source.E_max_sed_ion / h_eV_sec) ** (1 - sed_ion) - (param.source.E_min_sed_ion / h_eV_sec) ** (1 - sed_ion))
+            norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))
+
+            # nu**alpha*norm  is a count of [photons.Hz**-1]
+
+            def Nion(E, n_HI0):
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))  ##
+                return np.exp(-int) * Ngam_dot_ion * nu_ ** (-sed_ion) * norm_ion * nu_  # this is [Hz*Hz**-1 . s**-1] normalized to Ngdot in the range min-max
+
+            def Nxray(E, n_HI0):
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))
+                return np.exp(-int) * E_dot_xray * eV_per_erg * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]
+
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),
+                                   np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
+            plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
 
 
         else:
-            print('Source Type not available. Should be Galaxies or Miniqsos')
+            print('Source Type not available. Should be Galaxies or Miniqsos or SED')
             exit()
 
         IHI_1 = zeros((n_HI.size))
@@ -293,19 +325,19 @@ def generate_table(param, z, n_HI):
         E_range_HI = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10)
         E_range_0    = np.logspace(np.log10(E_0_), np.log10(E_upp_), 1000, base=10)
 
-        IHI_1[:] = np.trapz(1 / E_range_HI * N(E_range_HI, n_HI[:, None]), E_range_HI)  # sigma_HI(E_range_HI)
-        IHI_2[:] = np.trapz((E_range_HI - E_HI) / (E_HI * E_range_HI) * N(E_range_HI, n_HI[:, None]), E_range_HI)
-        IT_HI_1[:] = np.trapz((E_range_HI - E_HI) / E_range_HI * N(E_range_HI, n_HI[:, None]), E_range_HI)
-        IT_2a[:] = np.trapz(N(E_range_0, n_HI[:, None]) * E_range_0, E_range_0)
-        IT_2b[:] = np.trapz(N(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0)
+        IHI_1[:] = np.trapz(1 / E_range_HI * Nion(E_range_HI, n_HI[:, None]), E_range_HI)  # sigma_HI(E_range_HI)
+        IHI_2[:] = np.trapz((E_range_HI - E_HI) / (E_HI * E_range_HI) * Nion(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_HI_1[:] = np.trapz((E_range_HI - E_HI) / E_range_HI * Nxray(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_2a[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * E_range_0, E_range_0)
+        IT_2b[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0)
 
         print('...done')
 
         Gamma_info = {'HI_1': IHI_1, 'HI_2': IHI_2,  'T_HI_1': IT_HI_1,'T_2a': IT_2a, 'T_2b': IT_2b}
 
-        input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot,
-                      'n_HI': n_HI,  'E_0': param.source.E_0,
-                      'E_upp': param.source.E_upp}
+        input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot_ion, 'E_dot_xray': E_dot_xray * eV_per_erg,
+                      'n_HI': n_HI,  'E_0': param.source.E_min_sed_ion,
+                      'E_upp': param.source.E_max_sed_ion}
 
         Gamma_input_info = {'Gamma': Gamma_info, 'input': input_info}
 
@@ -364,7 +396,7 @@ class Source_MAR:
 
         if param.source.type == 'Miniqsos':
             self.M = param.source.M_miniqso
-        elif param.source.type == 'Galaxies':
+        elif param.source.type == 'SED':
             self.M = param.source.M_halo
         elif param.source.type == 'Galaxies_MAR':
             self.M = param.source.M_halo
@@ -388,8 +420,8 @@ class Source_MAR:
         self.Gamma_grid_info = None
         self.C = param.solver.C  # Clumping factor
 
-        self.E_0 = param.source.E_0
-        self.E_upp = param.source.E_upp  # In eV
+        self.E_0 = param.source.E_min_sed_ion
+        self.E_upp = param.source.E_max_sed_ion  # In eV
         self.r_grid = linspace(self.r_start, self.r_end, self.dn) #Mpc/h, phyisical distance from halo center
         correlation_fct(param)
 
@@ -543,7 +575,8 @@ class Source_MAR:
             JHI_1, JHI_2  = Gamma_info['HI_1'], Gamma_info['HI_2']
             JT_HI_1       = Gamma_info['T_HI_1']
             JT_2a, JT_2b  = Gamma_info['T_2a'], Gamma_info['T_2b']
-            Ng_dot_initial= self.Gamma_grid_info['input']['N_ion_ph_dot']
+            Ng_dot_initial_ion= self.Gamma_grid_info['input']['N_ion_ph_dot']
+            E_dot_initial_xray= self.Gamma_grid_info['input']['E_dot_xray']
 
 
             print('Solver will solve from z=', self.z_initial, 'to z=',param.solver.z_end, ', without turning off the source.')
@@ -594,7 +627,12 @@ class Source_MAR:
                 ### Update halo mass, exponential growth
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 copy_param.source.M_halo = Mh_step_l
-                Ngam_dot_step_l = NGamDot(copy_param)
+
+
+                if param.source.type == 'SED' :
+                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,erg/s]
+                else :
+                    Ngam_dot_step_l = NGamDot(copy_param)
 
                 #### Update the profile due to expansion and Halo Growth
                 self.nHI0_profile = self.profiles(param, zstep_l, Mass = Mh_step_l)
@@ -637,7 +675,11 @@ class Source_MAR:
                     I2_Ta = np.interp(K_HI_previous, n_HI, JT_2a) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
                     I2_Tb = np.interp(K_HI_previous, n_HI, JT_2b) * m_corr / r2 / cm_per_Mpc ** 2 / 4 / pi
 
-                    I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb )) * Ngam_dot_step_l / Ng_dot_initial ### added correctrion for halo growth
+                    if param.source.type == 'SED':
+                        I1_HI, I2_HI  = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion
+                        I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num(( I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
+                    else :
+                        I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb )) * Ngam_dot_step_l / Ng_dot_initial_ion ### added correctrion for halo growth
 
 
 
@@ -766,7 +808,7 @@ class Source_MAR:
                     Ion_front_grid.append(front_step)
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
-                    Ng_dot_history.append(Ngam_dot_step_l)
+                    Ng_dot_history.append(Ngam_dot_step_l_ion)
                     T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     try:
                         Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
@@ -775,6 +817,7 @@ class Source_MAR:
                         c1, c2 = 0, 0
                     c1_history.append(c1)
                     c2_history.append(c2)
+                    print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
 
                 l += 1
 

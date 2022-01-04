@@ -5,6 +5,7 @@ m_H    = 1.6 * 10 ** - 27
 km_per_Mpc = 3.08568 * 10 ** 19
 cm_per_Mpc = 3.08568 * 10 ** 24
 m_p_in_Msun= 8.4119e-58     # Proton mass in [Msun]
+eV_per_erg = 6.242 * 10 ** 11   #(1 * u.erg).to(u.eV).value
 
 
 Tcmb0 = 2.725   # [K]

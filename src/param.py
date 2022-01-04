@@ -20,8 +20,16 @@ def source_par():
         "M_miniqso": 1e4,            # miniquasar mass in the case of miniqsos (Msol)
         "alpha": 1,                  # SED of the miniqso spectra
         "type": 'Miniqsos',          # source type. Can be 'Galaxies' or 'Miniqsos'
-        "E_0" : 10.4,                # minimum energy of ionizing photons in eV
-        "E_upp" : 10000,             # minimum energy of ionizing photons in e
+        "E_min_sed_ion" : 10.4,                # minimum energy of normalization of ionizing photons in eV
+        "E_max_sed_ion" : 10000,             # minimum energy of normalization of ionizing photons in eV
+
+        "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
+        "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
+
+        "alS_ion" : 1.5 ,                 ##PL sed ion part
+        "alS_xray": 1.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
+        "cX" :  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
+
         "lifetime" : 10,             # time [Myr] until which we switch off the photon production from the source
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
         "M_min" : 1e5,               # Minimum mass of star forming halo.
@@ -36,6 +44,9 @@ def source_par():
         "f0_esc": 0.15,  # photon escape fraction f_esc = f0_esc * (M/Mp)^pl_esc
         "Mp_esc": 1e10,
         "pl_esc": 0.0,
+
+        "E_0" : 10.4,
+        "E_upp": 10000,
     }
 
     return Bunch(par)
