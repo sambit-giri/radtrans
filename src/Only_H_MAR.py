@@ -588,14 +588,14 @@ class Source_MAR:
 
             Mh_step_l = self.M_initial
 
-            while Mh_step_l < param.source.M_min : ## while Mh(z) <Mmin, nothing happens
+            while Mh_step_l < param.source.M_min and zstep_l > param.solver.z_end  : ## while Mh(z) <Mmin, nothing happens
                 age  = pl.age(self.z_initial)
                 age  = age.to(u.s)
                 age += l * self.grid_param['dt_init']
                 func = lambda z: pl.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
-
+                self.nHI0_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
                 if l % 100 == 0 and l != 0:
                     time_grid.append(l * self.grid_param['dt_init'].value)
                     Ion_front_grid.append(0)
@@ -605,7 +605,8 @@ class Source_MAR:
                     T_History[str(round(zstep_l[0],2))] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
                     c1_history.append(0)
                     c2_history.append(0)
-
+                    x_tot_history[str(round(zstep_l[0], 2))] = 0
+                   # print(l,zstep_l ,Mh_step_l)
                 l += 1
 
 
