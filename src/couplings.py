@@ -81,8 +81,8 @@ def eps_lyal(nu,param):
     See cosmicdawn/sources.py
     """
     h0    = param.cosmo.h
-    N_al  = 9690
-    alS = 0.0
+    N_al  = param.source.N_al #9690
+    alS = param.source.alS_lyal
 
     nu_min_norm  = nu_al
     nu_max_norm  = nu_LL
@@ -157,3 +157,6 @@ def rho_alpha(r_grid, M_Bin, z_Bin, param):
     rho_alpha = rho_alpha * (h0 / cm_per_Mpc) ** 2  # [pcm-2.s-1.Hz-1]
 
     return rho_alpha
+
+
+

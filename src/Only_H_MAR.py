@@ -12,6 +12,7 @@ import datetime
 from .bias import *
 from .Astro import *
 from .cosmo import T_adiab, correlation_fct
+from .couplings import x_coll, rho_alpha, S_alpha
 import copy
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
@@ -557,8 +558,8 @@ class Source_MAR:
             Ng_dot_history = []
             z_grid = []
             c1_history, c2_history = [], []
-            T_History = {} #create a ictionnary to store the temperature profile at the desired redshifts
-
+            T_History = {} #create a dictionnary to store the temperature profile at the desired redshifts
+            x_tot_history = {}
 
             n_HII_grid = zeros_like(r_grid)
 
@@ -637,7 +638,7 @@ class Source_MAR:
                 #### Update the profile due to expansion and Halo Growth
                 self.nHI0_profile = self.profiles(param, zstep_l, Mass = Mh_step_l)
 
-                nHI0_profile_z = self.nHI0_profile * (1 + zstep_l) ** 3
+                nHI0_profile_z = self.nHI0_profile * (1 + zstep_l) ** 3  ## physical density
 
                 # Initialize the values to evaluate the integrals
                 K_HI = 0
@@ -817,7 +818,17 @@ class Source_MAR:
                         c1, c2 = 0, 0
                     c1_history.append(c1)
                     c2_history.append(c2)
-                    print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
+                    #print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
+
+
+                    ### x_alpha
+                    rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3
+                    xHI_ = 1 - profile_1D(r_grid, c1=c1, c2=c2)  ### neutral fraction
+                    xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
+                    x_alpha_ = 1.81e11 * rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0] * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
+                    x_tot_ = (x_alpha_ + xcoll_)
+                    x_tot_history[str(round(zstep_l[0],2))] = np.copy(x_tot_)
+
 
                 l += 1
 
@@ -851,7 +862,7 @@ class Source_MAR:
         self.c1_history = c1_history
         self.c2_history = c2_history
         self.T_history  = T_History
-
+        self.x_tot_history = x_tot_history
 
 
     def fit(self):

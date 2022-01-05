@@ -30,6 +30,11 @@ def source_par():
         "alS_xray": 1.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
         "cX" :  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
 
+
+        "N_al":9690,    #nbr of lyal photons per baryons in stars
+        "alS_lyal": 0, ##PL for lyal
+
+
         "lifetime" : 10,             # time [Myr] until which we switch off the photon production from the source
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
         "M_min" : 1e5,               # Minimum mass of star forming halo.

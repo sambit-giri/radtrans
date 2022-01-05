@@ -402,7 +402,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         excess_ion = initial_excess
 
         print('there are ', len(Small_regions_labels),'connected regions with less than 10 pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
-        
+
 
         Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None)                               # Do the spreading for the small regions
         if np.any(Grid[small_regions] > 1):
