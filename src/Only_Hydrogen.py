@@ -480,13 +480,13 @@ class Source_Only_H:
         vc_r, vc_m, vc_bias, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1, 2, 3), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
         cosmo_corr = splev(r_grid * (1+self.z), corr_tck) # r_grid * (1+self.z) is the comoving value of r_grid at z. To reach the correct scales for the correlation fucntion
-        halo_bias = bias(self.z, param)
+        halo_bias = bias(self.z, param,Mass = param.source.M_halo)
         # baryonic density profile in [cm**-3]
         norm_profile = profile(halo_bias,cosmo_corr,param, self.z) * param.cosmo.Ob / param.cosmo.Om * M_sun * param.cosmo.h **2 / (cm_per_Mpc)**3 / m_H
 
         self.nHI0_profile  = norm_profile * 1   # profiles at z = 0
 
-        nH_column  = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3  ###
+        nH_column  = np.trapz(self.nHI0_profile, r_grid) * (1+self.z)**3
 
         #print('density profile : ',  self.nHI0_profile  * (1+self.z)**3)
         print('n_H_column max : ', nH_column ,'cm**-3.')
@@ -594,7 +594,7 @@ class Source_Only_H:
             n_HII_grid = zeros_like(r_grid)
 
             T_grid = zeros_like(r_grid)
-            T_grid += T_gamma * (1 + z) ** 1 / (1 + 250)
+            T_grid += T_gamma * (1 + z) ** 2 / (1 + 250)
 
             l = 0
 
