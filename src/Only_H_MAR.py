@@ -754,7 +754,7 @@ class Source_MAR:
                         H = pl.H(zstep_l)
                         H = H.to(u.s ** -1).value
 
-                        A6 = (2 * H * kb * Tx * n_B / mu)
+                        A6 = (7.5 * H * kb * Tx * n_B / mu) ## 15/2 factor in fukugita
 
                         # A,B,C for the ionization equation. D for the Temp eq.
 
@@ -766,6 +766,7 @@ class Source_MAR:
                             print('A or D is nan ')
 
                         return ravel(array([A, D], dtype="object"))
+
 
 
 
@@ -785,8 +786,8 @@ class Source_MAR:
                         T_grid[k] += dt_init.value * kick[1]
                         # n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(T_grid[k]) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
 
-                    if (T_grid[k] <= 2.725 * (1 + self.z_initial) ** 2 / (1 + 250)):  ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
-                        T_grid[k] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
+                    #if (T_grid[k] <= 2.725 * (1 + self.z_initial) ** 2 / (1 + 250)):  ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
+                    #    T_grid[k] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
 
                     if isnan(n_HII_grid[k]):
                         n_HII_grid[k] = n_H_z_r
