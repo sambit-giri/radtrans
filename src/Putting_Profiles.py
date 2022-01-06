@@ -11,7 +11,7 @@ from astropy.convolution import convolve_fft
 import datetime
 
 
-def profile_1D(r, c1=2, c2=5):  #
+def profile_1D_ion(r, c1=2, c2=5):  #
     """
     1D ionization profile, sigmoid function. 1 when ionized, 0 when neutral.
 

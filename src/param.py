@@ -27,7 +27,7 @@ def source_par():
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
 
         "alS_ion" : 1.5 ,                 ##PL sed ion part
-        "alS_xray": 1.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
+        "alS_xray": 2.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
         "cX" :  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
 
 
@@ -58,7 +58,7 @@ def source_par():
 
 def solver_par():
     par = {
-        "z" : 6,
+        "z" : 25,
         "z_end" : 6,       ## Only for MAR. Redshift where to stop the solver
         "r_end" : 3,        #### physical Mpc/h
         "dn"  : 10,       ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)

@@ -309,7 +309,9 @@ def generate_table(param, z, n_HI):
 
             nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),
                                    np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
-            plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
+            #plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
+            XraySed = Nxray(nu_range / Hz_per_eV, 1e-9)
+            Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9)
 
 
         else:
@@ -338,7 +340,7 @@ def generate_table(param, z, n_HI):
 
         input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot_ion, 'E_dot_xray': E_dot_xray * eV_per_erg,
                       'n_HI': n_HI,  'E_0': param.source.E_min_sed_ion,
-                      'E_upp': param.source.E_max_sed_ion}
+                      'E_upp': param.source.E_max_sed_ion,'SED':{'nu':nu_range,'ion':Ion_Sed,'xray':XraySed} }
 
         Gamma_input_info = {'Gamma': Gamma_info, 'input': input_info}
 
@@ -559,6 +561,7 @@ class Source_MAR:
             z_grid = []
             c1_history, c2_history = [], []
             T_History = {} #create a dictionnary to store the temperature profile at the desired redshifts
+            xHII_History = {}
             x_tot_history = {}
 
             n_HII_grid = zeros_like(r_grid)
@@ -606,9 +609,12 @@ class Source_MAR:
                     c1_history.append(0)
                     c2_history.append(0)
                     x_tot_history[str(round(zstep_l[0], 2))] = 0
-                   # print(l,zstep_l ,Mh_step_l)
+                    xHII_History[str(round(zstep_l[0], 2))] = 0
+                    print(l,zstep_l ,Mh_step_l)
                 l += 1
 
+            T_grid = zeros_like(r_grid)
+            T_grid += T_adiab(zstep_l)
 
             while zstep_l > param.solver.z_end :
 
@@ -731,8 +737,7 @@ class Source_MAR:
                         if isnan(Tx):
                             print('Tx is nan')
 
-                        if (Tx <= 2.725 * (1 + z) ** 2 / (1 + 250)): ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
-                            Tx = T_gamma * (1 + zstep_l) ** 1 / (1 + 250)
+
 
                         n_ee = n_HIIx
 
@@ -780,7 +785,8 @@ class Source_MAR:
                         T_grid[k] += dt_init.value * kick[1]
                         # n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(T_grid[k]) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
 
-
+                    if (T_grid[k] <= 2.725 * (1 + self.z_initial) ** 2 / (1 + 250)):  ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
+                        T_grid[k] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
 
                     if isnan(n_HII_grid[k]):
                         n_HII_grid[k] = n_H_z_r
@@ -802,7 +808,7 @@ class Source_MAR:
 
                 if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1 and count__==0:
                     print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
-                    count__ = 1 # just to print this only once
+                    count__ = 1 #  to print this only once
                     #exit()
 
                 if l % 100 == 0 and l != 0:
@@ -813,18 +819,19 @@ class Source_MAR:
                     Ng_dot_history.append(Ngam_dot_step_l_ion)
                     T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     try:
-                        Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
+                        Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
                         c1, c2 = Fit_[0][0], Fit_[0][1]
                     except Exception:
                         c1, c2 = 0, 0
                     c1_history.append(c1)
                     c2_history.append(c2)
+                    xHII_History[str(round(zstep_l[0], 2))] = 1-ydata
                     #print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
 
 
                     ### x_alpha
                     rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3
-                    xHI_ = 1 - profile_1D(r_grid, c1=c1, c2=c2)  ### neutral fraction
+                    xHI_ = profile_1D_HI(r_grid, c1=c1, c2=c2)  ### neutral fraction
                     xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
                     x_alpha_ = 1.81e11 * rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0] * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_ = (x_alpha_ + xcoll_)
@@ -853,7 +860,7 @@ class Source_MAR:
         self.n_HI_grid = nHI0_profile_now - n_HII_grid
         self.n_HII_grid = n_HII_grid
         self.n_H = nHI0_profile_now ## total density in nbr of Hatoms per p-cm**3
-        self.T_grid = T_grid
+        self.T_grid = np.copy(T_grid)
         self.time_grid = time_grid
         self.Ion_front_grid = Ion_front_grid
         self.z_now = znow
@@ -864,20 +871,20 @@ class Source_MAR:
         self.c2_history = c2_history
         self.T_history  = T_History
         self.x_tot_history = x_tot_history
-
+        self.xHII_History=xHII_History
 
     def fit(self):
         p0 = [30/self.Ion_front_grid[-1][0],  self.Ion_front_grid[-1][0]]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
         xdata, ydata = self.r_grid, self.n_HI_grid / self.n_H
-        Fit_ = curve_fit(profile_1D, xdata, ydata, p0=p0)
+        Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
         self.c1 = Fit_[0][0]
         self.c2 = Fit_[0][1]
 
 
 
-def profile_1D(r, c1, c2):
+def profile_1D_HI(r, c1, c2):
     '''
-    Sigmoid Function that we fit to the ionization profile. In order to just store 2 parameters per profiles
+    Sigmoid Function that we fit to the neutral fraction profile. In order to just store 2 parameters per profiles
 
     Parameters
     ----------
