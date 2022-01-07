@@ -563,6 +563,8 @@ class Source_MAR:
             T_History = {} #create a dictionnary to store the temperature profile at the desired redshifts
             xHII_History = {}
             x_tot_history = {}
+            x_coll_history = {}
+            x_al_history = {}
 
             n_HII_grid = zeros_like(r_grid)
 
@@ -609,8 +611,10 @@ class Source_MAR:
                     c1_history.append(0)
                     c2_history.append(0)
                     x_tot_history[str(round(zstep_l[0], 2))] = 0
+                    x_al_history[str(round(zstep_l[0], 2))] = 0
+                    x_coll_history[str(round(zstep_l[0], 2))] = 0
                     xHII_History[str(round(zstep_l[0], 2))] = 0
-                    print(l,zstep_l ,Mh_step_l)
+                    #print(l,zstep_l ,Mh_step_l)
                 l += 1
 
             T_grid = zeros_like(r_grid)
@@ -819,24 +823,28 @@ class Source_MAR:
                     z_grid.append(zstep_l[0])
                     Ng_dot_history.append(Ngam_dot_step_l_ion)
                     T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
-                    try:
-                        Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
-                        c1, c2 = Fit_[0][0], Fit_[0][1]
-                    except Exception:
-                        c1, c2 = 0, 0
-                    c1_history.append(c1)
-                    c2_history.append(c2)
+                    #try:
+                    #    Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
+                    #    c1, c2 = Fit_[0][0], Fit_[0][1]
+                    #except Exception:
+                    #    c1, c2 = 0, 0
+                    #c1_history.append(c1)
+                    #c2_history.append(c2)
                     xHII_History[str(round(zstep_l[0], 2))] = 1-ydata
                     #print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
 
 
                     ### x_alpha
                     rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3
-                    xHI_ = profile_1D_HI(r_grid, c1=c1, c2=c2)  ### neutral fraction
+                    xHI_ = ydata   ### neutral fraction
                     xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
-                    x_alpha_ = 1.81e11 * rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0] * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
+                    rho_alpha_ = rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
+                    x_alpha_ = 1.81e11 * rho_alpha_ * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_ = (x_alpha_ + xcoll_)
                     x_tot_history[str(round(zstep_l[0],2))] = np.copy(x_tot_)
+                    x_al_history[str(round(zstep_l[0], 2))] = np.copy(x_alpha_)
+                    x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
+
 
 
                 l += 1
@@ -872,6 +880,8 @@ class Source_MAR:
         self.c2_history = c2_history
         self.T_history  = T_History
         self.x_tot_history = x_tot_history
+        self.x_coll_history = x_coll_history
+        self.x_al_history = x_al_history
         self.xHII_History=xHII_History
 
     def fit(self):
