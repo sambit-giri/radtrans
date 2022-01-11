@@ -324,12 +324,15 @@ def generate_table(param, z, n_HI):
         IT_2a = zeros((n_HI.size))
         IT_2b = zeros((n_HI.size))
 
-        E_range_HI = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10)
-        E_range_0    = np.logspace(np.log10(E_0_), np.log10(E_upp_), 1000, base=10)
+        E_range_HI = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10) #ionizing photon range
+        E_range_0    = np.logspace(np.log10(param.source.E_min_sed_xray), np.log10(param.source.E_max_sed_xray), 1000, base=10) #xray photon range
+        #np.logspace(np.log10(E_0_), np.log10(E_upp_), 1000, base=10)
+        #E_range_ion    = np.logspace(np.log10(param.source.E_min_sed_ion), np.log10(param.source.E_max_sed_ion), 1000, base=10)
+        #E_range_xray    = np.logspace(np.log10(param.source.E_min_sed_xray), np.log10(param.source.E_max_sed_xray), 1000, base=10)
 
         IHI_1[:] = np.trapz(1 / E_range_HI * Nion(E_range_HI, n_HI[:, None]), E_range_HI)  # sigma_HI(E_range_HI)
         IHI_2[:] = np.trapz((E_range_HI - E_HI) / (E_HI * E_range_HI) * Nion(E_range_HI, n_HI[:, None]), E_range_HI)
-        IT_HI_1[:] = np.trapz((E_range_HI - E_HI) / E_range_HI * Nxray(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_HI_1[:] = np.trapz((E_range_0 - E_HI) / E_range_0 * Nxray(E_range_0, n_HI[:, None]), E_range_0)
         IT_2a[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * E_range_0, E_range_0)
         IT_2b[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0)
 
