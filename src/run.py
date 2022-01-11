@@ -139,7 +139,7 @@ def paint_profiles(param):
     if catalog_dir is None :
         print('You should specify param.sim.halo_catalogs. Should be a file containing the rockstar halo catalogs.')
 
-    print('Painting T and ion profiles on a grid with',nGrid,'pixels per dim. Box size is',LBox,'cMpc/h.')
+    print('Painting T and ion profiles on a grid with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
 
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
     z_start = param.solver.z
@@ -277,6 +277,44 @@ def paint_profiles(param):
 
 
 
+def compute_GS(param):
+    """
+    Reads in the grids and compute the global quantities averaged.
+    """
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    nGrid = param.sim.Ncell
+
+    Tadiab = []
+    z_ = []
+    Tk = []
+    dTb  =[]
+    x_HII = []
+    x_tot = []
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        with open(catalog_dir+filename, "r") as file:
+            file.readline()
+            a = float(file.readline()[4:])
+            zz_ = 1 / a - 1
+        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xtot           = pickle.load(file=open('./grid_output/xtot_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_dTb_over_rho_b = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+
+        z_.append(zz_)
+        Tk.append(np.mean(Grid_Temp))
+        x_HII.append(np.mean(Grid_xHII))
+        x_tot.append(np.mean(Grid_xtot))
+        dTb.append(np.mean(Grid_dTb_over_rho_b))
+        Tadiab.append( Tcmb0 * (1+zz_)**2/(1+250) )
+
+    if not os.path.isdir('./physics'):
+        os.mkdir('./physics')
+    Dict = {'Tk':Tk,'x_HII':x_HII,'x_tot':x_tot,'dTb':dTb,'Tadiab':Tadiab,'z':z_}
+    pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
+
+
 def compute_PS(param):
     """
     Parameters
@@ -295,6 +333,7 @@ def compute_PS(param):
     PS_XHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI, box_dims=100 / 0.7, kbins=20)
     PS_rho = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=100 / 0.7, kbins=20)
     PS_cross = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho, box_dims=100 / 0.7, kbins=20)
+
 
 
 
