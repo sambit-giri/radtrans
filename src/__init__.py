@@ -1,7 +1,6 @@
 from . import *
-from .Only_H_MAR import Source_MAR
-from .H_He_final import Source
-from .Only_Hydrogen import Source_Only_H
+from .solver import Source_MAR
 from .param import par
 from .couplings import *
+from .run import run_solver, paint_profiles
  

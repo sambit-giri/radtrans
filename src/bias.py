@@ -90,7 +90,7 @@ def rho_2h(bias_, cosmo_corr_ ,param, z):
 
 def rhoNFW_fct(rbin,param):
     """
-    NFW density profile.
+    NFW density profile. We do not use it in the code.
     """
     Mvir = param.source.M_halo
     cvir = param.source.C_halo

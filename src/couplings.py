@@ -6,7 +6,7 @@ import numpy as np
 from .constants import *
 import pkg_resources
 from .cosmo import comoving_distance, Hubble
-from .Astro import f_star_Halo
+from .astro import f_star_Halo
 from scipy.interpolate import splrep,splev,interp1d
 
 def T_cmb(z):
