@@ -237,8 +237,10 @@ def paint_profiles(param):
                             profile_xal = interp1d(radial_grid*(1+z),x_al_profile,bounds_error = False,fill_value=0)
                             kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
 
-                            Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_T)
-                            Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xal)
+                            if not np.sum(kernel_T)<1e-8:
+                                Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_T)
+                            if not np.sum(kernel_xal)<1e-8:
+                                Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xal)
 
 
                             if np.any(kernel_xHII>0) and np.max(kernel_xHII)>1e-8: ## To avoid error from convole_fft (renomalization)
