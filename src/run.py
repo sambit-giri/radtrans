@@ -220,7 +220,9 @@ def paint_profiles(param):
 
                         x_HII_profile = grid_model.xHII_History[str(round(zgrid,2))]
 
-                        rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i]]), np.array([z]), param)[0][0]
+                        rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
+
+                        
                         x_al_profile = 1.81e11 * rho_alpha_ * S_alpha(z, Temp_profile, 1 - x_HII_profile) / (1 + z)  # grid_model.x_al_history[str(round(zgrid,2))]
 
                         Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
@@ -365,7 +367,7 @@ def compute_GS(param):
         Tk.append(np.mean(Grid_Temp))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(np.mean(Grid_xal))
-        dTb.append(np.mean(Grid_dTb_over_rho_b*delta_b))
+        #dTb.append(np.mean(Grid_dTb_over_rho_b*delta_b))
         Tadiab.append( Tcmb0 * (1+zz_)**2/(1+250) )
 
 
