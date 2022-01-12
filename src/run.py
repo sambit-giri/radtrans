@@ -14,7 +14,7 @@ from radtrans.astro import Read_Rockstar, NGamDot
 import os
 import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast,put_profiles_group
-from radtrans.couplings import x_coll
+from radtrans.couplings import x_coll,rho_alpha, S_alpha
 
 
 def run_solver(param):
