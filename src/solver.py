@@ -306,8 +306,7 @@ def generate_table(param, z, n_HI):
                 int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))
                 return np.exp(-int) * E_dot_xray * eV_per_erg * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]
 
-            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),
-                                   np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
             #plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
             XraySed = Nxray(nu_range / Hz_per_eV, 1e-9)
             Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9)
@@ -564,14 +563,17 @@ class Source_MAR:
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     Ng_dot_history.append(0)
-                    T_History[str(round(zstep_l[0],2))] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
+                    Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
+                    T_History[str(round(zstep_l[0],2))] = Tadiab
                     c1_history.append(0)
                     c2_history.append(0)
-                    x_tot_history[str(round(zstep_l[0], 2))] = 0
                     x_al_history[str(round(zstep_l[0], 2))] = 0
-                    x_coll_history[str(round(zstep_l[0], 2))] = 0
+
+                    rho_bar_mean = rhoc0 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
+                    xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
+                    x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
+                    x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
                     xHII_History[str(round(zstep_l[0], 2))] = 0
-                    #print(l,zstep_l ,Mh_step_l)
                 l += 1
 
             T_grid = zeros_like(r_grid)
@@ -595,7 +597,7 @@ class Source_MAR:
                 copy_param.source.M_halo = Mh_step_l
 
                 if param.source.type == 'SED' :
-                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,erg/s]
+                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,eV/s]
                 else :
                     Ngam_dot_step_l = NGamDot(copy_param)
 
@@ -787,13 +789,13 @@ class Source_MAR:
 
                     ### x_alpha
                     rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3
-                    xHI_ = ydata   ### neutral fraction
+                    xHI_   = ydata   ### neutral fraction
                     xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
                     rho_alpha_ = rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
                     x_alpha_ = 1.81e11 * rho_alpha_ * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
-                    x_tot_ = (x_alpha_ + xcoll_)
-                    x_tot_history[str(round(zstep_l[0],2))] = np.copy(x_tot_)
-                    x_al_history[str(round(zstep_l[0], 2))] = np.copy(x_alpha_)
+                    x_tot_   = (x_alpha_ + xcoll_)
+                    x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
+                    x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
                     x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
 
 

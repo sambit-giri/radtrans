@@ -16,8 +16,8 @@ def source_par():
         "M_halo": 1e6,               # galaxy halo mass, miniqso halo mass (required for the profiles, i.e. for the bi  as )
 
         "type": 'SED',          # source type. Can be 'Galaxies' or 'Miniqsos' or SED
-        "E_min_sed_ion" : 10.4,                # minimum energy of normalization of ionizing photons in eV
-        "E_max_sed_ion" : 1000,             # minimum energy of normalization of ionizing photons in eV
+        "E_min_sed_ion": 10.4,                # minimum energy of normalization of ionizing photons in eV
+        "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV
 
         "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
@@ -81,6 +81,7 @@ def sim_par(): ## used when computing and painting profiles on a grid
           "mpi4py": 'no',           # run in parallel or not.
         "halo_catalogs": None,      # path to the directory containing all the halo catalogs.
         "store_grids": True,        # whether or not to store the grids. If not, will just store the power spectra.
+        "dens_field": None,         # path and name of the gridded density field. Used in run.py to compute dTb
     }
     return Bunch(par)
 
