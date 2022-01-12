@@ -22,7 +22,7 @@ def BB_Planck( nu , T):
 
 def NGamDot(param):
     """
-    Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1]
+    Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1] for ion and ev/s for xray
     """
     E_0_ = param.source.E_min_sed_ion
     E_upp_ = param.source.E_max_sed_ion
@@ -55,8 +55,7 @@ def NGamDot(param):
         z = param.solver.z
         M_halo = param.source.M_halo
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-        Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,
-                                                                                                     M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+        Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
         E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
 
 

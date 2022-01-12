@@ -154,7 +154,7 @@ def rho_alpha(r_grid, M_Bin, z_Bin, param):
 
             rho_alpha[i, :, :] = flux_of_r / (4 * np.pi * r_grid ** 2)[None, :]  ## physical flux in [(pMpc/h)-2.s-1.Hz-1]
 
-    rho_alpha = rho_alpha * (h0 / cm_per_Mpc) ** 2 /sec_per_year # [pcm-2.s-1.Hz-1]
+    rho_alpha = rho_alpha * (h0 / cm_per_Mpc) ** 2 /sec_per_year  # [pcm-2.s-1.Hz-1]
 
     return rho_alpha
 

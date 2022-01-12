@@ -17,10 +17,12 @@ def source_par():
 
         "type": 'SED',          # source type. Can be 'Galaxies' or 'Miniqsos' or SED
         "E_min_sed_ion" : 10.4,                # minimum energy of normalization of ionizing photons in eV
-        "E_max_sed_ion" : 10000,             # minimum energy of normalization of ionizing photons in eV
+        "E_max_sed_ion" : 1000,             # minimum energy of normalization of ionizing photons in eV
 
         "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
+        "E_min_xray": 200,
+        "E_max_xray": 2000,  # min and max energy that contributes to heating.
 
         "alS_ion" : 1.5 ,                 ##PL sed ion part
         "alS_xray": 2.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
@@ -31,7 +33,7 @@ def source_par():
 
 
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
-        "M_min" : 1e5,               # Minimum mass of star forming halo.
+        "M_min" : 1e5,               # Minimum mass of star forming halo. Mdark in HM
         'f_st': 0.05,
         'Mp': 1e11,
         'g1': 0.49,
@@ -48,9 +50,9 @@ def source_par():
         ## params for old source parametrization, galaxy or Miniqso.
         "E_0" : 10.4,
         "E_upp": 10000,
-        "T_gal": 5e4,  # galaxy Temperature. We let it to 50 000K for now.
+        "T_gal": 5e4,       # galaxy Temperature. We let it to 50 000K for now.
         "M_miniqso": 1e4,  # miniquasar mass in the case of miniqsos (Msol)
-        "alpha": 1,  # SED of the miniqso spectra
+        "alpha": 1,         # SED of the miniqso spectra
 
     }
 
@@ -61,7 +63,7 @@ def solver_par():
         "z" : 25,                ## Starting redshift
         "z_end" : 6,             ## Only for MAR. Redshift where to stop the solver
         "r_end" : 3,             ## physical Mpc/h
-        "dn"  : 10,              ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
+        "dn"  : 100,              ## number of radial sample points to initialize the RT solver (then adaptive refinement goes on)
         "dn_table" : 100,        ## number of radial sample points for the table
         "method": 'bruteforce',  ## "sol" for using the clean solver and "bruteforce" to just solve the equation by discretizing independently nH and T
         "time_step" : 0.1,       ## time step for the solver, in Myr.
