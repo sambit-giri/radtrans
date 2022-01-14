@@ -206,8 +206,8 @@ def paint_profiles(param):
                     Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid==nGrid)] = nGrid-1  #you don't want Pos_Bubbles_Grid==nGrid
                     Grid_xHII_i = np.zeros((nGrid, nGrid, nGrid))
                     Grid_Temp = np.zeros((nGrid, nGrid, nGrid))
-                    #Grid_xal = np.zeros((nGrid, nGrid, nGrid))
-                    Grid_xtot_ov = np.zeros((nGrid, nGrid, nGrid))
+                    Grid_xal = np.zeros((nGrid, nGrid, nGrid))
+                    #Grid_xtot_ov = np.zeros((nGrid, nGrid, nGrid))
 
 
 
@@ -223,11 +223,11 @@ def paint_profiles(param):
 
                         x_HII_profile = grid_model.xHII_History[str(round(zgrid,2))]
 
-                        #rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
-                        #x_al_profile = grid_model.x_al_history[str(round(zgrid,2))] #1.81e11 * rho_alpha_ * S_alpha(z, Temp_profile, 1 - x_HII_profile) / (1 + z)  #
+                        rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
+                        x_al_profile = grid_model.x_al_history[str(round(zgrid,2))] #1.81e11 * rho_alpha_ * S_alpha(z, Temp_profile, 1 - x_HII_profile) / (1 + z)  #
 
-                        x_tot_ov_1_xtot_profile = grid_model.x_tot_history[str(round(zgrid, 2))]/(1+grid_model.x_tot_history[str(round(zgrid, 2))])
-                        Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
+                        #x_tot_ov_1_xtot_profile = grid_model.x_tot_history[str(round(zgrid, 2))]/(1+grid_model.x_tot_history[str(round(zgrid, 2))])
+                        #Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
 
 
                         if len(indices[0])>0 :
@@ -238,18 +238,18 @@ def paint_profiles(param):
                             profile_T = interp1d(radial_grid*(1+z),Temp_profile,bounds_error = False,fill_value=0)  #rgrid*(1+z) is in comoving coordinate, box too.
                             kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
-                            #profile_xal = interp1d(radial_grid*(1+z),x_al_profile,bounds_error = False,fill_value=0)
-                            #kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
+                            profile_xal = interp1d(radial_grid*(1+z),x_al_profile,bounds_error = False,fill_value=0)
+                            kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
 
-                            profile_xtot_ov = interp1d(radial_grid*(1+z),x_tot_ov_1_xtot_profile,bounds_error = False,fill_value=0)
-                            kernel_xtot = profile_to_3Dkernel(profile_xtot_ov, nGrid, LBox)
+                            #profile_xtot_ov = interp1d(radial_grid*(1+z),x_tot_ov_1_xtot_profile,bounds_error = False,fill_value=0)
+                            #kernel_xtot = profile_to_3Dkernel(profile_xtot_ov, nGrid, LBox)
 
                             if not np.sum(kernel_T)<1e-8:
                                 Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_T)
-                            #if not np.sum(kernel_xal)<1e-8:
-                            #    Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xal)
-                            if not np.sum(kernel_xtot)<1e-8:
-                                Grid_xtot_ov += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xtot)
+                            if not np.sum(kernel_xal)<1e-8:
+                                Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xal)
+                            #if not np.sum(kernel_xtot)<1e-8:
+                            #    Grid_xtot_ov += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xtot)
 
                             if np.any(kernel_xHII>0) and np.max(kernel_xHII)>1e-8: ## To avoid error from convole_fft (renomalization)
                                 Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xHII)
@@ -269,13 +269,13 @@ def paint_profiles(param):
 
                     if np.all(Grid_xHII==0):
                         Grid_xHII = np.array([0])
-                    #if np.all( np.round((Grid_xal/(1+Grid_xal)),4)==1.): ## check if we are in the saturated regime
-                     #   Grid_xal = np.array([1e10])
+                    if np.all( np.round((Grid_xal/(1+Grid_xal)),4)==1.): ## check if we are in the saturated regime
+                        Grid_xal = np.array([1e10])
 
                     if np.all(Grid_xHII==1):
                         print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
-                        #Grid_xal = np.array([1])
-                        Grid_xtot_ov = np.array([1])
+                        Grid_xal = np.array([1])
+                        #Grid_xtot_ov = np.array([1])
                         Grid_Temp = np.array([1])
                         Grid_xHII = np.array([1])
 
@@ -289,18 +289,18 @@ def paint_profiles(param):
 
                 pickle.dump(file=open('./grid_output/T_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_Temp)
                 pickle.dump(file=open('./grid_output/xHII_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xHII)
-                #pickle.dump(file=open('./grid_output/xal_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xal)
-                pickle.dump(file=open('./grid_output/xtot_ov_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xtot_ov)
+                pickle.dump(file=open('./grid_output/xal_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xal)
+                #pickle.dump(file=open('./grid_output/xtot_ov_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xtot_ov)
                 #pickle.dump(file=open('./grid_output/dTb_Grid'+ str(nGrid) +'MAR_' + model_name + '_snap' + filename[4:-5],'wb'), obj=Grid_dTb_over_rho_b)
         print(' ')
     endtime = datetime.datetime.now()
-    print('END. Stored Tgrid, xHII grid and xtot/(1+xtot) grid. It took in total: ',endtime-starttimeprofile,'to paint the grids.')
+    print('END. Stored Tgrid, xal grid and xHII grid. It took in total: ',endtime-starttimeprofile,'to paint the grids.')
     print('  ')
 
 
 def grid_dTb(param):
     """
-    Creates a grid of xcoll. Needs to read in Tk grid, xHII grid and density field on grid.
+    Creates a grid of xcoll and dTb. Needs to read in Tk grid, xHII grid and density field on grid.
     """
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
@@ -315,7 +315,8 @@ def grid_dTb(param):
             zz_ = 1 / a - 1
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xal        = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
         dens_field = param.sim.dens_field
         if dens_field is not None and param.sim.Ncell == 256:
@@ -334,9 +335,12 @@ def grid_dTb(param):
 
         T_cmb_z = Tcmb0 * (1 + zz_)
         Grid_xHI = 1-Grid_xHII  ### neutral fraction
-        Grid_dTb = factor * np.sqrt(1+zz_) * Grid_xtot_ov * (1-T_cmb_z/Grid_Temp) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
+
+        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI= Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
+        Grid_dTb = factor * np.sqrt(1+zz_) * (Grid_xcoll+Grid_xal)/(1+Grid_xcoll+Grid_xal) * (1-T_cmb_z/Grid_Temp) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
 
         pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
+        pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
 
 def compute_GS(param):
@@ -352,7 +356,9 @@ def compute_GS(param):
     Tk = []
     dTb  =[]
     x_HII = []
-    x_tot_ov_1plusxtot = []
+   #x_tot_ov_1plusxtot = []
+    x_al = []
+    x_coll=[]
 
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
@@ -362,33 +368,24 @@ def compute_GS(param):
             zz_ = 1 / a - 1
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xtot_ov           = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        #Grid_xtot_ov           = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-
-        dens_field = param.sim.dens_field
-        if dens_field is not None and param.sim.Ncell == 256:
-            dens = np.fromfile(dens_field + filename[4:-5]+ '.0',dtype=np.float32)
-            pkd=dens.reshape(256,256,256)
-            pkd = pkd.T ### take the transpose to match X_ion map coordinates
-            Lbox = param.sim.Lbox
-            N_cell = param.sim.Ncell
-            V_total = Lbox**3
-            V_cell = (Lbox/N_cell)**3
-            mass = pkd * rhoc0 * V_total
-            rho_m = mass / V_cell
-            delta_b = (rho_m)/np.mean(rho_m)
+        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xcoll            = pickle.load(file=open('./grid_output/xcoll_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
         x_HII.append(np.mean(Grid_xHII))
-        x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
+        x_al.append(np.mean(Grid_xal))
+        x_coll.append(np.mean(Grid_xcoll))
+        #x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
         dTb.append(np.mean(Grid_dTb))
         Tadiab.append( Tcmb0 * (1+zz_)**2/(1+250) )
 
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
-    Dict = {'Tk':Tk,'x_HII':x_HII,'x_tot_ov_1plusxtot':x_tot_ov_1plusxtot,'dTb':dTb,'Tadiab':Tadiab,'z':z_}
+    Dict = {'Tk':Tk,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_}
     pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
