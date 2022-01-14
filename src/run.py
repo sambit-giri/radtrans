@@ -175,8 +175,8 @@ def paint_profiles(param):
                 print('There aint no sources')
                 Grid_xHII = np.array([0])
                 Grid_Temp = np.array([T_adiab_z])
-                #Grid_xal = np.array([0])
-                Grid_xtot_ov = np.array([0])
+                Grid_xal = np.array([0])
+                #Grid_xtot_ov = np.array([0])
                 #np.array([x_coll(z=z, Tk=T_adiab_z, xHI=1, rho_b= (1+z)**3 * Ob * rhoc0 * M_sun / cm_per_Mpc ** 3 / m_H)]) #xcoll value
 
             else :
@@ -195,8 +195,8 @@ def paint_profiles(param):
                     print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
                     Grid_xHII = np.array([1])
                     Grid_Temp = np.array([1])
-                    #Grid_xal = np.array([1])
-                    Grid_xtot_ov = np.array([1])
+                    Grid_xal = np.array([1])
+                    #Grid_xtot_ov = np.array([1])
 
                 else :
                     H_positions = np.vstack((H_X,H_Y,H_Z)).T
@@ -316,7 +316,7 @@ def grid_dTb(param):
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        Grid_xal        = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
         dens_field = param.sim.dens_field
         if dens_field is not None and param.sim.Ncell == 256:
