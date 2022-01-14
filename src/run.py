@@ -226,12 +226,15 @@ def paint_profiles(param):
                         radial_grid   = grid_model.r_grid
 
                         x_HII_profile = grid_model.xHII_History[str(round(zgrid,2))]
+                        x_al_profile = grid_model.x_al_history[str(round(zgrid, 2))]
+                        Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0
 
-                        rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
-                        x_al_profile = grid_model.x_al_history[str(round(zgrid,2))] #1.81e11 * rho_alpha_ * S_alpha(z, Temp_profile, 1 - x_HII_profile) / (1 + z)  #
+                        # set to zero to avoid spurious addition - we put the +0.2 to be sure....
+                        #rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
+                         #1.81e11 * rho_alpha_ * S_alpha(z, Temp_profile, 1 - x_HII_profile) / (1 + z)  #
 
                         #x_tot_ov_1_xtot_profile = grid_model.x_tot_history[str(round(zgrid, 2))]/(1+grid_model.x_tot_history[str(round(zgrid, 2))])
-                        #Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
+
 
 
                         if len(indices[0])>0 :
