@@ -141,6 +141,10 @@ def paint_profiles(param):
 
     print('Painting T and ion profiles on a grid with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
 
+    ##screening for xal
+    epsilon = LBox / nGrid / 10
+
+
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
     z_start = param.solver.z
 
@@ -238,7 +242,8 @@ def paint_profiles(param):
                             profile_T = interp1d(radial_grid*(1+z),Temp_profile,bounds_error = False,fill_value=0)  #rgrid*(1+z) is in comoving coordinate, box too.
                             kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
-                            profile_xal = interp1d(radial_grid*(1+z),x_al_profile,bounds_error = False,fill_value=0)
+                            profile_xal = interp1d(radial_grid * (1 + z), x_al_profile * (radial_grid * (1 + z) / (radial_grid * (1 + z) + epsilon)) ** 2,bounds_error=False, fill_value=0)
+                            #profile_xal = interp1d(radial_grid*(1+z),x_al_profile,bounds_error = False,fill_value=0)
                             kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
 
                             #profile_xtot_ov = interp1d(radial_grid*(1+z),x_tot_ov_1_xtot_profile,bounds_error = False,fill_value=0)
