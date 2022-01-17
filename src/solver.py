@@ -331,9 +331,10 @@ def generate_table(param, z, n_HI):
 
         IHI_1[:] = np.trapz(1 / E_range_HI * Nion(E_range_HI, n_HI[:, None]), E_range_HI)  # sigma_HI(E_range_HI)
         IHI_2[:] = np.trapz((E_range_HI - E_HI) / (E_HI * E_range_HI) * Nion(E_range_HI, n_HI[:, None]), E_range_HI)
-        IT_HI_1[:] = np.trapz((E_range_0 - E_HI) / E_range_0 * Nxray(E_range_0, n_HI[:, None]), E_range_0)
-        IT_2a[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * E_range_0, E_range_0)
-        IT_2b[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0)
+        ##xray and ionizing photon are included in heating
+        IT_HI_1[:] = np.trapz((E_range_0 - E_HI) / E_range_0 * Nxray(E_range_0, n_HI[:, None]), E_range_0) + np.trapz((E_range_HI - E_HI) / E_range_HI * Nion(E_range_HI, n_HI[:, None]), E_range_HI)
+        IT_2a[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * E_range_0, E_range_0) + np.trapz(Nion(E_range_HI, n_HI[:, None]) * E_range_HI, E_range_HI)
+        IT_2b[:] = np.trapz(Nxray(E_range_0, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_0) + np.trapz(Nion(E_range_HI, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_HI)
 
         print('...done')
 
@@ -523,7 +524,7 @@ class Source_MAR:
             x_tot_history = {}
             x_coll_history = {}
             x_al_history = {}
-
+            n_H_hist = []
             n_HII_grid = zeros_like(r_grid)
 
             T_grid = zeros_like(r_grid)
@@ -580,7 +581,7 @@ class Source_MAR:
             T_grid += T_adiab(zstep_l)
 
             while zstep_l > param.solver.z_end :
-
+                z_previous = zstep_l
                 # Calculate the redshift z(t)
                 age  = pl.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
                 age  = age.to(u.s)
@@ -699,7 +700,7 @@ class Source_MAR:
                         n_ee = n_HIIx
 
                         mu = (n_H_z_r ) / (n_H_z_r + n_ee)
-                        n_B = n_H_z_r  + n_ee
+                        n_B = (n_H_z_r  + n_ee)
 
                         ##coeff for Temp eq
                         A1_HI = xi_HI(Tx) * n_HIx * n_ee
@@ -711,20 +712,18 @@ class Source_MAR:
                         H = pl.H(zstep_l)
                         H = H.to(u.s ** -1).value
 
-                        A6 = (7.5 * H * kb * Tx * n_B / mu) ## 15/2 factor in fukugita
+                        A6 = (15/2 * H * kb_eV_per_K * Tx * n_B / mu) ## 15/2 factor in fukugita
 
                         # A,B,C for the ionization equation. D for the Temp eq.
 
                         A = gamma_HI(n_HIIx, n_HIx, Tx, I1_HI, I2_HI,gamma_2c) * n_HIx - alpha_HII(Tx) * n_HIIx * n_ee
 
-                        D = (2 / 3) * mu / (kb_eV_per_K * n_B) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
+                        D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
 
                         if np.isnan(A) or np.isnan(D):
                             print('A or D is nan ')
 
                         return ravel(array([A, D], dtype="object"))
-
-
 
 
                     y0 = zeros(2)
@@ -735,12 +734,14 @@ class Source_MAR:
                     if param.solver.method == 'sol':
                         sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')
                         n_HII_grid[k] = sol.y[0, -1]
-                        T_grid[k] = nan_to_num(sol.y[1, -1])
+                        T_grid[k] = nan_to_num(sol.y[1, -1])/ (n_H_z_r  + n_HII_grid[k])
 
                     if param.solver.method == 'bruteforce':
                         kick = rhs(l * dt_init.value, y0)
                         n_HII_grid[k] += dt_init.value * kick[0]
-                        T_grid[k] += dt_init.value * kick[1]
+                        T_nB = T_grid[k] *(n_H_z_r  + n_HII_grid[k]) + dt_init.value * kick[1] # Temp*baryon density (see equation)
+                        T_grid[k] = T_nB / ( (n_H_z_r  + n_HII_grid[k])*(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
+
                         # n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(T_grid[k]) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
 
                     #if (T_grid[k] <= 2.725 * (1 + self.z_initial) ** 2 / (1 + 250)):  ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
@@ -767,7 +768,6 @@ class Source_MAR:
                 if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1 and count__==0:
                     print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
                     count__ = 1 #  to print this only once
-                    #exit()
 
                 if l % 100 == 0 and l != 0:
                     time_grid.append(l * self.dt_init.value)
@@ -775,6 +775,7 @@ class Source_MAR:
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     Ng_dot_history.append(Ngam_dot_step_l_ion)
+                    T_grid[-1] = T_grid[-2]
                     T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     #try:
                     #    Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
@@ -784,11 +785,12 @@ class Source_MAR:
                     #c1_history.append(c1)
                     #c2_history.append(c2)
                     xHII_History[str(round(zstep_l[0], 2))] = 1-ydata
+                    n_H_hist.append(n_H_z_r)
                     #print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
 
 
                     ### x_alpha
-                    rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3
+                    rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
                     xHI_   = ydata   ### neutral fraction
                     xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
                     rho_alpha_ = rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
@@ -821,6 +823,7 @@ class Source_MAR:
 
         self.n_HI_grid = nHI0_profile_now - n_HII_grid
         self.n_HII_grid = n_HII_grid
+        self.n_H_hist = n_H_hist
         self.n_H = nHI0_profile_now ## total density in nbr of Hatoms per p-cm**3
         self.T_grid = np.copy(T_grid)
         self.time_grid = time_grid
