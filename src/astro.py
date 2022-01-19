@@ -59,6 +59,7 @@ def NGamDot(param):
         E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
 
 
+
         return Ngam_dot_ion, E_dot_xray * eV_per_erg
 
     else:

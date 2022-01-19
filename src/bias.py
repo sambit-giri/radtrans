@@ -108,7 +108,6 @@ def R_halo(M_halo,z,param):
 
 
 
-
 def profile(bias_,cosmo_corr_,param, z):
     """
     Global profile of total matter, in Msol/Mpc**3

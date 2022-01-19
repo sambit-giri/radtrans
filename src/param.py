@@ -19,6 +19,7 @@ def source_par():
         "E_min_sed_ion": 10.4,                # minimum energy of normalization of ionizing photons in eV
         "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV
 
+
         "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
         "E_min_xray": 200,
@@ -29,7 +30,7 @@ def source_par():
         "cX" :  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
 
         "N_al":9690,    #nbr of lyal photons per baryons in stars
-        "alS_lyal": 0, ##PL for lyal
+        "alS_lyal":  1.001, ##PL for lyal
 
 
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR

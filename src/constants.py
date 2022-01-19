@@ -28,7 +28,7 @@ c_km_s   = 2.99792e5   # Speed of light [km/s]
 
 # Hydro density and mass
 n_H_0  = 1.87 * 10 ** -12        # [cm**-3]
-m_H    = 1.6 * 10 ** - 27       # [kg]
+m_H    = 1.6726219 * 10 ** - 27       # [kg]
 m_He   = 6.6464731 * 10 ** - 27 # [kg]
 rhoc0    = 2.775e11              # Critical density at z=0 [h^2 Msun/Mpc^3]
 
