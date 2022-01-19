@@ -227,7 +227,7 @@ def paint_profiles(param):
 
                         x_HII_profile = grid_model.xHII_History[str(round(zgrid,2))]
                         x_al_profile = grid_model.x_al_history[str(round(zgrid, 2))]
-                        Temp_profile[np.where(Temp_profile<=T_adiab_i+0.2)] = 0
+                        Temp_profile[np.where(Temp_profile<=T_adiab_z+0.2)] = 0
 
                         # set to zero to avoid spurious addition - we put the +0.2 to be sure....
                         #rho_alpha_ = rho_alpha(radial_grid, np.array([M_Bin[i] * np.exp(param.source.alpha_MAR*(-z+z_start))]), np.array([z]), param)[0][0]
@@ -268,7 +268,7 @@ def paint_profiles(param):
 
 
                     Grid_Storage = np.copy(Grid_xHII_i)
-                    Grid_Temp[np.where(Grid_Temp<T_adiab_i)] = T_adiab_z
+                    Grid_Temp[np.where(Grid_Temp<T_adiab_z + 0.2)] = T_adiab_z
 
                     Grid_xHII    = Spreading_Excess_Fast(Grid_Storage)
                     endtimespread= datetime.datetime.now()
