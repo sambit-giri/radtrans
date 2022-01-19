@@ -344,9 +344,13 @@ def grid_dTb(param):
         T_cmb_z = Tcmb0 * (1 + zz_)
         Grid_xHI = 1-Grid_xHII  ### neutral fraction
 
-        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI= Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
-        Grid_dTb = factor * np.sqrt(1+zz_) * (Grid_xcoll+Grid_xal)/(1+Grid_xcoll+Grid_xal) * (1-T_cmb_z/Grid_Temp) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
 
+
+        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI= Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
+        Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
+        Grid_dTb = factor * np.sqrt(1+zz_) * (Grid_xcoll+Grid_xal)/(1+Grid_xcoll+Grid_xal) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
+
+        pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
         pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
         pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
@@ -362,11 +366,13 @@ def compute_GS(param):
     Tadiab = []
     z_ = []
     Tk = []
+    Tk_neutral = []
     dTb  =[]
     x_HII = []
    #x_tot_ov_1plusxtot = []
     x_al = []
     x_coll=[]
+    T_spin= []
 
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
@@ -374,6 +380,7 @@ def compute_GS(param):
             file.readline()
             a = float(file.readline()[4:])
             zz_ = 1 / a - 1
+        Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov           = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -383,6 +390,8 @@ def compute_GS(param):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.5)]))
+        T_spin.append(np.mean(Grid_Tspin))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(np.mean(Grid_xal))
         x_coll.append(np.mean(Grid_xcoll))
@@ -393,7 +402,7 @@ def compute_GS(param):
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
-    Dict = {'Tk':Tk,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_}
+    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin}
     pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
