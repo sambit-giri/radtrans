@@ -564,7 +564,8 @@ class Source_MAR:
                     z_grid.append(zstep_l[0])
                     #Ng_dot_history.append(0)
                     Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
-                    nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
+                    nB_profile_z = self.nB_profile* (1 + zstep_l) ** 3
+                    nHI_norm[str(round(zstep_l[0], 2))] = ( nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
                     x_al_history[str(round(zstep_l[0], 2))] = 0
                     rho_bar_mean = rhoc0 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
