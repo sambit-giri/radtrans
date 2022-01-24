@@ -35,7 +35,7 @@ def comoving_distance(z,param):
     return cumtrapz(c_km_s/hubble(z,param),z,initial=0)  # [Mpc]
 
 
-def T_cmb(z,param):
+def T_cmb(z):
     """
     CMB temperature
     """

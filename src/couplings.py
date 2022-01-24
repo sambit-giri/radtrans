@@ -68,10 +68,10 @@ def S_alpha(zz, Tgas, xHI):
 
     # Eq.43
     tau_GP = 3.0e5 * xHI * ((1 + zz) / 7.0) ** 1.5
-    gamma = 1 / tau_GP
+   # gamma = 1 / tau_GP
 
     # Eq. 55
-    S_al = np.exp(-0.803 * Tgas ** (-2 / 3) * (1e-6 / gamma) ** (1 / 3))
+    S_al = np.exp(-0.803 * Tgas ** (-2 / 3) * (1e-6 * tau_GP) ** (1 / 3))
 
     return S_al
 
@@ -216,6 +216,7 @@ def J0_xray(r_grid,xHII, n_HI, Edot,z, param):
     -------
     float
     """
+    xHII = xHII.clip(min=1e-50) #to avoid warnings
 
     sed_xray = param.source.alS_xray
     norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))   #Hz**(alpha-1)

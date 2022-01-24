@@ -16,14 +16,16 @@ def source_par():
         "M_halo": 1e6,               # galaxy halo mass, miniqso halo mass (required for the profiles, i.e. for the bi  as )
 
         "type": 'SED',          # source type. Can be 'Galaxies' or 'Miniqsos' or SED
-        "E_min_sed_ion": 10.4,                # minimum energy of normalization of ionizing photons in eV
+
+        "E_min_sed_ion": 10.2,                # minimum energy of normalization of ionizing photons in eV
         "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV
 
 
         "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
-        "E_min_xray": 200,
-        "E_max_xray": 2000,  # min and max energy that contributes to heating.
+
+        "E_min_xray": 100,
+        "E_max_xray": 10000,  # min and max energy that contributes to heating.
 
         "alS_ion" : 1.5 ,                 ##PL sed ion part
         "alS_xray": 2.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
