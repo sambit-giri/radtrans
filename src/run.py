@@ -191,7 +191,7 @@ def paint_profiles(param):
                     if i == len(M_Bin):# # for masses that are larger than the max M_Bin mass
                         i = i-1
                         grid_model = pickle.load(file=open('./profiles_output/SolverMAR_'+model_name+'_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
-                        volume = np.trapz(4 * np.pi * grid_model.r_grid ** 2 * grid_model.xHII_History[str(round(zgrid, 2))], grid_model.r_grid)
+                        volume = np.trapz(4 * np.pi * grid_model.r_grid_cell ** 2 * grid_model.xHII_history[str(round(zgrid, 2))], grid_model.r_grid_cell)
                         Ionized_vol += volume * nbr_halos
 
 
@@ -223,9 +223,9 @@ def paint_profiles(param):
 
                         grid_model   = pickle.load(file=open('./profiles_output/SolverMAR_'+model_name+'_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
                         Temp_profile = grid_model.T_history[str(round(zgrid,2))]
-                        radial_grid   = grid_model.r_grid
+                        radial_grid   = grid_model.r_grid_cell
 
-                        x_HII_profile = grid_model.xHII_History[str(round(zgrid,2))]
+                        x_HII_profile = grid_model.xHII_history[str(round(zgrid,2))]
                         x_al_profile = grid_model.x_al_history[str(round(zgrid, 2))]
                         Temp_profile[np.where(Temp_profile<=T_adiab_z+0.2)] = 0
 
