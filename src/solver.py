@@ -14,7 +14,7 @@ from .cosmo import T_adiab, correlation_fct
 from .couplings import x_coll, rho_alpha, S_alpha, J0_xray, sigma_HI
 import copy
 from scipy.optimize import curve_fit
-
+from scipy.integrate import cumtrapz
 
 ###Constants
 facr = 1 * u.Mpc
@@ -29,6 +29,18 @@ h0      = 0.68
 ns      = 0.97
 s8      = 0.81
 
+
+def Tspin(Tcmb,Tk,xtot):
+    return ((1 / Tcmb + xtot / Tk ) / (1 + xtot)) ** -1
+
+def dTb(xtot, z, Tspin, nHI_norm,param):
+    """
+    nHI_norm : (1+delta_b)*(1-xHII) , or also rho_HI/rhob_mean
+    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
+    """
+    Om, h0 = param.cosmo.Om, param.cosmo.h
+    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
+    return factor * np.sqrt(1 + z) * xtot / (xtot + 1) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
 
 def BB_Planck( nu , T):
     """
@@ -71,9 +83,10 @@ def xi_HI(T):
 
 def eta_HII(T):
     """
-    Recombination cooling [eV.cm3.s-1]
+    Recombination cooling [eV.cm3.s-1].
+    T ** 0.5 * (T / 10 ** 3) ** -0.2
     """
-    return eV_per_erg * 6.5 * 10 ** -27 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / 10 ** 6) ** 0.7) ** -1
+    return eV_per_erg * 6.5 * 10 ** -27 * T ** 0.3 * (1 / 10 ** 3) ** -0.2 * (1 + (T / 10 ** 6) ** 0.7) ** -1
 
 
 def psi_HI(T):
@@ -95,21 +108,22 @@ def f_H(x_ion):
     Factor for secondary ionization, due to kinetic energy carried by secondary e- (see Shull & van Steenberg 1985). [Dimensionless]
     Input : x is the ionized fraction of hydrogen
     """
-    if isnan(x_ion):
-        x_ion = 1
-    return nan_to_num(0.3908 * (1 - max(min(x_ion,1),0) ** 0.4092) ** 1.7592)
+    #if isnan(x_ion):
+    #    x_ion = 1
+    return nan_to_num(0.3908 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4092) ** 1.7592)
 
 def f_Heat(xion):
     """
     Amount of heat deposited by secondary electrons. (Shull & van Steenberg (1985) fig.3 - according to Thomas&Zaroubi Miniqso). [Dimensionless]
     """
-    if isnan(xion):
-        xion = 1
-    if xion> 10 ** -4:
-        output =  nan_to_num(0.9971 * (1 - (1 - min(xion,1) ** 0.2663) ** 1.3163))
-    else :
-        output = 0.15
-    return output
+    #if isnan(xion):
+    #    xion = 1
+    #if xion> 10 ** -4:
+    #    output =  nan_to_num(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163))
+    #else :
+    #    output = 0.15
+
+    return np.maximum(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163),0.15)
 
 
 def gamma_HI(n_HIIx, n_HI ,Tx, I1_HI, I2_HI, gamma_2c):
@@ -311,16 +325,16 @@ def generate_table(param, z, n_HI):
         IT_2a = zeros((n_HI.size))
         IT_2b = zeros((n_HI.size))
 
-        E_range_ion = np.logspace(np.log10(E_HI), np.log10(E_upp_), 1000, base=10)
-        E_range_xray    = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 1000, base=10) #xray photon range
+        E_range_ion = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
+        E_range_xray    = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
-        IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)
-        IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion)
+        IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
+        IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
 
-        ##xray and ionizing photon are (not here) included in heating
-        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray) #+ np.trapz((E_range_HI - E_HI) / E_range_HI * Nion(E_range_HI, n_HI[:, None]), E_range_HI)
-        IT_2a[:] = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray) #+ np.trapz(Nion(E_range_HI, n_HI[:, None]) * E_range_HI, E_range_HI)
-        IT_2b[:] = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)# + np.trapz(Nion(E_range_HI, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_HI)
+        ##xray and ionizing photon are included in heating. Integrate from E_HI to Emax
+        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray) + np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)
+        IT_2a[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray)                           + np.trapz(Nion(E_range_ion, n_HI[:, None]) * E_range_ion, E_range_ion)
+        IT_2b[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)                     + np.trapz(Nion(E_range_ion, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_ion)
 
         print('...done')
 
@@ -424,13 +438,13 @@ class Source_MAR:
         """
 
         dn_table = self.dn_table
-        r_grid = self.r_grid  # phyisical distance from halo center in cMpc/h
-
+         # phyisical distance from halo center in cMpc/h
+        self.r_grid_cell = (self.r_grid[1:] + self.r_grid[:-1]) / 2  ## middle of each cell, where the density is computed
         self.M_initial = param.source.M_halo
         self.z_initial = param.solver.z
 
         # Column densities in physical Mpc/h.cm**-3.
-        nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), r_grid) * (1 + self.z_initial) ** 3
+        nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), self.r_grid_cell) * (1 + self.z_initial) ** 3
         print('n_H_column max : ', '{:.2e}'.format(nH_column), 'Mpc/h.cm**-3.')
         n_HI  = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
@@ -443,15 +457,18 @@ class Source_MAR:
     def profiles(self,param,z,Mass = None):
         """
         2h profiles in nbr of [H atoms /co-cm**3] (comoving cm)
+        output is the mean density between the values of r_grid
+        size is size(r_grid)-1
         """
         # Profiles
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
         corr_tck = splrep(vc_r, vc_corr, s=0)
-        cosmo_corr = splev(self.r_grid * (1 + z), corr_tck)  # r_grid * (1+self.z) in cMpc/h --> To reach the correct scales and units for the correlation fucntion
+        cosmo_corr = splev(self.r_grid_cell * (1 + z), corr_tck)  # r_grid * (1+self.z) in cMpc/h --> To reach the correct scales and units for the correlation fucntion
         halo_bias = bias(z, param, Mass, bias_type='ST')
         # baryonic density profile in [cm**-3]
         norm_profile = profile(halo_bias, cosmo_corr, param,z) * param.cosmo.Ob / param.cosmo.Om * M_sun / (cm_per_Mpc) ** 3 / m_H
+        #norm_profile = np.concatenate(([0],norm_profile)) ## store 0 corresponding to inside the halo (since it's fully ionized)
         return norm_profile
 
     def solve(self, param):
@@ -499,22 +516,17 @@ class Source_MAR:
 
         while True:
 
-            time_grid = []
-            Ion_front_grid = []
-            Mh_history = []
-            Ng_dot_history = []
-            z_grid = []
-            c1_history, c2_history = [], []
-            T_History = {} #create a dictionnary to store the temperature profile at the desired redshifts
-            xHII_History = {}
-            x_tot_history = {}
-            x_coll_history = {}
-            x_al_history = {}
-            rho_al_history = {}
-            rho_xray_history = {}
-            n_HII_grid = zeros_like(r_grid)
+            Ion_front_grid,Mh_history,z_grid = [],[],[]
+            # create a dictionnary to store the profiles at the desired redshifts
+            T_history = {}
+            T_spin_history = {}
+            xHII_history = {}
+            dTb_history = {}
+            nHI_norm = {} # neutral HI density normlized to mean baryon density. To be used in formula of dTb ~(1+delta_b)*xHI
+            x_tot_history, x_al_history, x_coll_history = {},{},{}
+            rho_al_history, rho_xray_history = {}, {}
 
-            T_grid = zeros_like(r_grid)
+            n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
             T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=250 and then adiabatically cooled
 
             l = 0
@@ -544,26 +556,30 @@ class Source_MAR:
                 func = lambda z: pl.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
-                self.nHI0_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
+                self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
                 if l % 100 == 0 and l != 0:
-                    time_grid.append(l * self.dt_init.value)
+                    #time_grid.append(l * self.dt_init.value)
                     Ion_front_grid.append(0)
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
-                    Ng_dot_history.append(0)
+                    #Ng_dot_history.append(0)
                     Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
-                    T_History[str(round(zstep_l[0],2))] = Tadiab
-                    c1_history.append(0)
-                    c2_history.append(0)
+                    nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
+                    T_history[str(round(zstep_l[0],2))] = Tadiab
                     x_al_history[str(round(zstep_l[0], 2))] = 0
                     rho_bar_mean = rhoc0 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
                     xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
                     x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
                     x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
-                    xHII_History[str(round(zstep_l[0], 2))] = 0
+
+                    T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1+zstep_l[0]), Tadiab,xcoll_ )
+
+                    xHII_history[str(round(zstep_l[0], 2))] = 0
+
+                    dTb_history[str(round(zstep_l[0], 2))] = dTb(xcoll_,  zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
                 l += 1
 
-            T_grid = zeros_like(r_grid)
+            T_grid = zeros_like(self.r_grid_cell)
             T_grid += T_adiab(zstep_l)
 
             while zstep_l > param.solver.z_end :
@@ -588,217 +604,120 @@ class Source_MAR:
                 else :
                     Ngam_dot_step_l = NGamDot(copy_param)
 
+
                 #### Update the profile due to expansion and Halo Growth
-                self.nHI0_profile = self.profiles(param, zstep_l, Mass = Mh_step_l)
-
-                nHI0_profile_z = self.nHI0_profile * (1 + zstep_l) ** 3  ## physical density
-
-                # Initialize the values to evaluate the integrals
-                K_HI = 0
-                for k in (arange(0, r_grid.size - 1, 1)):
-                    n_H_z_r = (nHI0_profile_z[k] + nHI0_profile_z[k + 1]) / 2
-
-                    dr_current = r_grid[k + 1] - r_grid[k]
-                    n_HI00 = n_H_z_r - n_HII_grid[k]
-
-                    if n_HI00 < 0:
-                        n_HI00 = 0
-
-                    if n_HI00 > n_H_z_r:
-                        n_HI00 = n_H_z_r
-                        print('wtf')
-
-                    K_HI += dr_current * abs(nan_to_num(n_HI00))
-                    K_HI_previous = K_HI - dr_current * abs(nan_to_num(n_HI00))
-
-                    r2 = r_grid[k] ** 2
-
-                    if K_HI < np.min(n_HI) or K_HI < n_HI[0] or K_HI > np.max(n_HI):
-                        print('Too narrow HI cumulative density range in tables init.')
-
-                    if n_HI00 == 0:
-                        I1_HI, I2_HI, I1_T_HI = 0, 0, 0
-                    else :
-                       I1_HI   = (np.interp(K_HI_previous, n_HI, JHI_1) - np.interp(K_HI, n_HI, JHI_1))  / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                       I2_HI   = (np.interp(K_HI_previous, n_HI, JHI_2) - np.interp(K_HI, n_HI, JHI_2))  / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-                       I1_T_HI = (np.interp(K_HI_previous, n_HI, JT_HI_1) - np.interp(K_HI, n_HI, JT_HI_1))  / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI00 / dr_current
-
-                    I2_Ta = np.interp(K_HI_previous, n_HI, JT_2a)  / r2 / cm_per_Mpc ** 2 / 4 / pi
-                    I2_Tb = np.interp(K_HI_previous, n_HI, JT_2b)  / r2 / cm_per_Mpc ** 2 / 4 / pi
-
-                    if param.source.type == 'SED':
-                        I1_HI, I2_HI  = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion
-                        I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num(( I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
-                    else :
-                        I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb )) * Ngam_dot_step_l / Ng_dot_initial_ion ### added correctrion for halo growth
+                self.nB_profile = self.profiles(param, zstep_l, Mass = Mh_step_l)
 
 
+                ## dilute the ionized density according to redshift
+                n_HII_cell = n_HII_cell * (1+z_previous)**3/(1+zstep_l)**3
 
-                    def rhs(t, n):
-                        """
-                         Calculate the RHS of the radiative transfer equations.
+                #update the baryon profile
+                nB_profile_z = self.nB_profile * (1 + zstep_l) ** 3  ## physical total baryon density
 
-                         RHS of the coupled nHII, n_HeII, n_HeIII and T equations. The equations are labelled as A,B,C,
-                         and D and the rest of the variables are the terms contained in the respective equations.
+                n_HII_cell[n_HII_cell > nB_profile_z] = nB_profile_z[n_HII_cell > nB_profile_z] #xHII can't be >1
+                n_HI_cell = nB_profile_z - n_HII_cell   #set neutral physical density in cell
 
-                         Parameters
-                         ----------
-                         t : float
-                          Time of evaluation in s.
-                         n : array-like
-                          1-D array containing the variables nHII, nHeII, nHeIII, T for evaluating the RHS.
+                dr = r_grid[1]-r_grid[0] #lin spacing so tha'ts ok.
+                r2 = self.r_grid_cell ** 2
 
-                         Returns
-                         -------
-                         array_like
-                          The RHS of the radiative transfer equations.
-                         """
-                        if isnan(n[0]) or isnan(n[1]) :
-                            # print('n is :',n)
-                            print('Warning: calculations contain nan values, check the rhs')
-
-                        n_HIIx = n[0]
-                        n_HIx = n_H_z_r - n[0]
-
-                        if isnan(n_HIIx):
-                            n_HIIx = n_H_z_r
-                            n_HIx = 0
-
-                        if n_HIIx > n_H_z_r:
-                            # if n_HIIx > 1.01 * n_H(zstep_l, C):
-                            #    print('n_HII becomes larger than mean n_H. Be careful.')
-                            n_HIIx = n_H_z_r
-                            n_HIx = 0
-
-                        if n_HIIx < 0:
-                            # print('n_HII becomes negative. Be careful.')
-                            n_HIIx = 0
-                            n_HIx = n_H_z_r
-
-                        Tx = n[1]
-
-                        if isnan(Tx):
-                            print('Tx is nan')
+                n_HI_edge = (n_HI_cell[:-1]+n_HI_cell[1:])/2
+                n_HI_edge = np.concatenate((np.array([0]),n_HI_edge,np.array([n_HI_cell[-1]])) )## value of the density at the edge of the cells. use this to cumpte the cumumlative densities at boundaries of cells size is (rgrid)
 
 
-
-                        n_ee = n_HIIx
-
-                        mu = (n_H_z_r ) / (n_H_z_r + n_ee)
-                        n_B = (n_H_z_r  + n_ee)
-
-                        ##coeff for Temp eq
-                        A1_HI = xi_HI(Tx) * n_HIx * n_ee
-                        A2_HII = eta_HII(Tx) * n_HIIx * n_ee
-                        A4_HI = psi_HI(Tx) * n_HIx * n_ee
-
-                        A5 = theta_ff(Tx) * (n_HIIx) * n_ee
-
-                        H = pl.H(zstep_l)
-                        H = H.to(u.s ** -1).value
-
-                        A6 = (15/2 * H * kb_eV_per_K * Tx * n_B / mu) ## 15/2 factor in fukugita
-
-                        # A,B,C for the ionization equation. D for the Temp eq.
-
-                        A = gamma_HI(n_HIIx, n_HIx, Tx, I1_HI, I2_HI,gamma_2c) * n_HIx - alpha_HII(Tx) * n_HIIx * n_ee
-
-                        D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HIIx / n_H_z_r) * (n_HIx * I1_T_HI ) + sigma_s * n_ee / m_e_eV * (I2_Ta + Tx * I2_Tb) - (A1_HI  + A2_HII  + A4_HI + A5 + A6))
-
-                        if np.isnan(A) or np.isnan(D):
-                            print('A or D is nan ')
-
-                        return ravel(array([A, D], dtype="object"))
+                K_HI = cumtrapz(n_HI_edge, self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
 
 
-                    y0 = zeros(2)
-                    y0[0] = n_HII_grid[k]
-                    y0[1] = T_grid[k]
+                ionized_indices = np.where(n_HI_cell == 0)
+                n_HI_cell[ionized_indices] = 1e-50 # to avoid division by zero
+
+                I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
+                I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
+                I1_T_HI = (np.interp(K_HI[:-1], n_HI, JT_HI_1) - np.interp(K_HI[1:], n_HI, JT_HI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
+
+                I2_Ta = np.interp(K_HI[:-1], n_HI, JT_2a) / r2 / cm_per_Mpc ** 2 / 4 / pi
+                I2_Tb = np.interp(K_HI[:-1], n_HI, JT_2b) / r2 / cm_per_Mpc ** 2 / 4 / pi
+
+                I1_HI[ionized_indices] = 0
+                I2_HI[ionized_indices] = 0
+                I1_T_HI[ionized_indices] = 0
+                n_HI_cell[ionized_indices] = 0
 
 
-                    if param.solver.method == 'sol':
-                        sol = integrate.solve_ivp(rhs, [l * dt_init.value, (l + 1) * dt_init.value], y0, method='RK45')
-                        n_HII_grid[k] = sol.y[0, -1]
-                        T_grid[k] = nan_to_num(sol.y[1, -1])/ (n_H_z_r  + n_HII_grid[k])
-
-                    if param.solver.method == 'bruteforce':
-                        kick = rhs(l * dt_init.value, y0)
-                        n_HII_grid[k] += dt_init.value * kick[0]
-                        n_HII_grid[k]  = n_HII_grid[k].clip(min=0)
-                        T_nB = T_grid[k] *(n_H_z_r  + n_HII_grid[k]) + dt_init.value * kick[1] # Temp*baryon density (see equation)
-                        T_grid[k] = T_nB / ( (n_H_z_r  + n_HII_grid[k])*(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
-
-                        # n_HII_grid[k] = n_HII_grid[k] + dt_init.value * (I1_HI * (n_H_z_r - n_HII_grid[k]) - alpha_HII(T_grid[k]) * n_HII_grid[k] ** 2)  # sol.y[0, -1]  + beta_HI(1e4) * n_HII_grid[k]
-
-                    #if (T_grid[k] <= 2.725 * (1 + self.z_initial) ** 2 / (1 + 250)):  ## When gas in the outskirt is still in the adiabatic regime, set it to the correct Temp.
-                    #    T_grid[k] = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
-
-                    if isnan(n_HII_grid[k]):
-                        n_HII_grid[k] = n_H_z_r
-
-                    if n_HII_grid[k] > n_H_z_r:
-                        n_HII_grid[k] = n_H_z_r
+                if param.source.type == 'SED':
+                    I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
+                    I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
+                else:
+                    I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta,I2_Tb)) * Ngam_dot_step_l / Ng_dot_initial_ion  ### added correctrion for halo growth
 
 
+                n_ee = n_HII_cell  #e- density
+                mu = nB_profile_z/ (nB_profile_z + n_HII_cell)  #molecular weigth
 
-                front_step = find_Ifront(n_HII_grid / nHI0_profile_z, self.r_grid)
+                ##coeff for Temp eq
+                A1_HI = xi_HI(T_grid) * n_HI_cell * n_ee
+                A2_HII = eta_HII(T_grid) * n_HII_cell * n_ee
+                A4_HI = psi_HI(T_grid) * n_HI_cell * n_ee
+                A5 = theta_ff(T_grid) * (n_HII_cell) * n_ee
+                H = pl.H(zstep_l)
+                H = H.to(u.s ** -1).value
+                A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
+
+                A = gamma_HI(n_HII_cell, n_HI_cell, T_grid, I1_HI, I2_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
+                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6))
+
+                n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
+                n_HII_cell[np.where(n_HII_cell<0)] = 0
+
+                T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
+                T_grid = T_nB/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
+
+                n_HII_cell, T_grid = np.nan_to_num(n_HII_cell) ,np.nan_to_num(T_grid)
+
+                n_HII_cell[n_HII_cell>nB_profile_z] = nB_profile_z[n_HII_cell>nB_profile_z]   ## xHII can't be >1
+
+                front_step = find_Ifront(n_HII_cell / nB_profile_z, self.r_grid_cell )
 
 
-                nHI0_profile_step = (self.nHI0_profile[1:] + self.nHI0_profile[:-1]) / 2 * ( 1 + zstep_l) ** 3  # n_H(znow,self.C)
-                nHI0_profile_step = np.concatenate((nHI0_profile_step, [nHI0_profile_step[-1]]))
-
-
-                if np.exp(-cm_per_Mpc * (K_HI * sigma_HI(13.6))) > 0.1 and count__==0:
+                if np.exp(-cm_per_Mpc * (K_HI[-1] * sigma_HI(13.6))) > 0.1 and count__==0:
                     print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
                     count__ = 1 #  to print this only once
 
                 if l % 100 == 0 and l != 0:
-                    # p0 = [30 / front_step, front_step]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
-                    xdata, ydata = self.r_grid, (nHI0_profile_step - n_HII_grid) / nHI0_profile_step
+                    xdata, ydata = self.r_grid_cell, (nB_profile_z - n_HII_cell) / nB_profile_z
                     ydata = ydata.clip(min=0)  # remove neg elements
 
-                    time_grid.append(l * self.dt_init.value)
                     Ion_front_grid.append(front_step)
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
-                    Ng_dot_history.append(Ngam_dot_step_l_ion)
-                    T_grid[-1] = T_grid[-2]
-                    T_History[str(round(zstep_l[0],2))] = np.copy(T_grid)
-                    #try:
-                    #    Fit_ = curve_fit(profile_1D_HI, xdata, ydata, p0=p0)
-                    #    c1, c2 = Fit_[0][0], Fit_[0][1]
-                    #except Exception:
-                    #    c1, c2 = 0, 0
-                    #c1_history.append(c1)
-                    #c2_history.append(c2)
-                    xHII_History[str(round(zstep_l[0], 2))] = 1-ydata
-                    #n_H_hist.append(n_H_z_r)
-                    #print('l = ',l,'Ngdot is : ',Ngam_dot_step_l_ion)
+                    T_history[str(round(zstep_l[0],2))] = np.copy(T_grid)
+                    xHII_history[str(round(zstep_l[0], 2))] = 1-ydata
+
+                    nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
 
                     # xray contrib to Lya coupling
-                    J0xray = J0_xray(r_grid, 1-ydata, (nHI0_profile_step - n_HII_grid) , E_dot_step_l_xray, z, param)
+                    J0xray = J0_xray(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
 
                     ### x_alpha
-                    rho_bar = bar_density_2h(r_grid, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
-                    xHI_   = ydata   ### neutral fraction
-                    xcoll_ = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
-                    rho_alpha_ = rho_alpha(r_grid, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
+                    rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
+                    xHI_    = ydata   ### neutral fraction
+                    xcoll_  = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
+                    rho_alpha_ = rho_alpha(self.r_grid_cell, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
                     x_alpha_ = 1.81e11 * (rho_alpha_+J0xray) * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_   = (x_alpha_ + xcoll_)
                     x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
                     x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
                     x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
+                    T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
+                    dTb_history[str(round(zstep_l[0], 2))] = dTb(x_tot_, zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
 
                 l += 1
 
 
-
-            time_grid = array([time_grid])
-            time_grid = time_grid.reshape(time_grid.size, 1)
             Ion_front_grid = array([Ion_front_grid])
             Ion_front_grid = Ion_front_grid.reshape(Ion_front_grid.size, 1)
             time_end_solve = datetime.datetime.now()
@@ -806,32 +725,21 @@ class Source_MAR:
             break
 
 
-        znow = zstep_l[0]
-
-        nHI0_profile_now = (self.nHI0_profile[1:] + self.nHI0_profile[:-1])/2  * (1 + znow) ** 3   #n_H(znow,self.C)
-        nHI0_profile_now  = np.concatenate((nHI0_profile_now,[nHI0_profile_now[-1]]))
-
-
-        self.n_HI_grid = nHI0_profile_now - n_HII_grid
-        self.n_HII_grid = n_HII_grid
-        self.n_H = nHI0_profile_now ## total density in nbr of Hatoms per p-cm**3
+        self.n_HI_grid = nB_profile_z - n_HII_cell
+        self.n_HII_cell = n_HII_cell
+        self.n_B = nB_profile_z ## total density in nbr of Hatoms per physical-cm**3
         self.T_grid = np.copy(T_grid)
-        self.time_grid = time_grid
         self.Ion_front_grid = Ion_front_grid
-        self.z_now = znow
         self.z_history = np.array(z_grid)
-        self.Ngdot_history = Ng_dot_history
-        self.Mh_History = np.array(Mh_history)
-        self.c1_history = c1_history
-        self.c2_history = c2_history
-        self.T_history  = T_History
-
-        self.rho_al_history = rho_al_history
-        self.rho_xray_history = rho_xray_history
+        self.Mh_history = np.array(Mh_history)
+        self.T_history  = T_history
+        self.rho_al_history, self.rho_xray_history = rho_al_history, rho_xray_history
         self.x_tot_history = x_tot_history
         self.x_coll_history = x_coll_history
         self.x_al_history = x_al_history
-        self.xHII_History=xHII_History
+        self.dTb_history = dTb_history
+        self.T_spin_history = T_spin_history
+        self.xHII_history=xHII_history
 
     def fit(self):
         p0 = [30/self.Ion_front_grid[-1][0],  self.Ion_front_grid[-1][0]]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
