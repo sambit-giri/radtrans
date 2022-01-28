@@ -102,6 +102,8 @@ def cosmo_par():
     'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),      ### This is the path to the input Linear Power Spectrum
     'corr_fct' : pkg_resources.resource_filename('radtrans', "files/corr_fct.dat"),  ### This is the path where the corresponding correlation function will be stored. You can change it to anything.
     'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
+    "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
+    "profile" : 0,          #0 for constant background density, 1 for 2h term profile
     }
     return Bunch(par)
 

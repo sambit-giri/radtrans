@@ -195,7 +195,7 @@ def paint_profiles(param):
                         Ionized_vol += volume * nbr_halos
 
 
-                if Ionized_vol > 10 * LBox**3: ### I put the number 10 by hand, since this does not exactly give the same result as on the grid.
+                if Ionized_vol > 1.5 * (LBox/(1+z))**3:
                     print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
                     Grid_xHII = np.array([1])
                     Grid_Temp = np.array([1])
@@ -207,7 +207,7 @@ def paint_profiles(param):
                     Pos_Bubles = H_positions
 
                     Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox  * nGrid]).astype(int)[0]
-                    Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid==nGrid)] = nGrid-1  #you don't want Pos_Bubbles_Grid==nGrid
+                    Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid==nGrid)] = nGrid-1               #you don't want Pos_Bubbles_Grid==nGrid
                     Grid_xHII_i = np.zeros((nGrid, nGrid, nGrid))
                     Grid_Temp = np.zeros((nGrid, nGrid, nGrid))
                     Grid_xal = np.zeros((nGrid, nGrid, nGrid))

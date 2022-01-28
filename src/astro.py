@@ -98,10 +98,11 @@ def UV_emissivity(z,zprime,Mhalo,nu,param) :
     return I__ * BB_Planck(nu_prime, T_Galaxy) / h__  # [s^-1.Hz^-1]
 
 
-def Read_Rockstar(file):
+def Read_Rockstar(file,Nmin = 50):
     """
     Read in a rockstar halo catalog and return a dictionnary with all the information stored.
     R is in ckpc/h
+    Nmin : minimum number of particle in halo to consider
     """
 
     Halo_File = []
@@ -116,11 +117,12 @@ def Read_Rockstar(file):
     H_X, H_Y, H_Z = [], [], []
     for i in range(len(Halo_File)):
         line = Halo_File[i].split(' ')
-        H_Masses.append(float(line[2]))
-        H_X.append(float(line[8]))
-        H_Y.append(float(line[9]))
-        H_Z.append(float(line[10]))
-        H_Radii.append(float(line[5]))
+        if float(line[2])>Nmin:
+            H_Masses.append(float(line[2]))
+            H_X.append(float(line[8]))
+            H_Y.append(float(line[9]))
+            H_Z.append(float(line[10]))
+            H_Radii.append(float(line[5]))
     H_Masses, H_X, H_Y, H_Z, H_Radii = np.array(H_Masses), np.array(H_X), np.array(H_Y), np.array(H_Z), np.array(H_Radii)
     Dict = {'M':H_Masses,'X':H_X,'Y':H_Y,'Z':H_Z, 'R':H_Radii,'z':z,'Lbox':LBox}
 

@@ -85,7 +85,7 @@ def rho_2h(bias_, cosmo_corr_ ,param, z):
     """
     Large scale 2halo profile, matter density around a halo. In Msol/cMpc**3
     """
-    return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) + 1.0) * param.cosmo.Om * rhoc_of_z(param, z)
+    return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) * param.cosmo.profile + 1.0) * param.cosmo.Om * rhoc_of_z(param, z) * param.cosmo.clumping
 
 
 def rhoNFW_fct(rbin,param):
