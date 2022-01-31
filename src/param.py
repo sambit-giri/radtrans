@@ -17,7 +17,7 @@ def source_par():
 
         "type": 'SED',          # source type. Can be 'Galaxies' or 'Miniqsos' or SED
 
-        "E_min_sed_ion": 10.2,                # minimum energy of normalization of ionizing photons in eV
+        "E_min_sed_ion": 13.6,                # minimum energy of normalization of ionizing photons in eV
         "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV
 
 
@@ -25,7 +25,7 @@ def source_par():
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
 
         "E_min_xray": 100,
-        "E_max_xray": 10000,  # min and max energy that contributes to heating.
+        "E_max_xray": 10000,  # min and max energy that define what we call xrays.
 
         "alS_ion" : 1.5 ,                 ##PL sed ion part
         "alS_xray": 2.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
@@ -85,6 +85,7 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "halo_catalogs": None,      # path to the directory containing all the halo catalogs.
         "store_grids": True,        # whether or not to store the grids. If not, will just store the power spectra.
         "dens_field": None,         # path and name of the gridded density field. Used in run.py to compute dTb
+        "Nh_part_min":50,            # Minimum number of particles in halo to trust
     }
     return Bunch(par)
 

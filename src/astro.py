@@ -160,7 +160,7 @@ def Ng_dot_Snapshot(param,rock_catalog):
     Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1]
     rock_catalog : rockstar halo cataloa
     """
-    Halos = Read_Rockstar(rock_catalog)
+    Halos = Read_Rockstar(rock_catalog,Nmin = param.sim.Nh_part_min)
     H_Masses, z = Halos['M'], Halos['z']
     dMh_dt = param.source.alpha_MAR * H_Masses * (z+1) * Hubble(z, param) ## [(Msol/h) / yr]
     dNg_dt = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob/param.cosmo.Om * f_esc(param, H_Masses) * param.source.Nion /sec_per_year /m_H * M_sun  #[s**-1]
@@ -173,7 +173,7 @@ def Optical_Depth(param,rock_catalog):
     Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1]
     rock_catalog : rockstar halo cataloa
     """
-    Halos = Read_Rockstar(rock_catalog)
+    Halos = Read_Rockstar(rock_catalog,Nmin = param.sim.Nh_part_min)
     H_Masses, z = Halos['M'], Halos['z']
     dMh_dt = param.source.alpha_MAR * H_Masses * (z+1) * Hubble(z, param) ## [(Msol/h) / yr]
     dNg_dt = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob/param.cosmo.Om * f_esc(param, H_Masses) * param.source.Nion /sec_per_year /m_H * M_sun  #[s**-1]
@@ -182,39 +182,3 @@ def Optical_Depth(param,rock_catalog):
 
 
 
-
-def Global_XHII(halo_catalog, c1_c2_file__):
-    """
-    This function is made to be called before putting the ionized profiles on the grid. It estimates quickly the global ionized fraction (via the cumulative volume occupied by the ionized bubbles).
-    The idea is to avoid dealing with a grid for snapshots where reionization is complete.
-    This is relevant when running the code in parallel over multiple snapshots.
-
-    input :
-    halo_catalog : rockstar halo catalog
-    c1_c2_file__ : output of the previous step, where we compute the profile for a range of redshift and halo masses. The value of the sigmoid parameters (c1,c2) to fit the ionization profiles. It containts mass, redshift and c1,c2 (both 2d arrays).
-    """
-
-    c1_c2_File = pickle.load(file=open(c1_c2_file__, 'rb'))
-    M_Bin = c1_c2_File[1]
-
-    catalog = Read_Rockstar(halo_catalog)
-    H_Masses, z = catalog['M'], catalog['z']
-    r_grid = 1e-3 * np.logspace(np.log10(np.min(catalog['R'])), 4, 100, base=10) #[Mpc/h]
-
-    z_indice = np.argmin(np.abs(c1_c2_File[0] - z))  ## halo catalog z
-
-    c1_array = c1_c2_File[2][z_indice, :]
-    c2_array = c1_c2_File[3][z_indice, :]
-
-    Indexing = np.digitize(H_Masses, M_Bin)
-
-    Ionized_vol = 0
-    for i in range(len(M_Bin)):
-        nbr_halos = np.where(Indexing == i)[0].size
-        volume = np.trapz(4 * np.pi * r_grid ** 2 * profile_1D(r_grid, c1=c1_array[i], c2=c2_array[i] * (1 + z)),r_grid)
-        Ionized_vol += volume * nbr_halos
-
-    if Ionized_vol > 5 * catalog['Lbox'] ** 3:  ### I put the number 5 by hand, just to be sure..
-        print('universe is fully inoinzed')
-
-    return Ionized_vol/catalog['Lbox'] ** 3
