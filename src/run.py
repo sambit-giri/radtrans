@@ -87,11 +87,8 @@ def run_solver(param):
             cosmo_corr = splev(r_MaxiMal * (1 + z_start), corr_tck)
             halo_bias = bias(z_start, parameters, Mass=Mhalo)
             # baryonic density profile in [cm**-3]
-            nHI0_profile = profile(halo_bias, cosmo_corr, parameters,
-                                   z_start) * parameters.cosmo.Ob / parameters.cosmo.Om * \
-                           M_sun * parameters.cosmo.h ** 2 / (cm_per_Mpc) ** 3 / m_H
-            r_end = (3 * N_gam_dot * 10 * sec_per_year * 1e6 / 4 / np.pi / parameters.cosmo.Ob / np.mean(
-                nHI0_profile)) ** (1.0 / 3) / cm_per_Mpc
+            nHI0_profile = profile(halo_bias, cosmo_corr, parameters,z_start) * parameters.cosmo.Ob / parameters.cosmo.Om * M_sun * parameters.cosmo.h ** 2 / (cm_per_Mpc) ** 3 / m_H
+            r_end = (3 * N_gam_dot * 10 * sec_per_year * 1e6 / 4 / np.pi / parameters.cosmo.Ob / np.mean(nHI0_profile)) ** (1.0 / 3) / cm_per_Mpc
             ### All this above is to set the r_end (depending on the source strenght)
 
             parameters.solver.r_end = max(10 * LBox / nGrid, min(50 * r_end,r_MaxiMal))  # in case r_End is too small, we set it to 10*LBox/nGrid.
@@ -159,7 +156,7 @@ def paint_profiles(param):
             catalog = catalog_dir+filename
             print('Halo catalog is ',filename , 'rank is:',rank)
 
-            halo_catalog = Read_Rockstar(catalog)
+            halo_catalog = Read_Rockstar(catalog,Nmin = param.sim.Nh_part_min)
             H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'],halo_catalog['X'],halo_catalog['Y'],halo_catalog['Z'],halo_catalog['R']
             z = halo_catalog['z']
             T_adiab_i = Tcmb0 * (1 + z_start) ** 2 / (1 + 250) # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
@@ -172,7 +169,10 @@ def paint_profiles(param):
             ind_z = np.argmin(np.abs(grid_model.z_history-z))
             zgrid = grid_model.z_history[ind_z]
 
-            Indexing = np.digitize(H_Masses * np.exp(param.source.alpha_MAR*(z-z_start)), M_Bin) ## values of Mh at z_start, binned via M_Bin.
+
+
+            Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
+            #Indexing = np.digitize(H_Masses * np.exp(param.source.alpha_MAR*(z-z_start)), M_Bin) ## values of Mh at z_start, binned via M_Bin.
             print('There are',H_Masses.size,'halos at z=',z,)
 
             if H_Masses.size == 0:
@@ -418,12 +418,41 @@ def compute_PS(param):
     """
 
     import tools21cm as t2c
-    kbins = np.logspace(np.log10(3e-2), np.log10(4), 400, base=10)
+
+    kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10)
     # (input_array_nd, kbins=100, box_dims=None, return_n_modes=False, binning='log', breakpoint=0.1
 
-    PS_XHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI, box_dims=100 / 0.7, kbins=20)
-    PS_rho = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=100 / 0.7, kbins=20)
-    PS_cross = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho, box_dims=100 / 0.7, kbins=20)
+    PS_XHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
+    PS_rho = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=param.sim.Lbox, kbins=kbins)
+    PS_cross = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho, box_dims=param.sim.Lbox, kbins=kbins)
+
+
+
+
+
+
+
+def GS_approx(param):
+    LBox = param.sim.Lbox  # Mpc/h
+    nGrid = param.sim.Ncell  # number of grid cells
+    catalog_dir = param.sim.halo_catalogs
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    Om, Ob = param.cosmo.Om, param.cosmo.Ob
+    h0 = param.cosmo.h
+    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        catalog = catalog_dir + filename
+        halo_catalog = Read_Rockstar(catalog,param)
+        H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
+        z = halo_catalog['z']
+        T_adiab_i = Tcmb0 * (1 + z_start) ** 2 / (1 + 250)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
+        T_adiab_z = Tcmb0 * (1 + z) ** 2 / (1 + 250)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
+        T_cmb_z = Tcmb0 * (1 + z)
+
+
 
 
 

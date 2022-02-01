@@ -25,7 +25,8 @@ def Hubble(z,param):
     """""
     Hubble factor [yr-1] 
     """""
-    return param.cosmo.h * 100.0 * sec_per_year / km_per_Mpc * np.sqrt(param.cosmo.Om**(1+z)**3+(1-param.cosmo.Om*-param.cosmo.Ol)*(1+z)**2+param.cosmo.Ol)
+    Om, Ol = param.cosmo.Om, param.cosmo.Ol
+    return param.cosmo.h * 100.0 * sec_per_year / km_per_Mpc * np.sqrt(Om*(1+z)**3 + (1.0-Om-Ol)*(1+z)**2+Ol)
 
 
 def comoving_distance(z,param):
