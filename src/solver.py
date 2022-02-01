@@ -557,7 +557,7 @@ class Source_MAR:
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
-                if l % 100 == 0 and l != 0:
+                if l*param.solver.time_step % 10 == 0 and l != 0:
                     #time_grid.append(l * self.dt_init.value)
                     Ion_front_grid.append(0)
                     Mh_history.append(Mh_step_l)
@@ -684,7 +684,7 @@ class Source_MAR:
                     print('WARNING : np.exp(-tau(rmax)) > 0.1. Some photons are not absorbed. Maybe you need larger rmax. ')
                     count__ = 1 #  to print this only once
 
-                if l % 100 == 0 and l != 0:
+                if l*param.solver.time_step % 10  == 0 and l != 0:
                     xdata, ydata = self.r_grid_cell, (nB_profile_z - n_HII_cell) / nB_profile_z
                     ydata = ydata.clip(min=0)  # remove neg elements
 

@@ -154,17 +154,33 @@ def f_esc(param,Mh):
 
 
 
-def Ng_dot_Snapshot(param,rock_catalog):
+def Ng_dot_Snapshot(param,rock_catalog, type ='xray'):
     """
     WORKS FOR EXP MAR
-    Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1]
-    rock_catalog : rockstar halo cataloa
+    Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1.(cMpc/h)**-3]
+    Or  mean Xray energy over the box [erg.s**-1.Mpc/h**-3]
+    rock_catalog : rockstar halo catalog
     """
     Halos = Read_Rockstar(rock_catalog,Nmin = param.sim.Nh_part_min)
     H_Masses, z = Halos['M'], Halos['z']
     dMh_dt = param.source.alpha_MAR * H_Masses * (z+1) * Hubble(z, param) ## [(Msol/h) / yr]
     dNg_dt = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob/param.cosmo.Om * f_esc(param, H_Masses) * param.source.Nion /sec_per_year /m_H * M_sun  #[s**-1]
-    return z, np.sum(dNg_dt) / Halos['Lbox'] ** 3
+
+    if type =='ion':
+        return z, np.sum(dNg_dt) / Halos['Lbox'] ** 3 #[s**-1.(cMpc/h)**-3]
+
+    if type == 'xray':
+        sed_xray = param.source.alS_xray
+        norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))
+        E_dot_xray = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
+
+        nu_range = np.logspace(np.log10(param.source.E_min_xray / h_eV_sec),np.log10(param.source.E_max_sed_xray / h_eV_sec), 3000, base=10)
+        Lumi_xray  = eV_per_erg * norm_xray * nu_range ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]/E_dot_xray
+        Ngdot_sed = Lumi_xray / (nu_range * h_eV_sec)  # [photons/eV/s]/E_dot_xray
+        Ngdot_xray = np.trapz(Ngdot_sed,nu_range * h_eV_sec)*E_dot_xray  # [photons/s]
+
+        return z, np.sum(E_dot_xray) / Halos['Lbox'] ** 3,   np.sum(Ngdot_xray)/ Halos['Lbox'] ** 3     # [erg.s**-1.Mpc/h**-3], [photons.s-1]
+
 
 
 def Optical_Depth(param,rock_catalog):
