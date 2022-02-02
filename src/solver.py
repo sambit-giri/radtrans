@@ -33,14 +33,14 @@ s8      = 0.81
 def Tspin(Tcmb,Tk,xtot):
     return ((1 / Tcmb + xtot / Tk ) / (1 + xtot)) ** -1
 
-def dTb(xtot, z, Tspin, nHI_norm,param):
+def dTb( z, Tspin, nHI_norm,param):
     """
     nHI_norm : (1+delta_b)*(1-xHII) , or also rho_HI/rhob_mean
     Returns : BB Spectrum [J.s-1.m−2.Hz−1]
     """
     Om, h0 = param.cosmo.Om, param.cosmo.h
     factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
-    return factor * np.sqrt(1 + z) * xtot / (xtot + 1) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
+    return factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
 
 def BB_Planck( nu , T):
     """
@@ -527,7 +527,7 @@ class Source_MAR:
             rho_al_history, rho_xray_history = {}, {}
 
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=250 and then adiabatically cooled
+            T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
 
             l = 0
             zstep_l = self.z_initial
@@ -563,7 +563,7 @@ class Source_MAR:
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     #Ng_dot_history.append(0)
-                    Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + 250)
+                    Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + param.cosmo.z_decoupl)
                     nB_profile_z = self.nB_profile* (1 + zstep_l) ** 3
                     nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
@@ -577,11 +577,11 @@ class Source_MAR:
 
                     xHII_history[str(round(zstep_l[0], 2))] = 0
 
-                    dTb_history[str(round(zstep_l[0], 2))] = dTb(xcoll_,  zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    dTb_history[str(round(zstep_l[0], 2))] = dTb(  zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(zstep_l)
+            T_grid += T_adiab(zstep_l,param)
 
             while zstep_l > param.solver.z_end :
                 z_previous = zstep_l
@@ -714,7 +714,7 @@ class Source_MAR:
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
-                    dTb_history[str(round(zstep_l[0], 2))] = dTb(x_tot_, zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
 
                 l += 1
 

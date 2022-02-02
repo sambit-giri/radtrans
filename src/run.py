@@ -159,8 +159,8 @@ def paint_profiles(param):
             halo_catalog = Read_Rockstar(catalog,Nmin = param.sim.Nh_part_min)
             H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'],halo_catalog['X'],halo_catalog['Y'],halo_catalog['Z'],halo_catalog['R']
             z = halo_catalog['z']
-            T_adiab_i = Tcmb0 * (1 + z_start) ** 2 / (1 + 250) # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
-            T_adiab_z = Tcmb0 * (1 + z) ** 2 / (1 + 250) # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
+            T_adiab_i = Tcmb0 * (1 + z_start) ** 2 / (1 + param.cosmo.z_decoupl) # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
+            T_adiab_z = Tcmb0 * (1 + z) ** 2 / (1 + param.cosmo.z_decoupl) # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
             T_cmb_z = Tcmb0 * (1+z)
 
 
@@ -348,7 +348,7 @@ def grid_dTb(param):
 
         Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI= Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
         Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
-        Grid_dTb = factor * np.sqrt(1+zz_) * (Grid_xcoll+Grid_xal)/(1+Grid_xcoll+Grid_xal) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
+        Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
 
         pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
         pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
@@ -397,11 +397,16 @@ def compute_GS(param):
         x_coll.append(np.mean(Grid_xcoll))
         #x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
         dTb.append(np.mean(Grid_dTb))
-        Tadiab.append( Tcmb0 * (1+zz_)**2/(1+250) )
+        Tadiab.append( Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
+
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab),np.array(T_spin)
+    matrice = np.array([z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin])
+    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin = matrice[:, matrice[0].argsort()]  ## sort according to z_
+
     Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin}
     pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
@@ -430,27 +435,6 @@ def compute_PS(param):
 
 
 
-
-
-def GS_approx(param):
-    LBox = param.sim.Lbox  # Mpc/h
-    nGrid = param.sim.Ncell  # number of grid cells
-    catalog_dir = param.sim.halo_catalogs
-    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
-    z_start = param.solver.z
-    model_name = param.sim.model_name
-    Om, Ob = param.cosmo.Om, param.cosmo.Ob
-    h0 = param.cosmo.h
-    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
-
-    for ii, filename in enumerate(os.listdir(catalog_dir)):
-        catalog = catalog_dir + filename
-        halo_catalog = Read_Rockstar(catalog,param)
-        H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
-        z = halo_catalog['z']
-        T_adiab_i = Tcmb0 * (1 + z_start) ** 2 / (1 + 250)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
-        T_adiab_z = Tcmb0 * (1 + z) ** 2 / (1 + 250)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
-        T_cmb_z = Tcmb0 * (1 + z)
 
 
 
