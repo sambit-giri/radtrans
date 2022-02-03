@@ -528,7 +528,7 @@ class Source_MAR:
             heat_history = {} ## profiles of heat energy deposited per baryons [eV/s]
 
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
+            T_grid += T_adiab(z,param) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
 
             l = 0
             zstep_l = self.z_initial
