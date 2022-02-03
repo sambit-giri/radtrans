@@ -148,7 +148,7 @@ def paint_profiles(param):
     model_name = param.sim.model_name
     Om, Ob = param.cosmo.Om, param.cosmo.Ob
     h0 = param.cosmo.h
-    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10) # factor used in dTb calculation
+    factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)# factor used in dTb calculation
 
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
@@ -314,7 +314,7 @@ def grid_dTb(param):
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
-    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
+    factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         with open(catalog_dir+filename, "r") as file:
