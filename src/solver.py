@@ -328,13 +328,13 @@ def generate_table(param, z, n_HI):
         E_range_ion = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
         E_range_xray    = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
-        IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
-        IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
+        IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + param.source.xray_in_ion * np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
+        IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + param.source.xray_in_ion * np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
 
         ##xray and ionizing photon are included in heating. Integrate from E_HI to Emax
-        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray) + np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion) #[eV/s]then divide by r2
-        IT_2a[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray)                           + np.trapz(Nion(E_range_ion, n_HI[:, None]) * E_range_ion, E_range_ion)
-        IT_2b[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)                     + np.trapz(Nion(E_range_ion, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_ion)
+        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)   + param.source.ion_in_xray * np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion) #[eV/s]then divide by r2
+        IT_2a[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray)                           + param.source.ion_in_xray * np.trapz(Nion(E_range_ion, n_HI[:, None]) * E_range_ion, E_range_ion)
+        IT_2b[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)                     + param.source.ion_in_xray * np.trapz(Nion(E_range_ion, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_ion)
 
         print('...done')
 

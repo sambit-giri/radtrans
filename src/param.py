@@ -34,6 +34,8 @@ def source_par():
         "N_al":9690,    #nbr of lyal photons per baryons in stars
         "alS_lyal":  1.001, ##PL for lyal
 
+        "xray_in_ion" : 1,
+        "ion_in_xray" : 1, ##whether or not to include xray in ionising gamma tables calculation and reciprocally
 
         "alpha_MAR" : 0.79,              # coefficient for exponential MAR
         "M_min" : 1e5,               # Minimum mass of star forming halo. Mdark in HM
