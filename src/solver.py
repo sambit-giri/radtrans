@@ -39,7 +39,7 @@ def dTb( z, Tspin, nHI_norm,param):
     Returns : BB Spectrum [J.s-1.m−2.Hz−1]
     """
     Om, h0,Ob = param.cosmo.Om, param.cosmo.h,param.cosmo.Ob
-    factor = 27  * ((1 + zz) / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
+    factor = 27  * ((1 + z) / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
     return factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
 
 def BB_Planck( nu , T):
