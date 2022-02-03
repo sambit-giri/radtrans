@@ -109,6 +109,7 @@ def cosmo_par():
     'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
     "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
     "profile" : 0,          #0 for constant background density, 1 for 2h term profile
+    "z_decoupl" : 135,      # redshift at which the gas decouples from CMB and starts cooling adiabatically according to Tcmb0*(1+z)**2/(1+zdecoupl)
     }
     return Bunch(par)
 

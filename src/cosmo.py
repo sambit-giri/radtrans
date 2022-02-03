@@ -62,11 +62,11 @@ def read_powerspectrum(param):
     PS = np.genfromtxt(param.file.ps,usecols=(0,1),comments='#',dtype=None, names=names)
     return PS
 
-def T_adiab(z):
+def T_adiab(z,param):
     """
-    Temperature of the gas assuming it decoupled from CMB at z = 250 and then cooled adiabatically.
+    Temperature of the gas assuming it decoupled from CMB at z = param.cosmo.z_decoupl and then cooled adiabatically.
     """
-    return Tcmb0 * (1 + z) ** 2 / (1 + 250)
+    return Tcmb0 * (1 + z) ** 2 / (1 + param.cosmo.z_decoupl)
 
 
 

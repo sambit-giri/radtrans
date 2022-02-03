@@ -213,7 +213,7 @@ def generate_table(param, z, n_HI):
     '''
     E_0_ = param.source.E_min_sed_ion
     E_upp_ = param.source.E_max_sed_ion  # [eV]
-
+    h0 = param.cosmo.h
     if param.table.import_table:
         if param.table.filename_table == None:
             print('Asking to import a table but filename_table is None. Exit')
@@ -284,7 +284,7 @@ def generate_table(param, z, n_HI):
 
             dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
             Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
-            E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
+            E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX/h0   ## [erg / s]
 
             sed_ion = param.source.alS_ion
             sed_xray = param.source.alS_xray
@@ -305,7 +305,7 @@ def generate_table(param, z, n_HI):
                 output : Divide it by 4*pi*r**2 ,and you get a flux [eV.s-1.r-2.eV-1], r meaning the unit of r
                 """
                 nu_ = Hz_per_eV * E
-                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))
+                int = cm_per_Mpc / h0 * (n_HI0 * sigma_HI(E))
                 return np.exp(-int) * E_dot_xray * eV_per_erg * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]
 
             nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
@@ -332,7 +332,7 @@ def generate_table(param, z, n_HI):
         IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
 
         ##xray and ionizing photon are included in heating. Integrate from E_HI to Emax
-        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray) + np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)
+        IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray) + np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion) #[eV/s]then divide by r2
         IT_2a[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray)                           + np.trapz(Nion(E_range_ion, n_HI[:, None]) * E_range_ion, E_range_ion)
         IT_2b[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)                     + np.trapz(Nion(E_range_ion, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_ion)
 
@@ -525,6 +525,7 @@ class Source_MAR:
             nHI_norm = {} # neutral HI density normlized to mean baryon density. To be used in formula of dTb ~(1+delta_b)*xHI
             x_tot_history, x_al_history, x_coll_history = {},{},{}
             rho_al_history, rho_xray_history = {}, {}
+            heat_history = {} ## profiles of heat energy deposited per baryons [eV/s]
 
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
             T_grid += T_adiab(z) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
@@ -576,8 +577,8 @@ class Source_MAR:
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1+zstep_l[0]), Tadiab,xcoll_ )
 
                     xHII_history[str(round(zstep_l[0], 2))] = 0
-
-                    dTb_history[str(round(zstep_l[0], 2))] = dTb(  zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    heat_history[str(round(zstep_l[0], 2))] = 0
+                    dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
@@ -711,8 +712,9 @@ class Source_MAR:
                     x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy(I1_T_HI) # eV/s
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
-                    rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
+                    #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
 
@@ -734,7 +736,9 @@ class Source_MAR:
         self.z_history = np.array(z_grid)
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
-        self.rho_al_history, self.rho_xray_history = rho_al_history, rho_xray_history
+        self.heat_history = heat_history
+        self.rho_al_history = rho_al_history
+        #self.rho_xray_history = , rho_xray_history
         self.x_tot_history = x_tot_history
         self.x_coll_history = x_coll_history
         self.x_al_history = x_al_history

@@ -67,6 +67,25 @@ def NGamDot(param):
         exit()
 
 
+
+def eps_xray(nu_,param):
+    """
+    Spectral distribution function of x-ray emission.
+    In  [1/s/Hz*(yr*h/Msun)]
+    See Eq.2 in arXiv:1406.4120
+    """
+    # param.source.cX  ## [erg / s /SFR]
+
+    sed_xray = param.source.alS_xray
+    norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** ( 1 - sed_xray)) ## [Hz**al-1]
+
+   # param.source.cX * eV_per_erg * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV   # [eV/eV/s/SFR]
+    return param.source.cX/param.cosmo.h * eV_per_erg * norm_xray * nu_ ** (-sed_xray) /(nu_ *h_eV_sec)   # [photons/Hz/s/SFR]
+
+
+
+
+
 def UV_emissivity(z,zprime,Mhalo,nu,param) :
     """
     UV SED of the stellar component. [photons / s**-1 Hz**-1]
@@ -172,7 +191,7 @@ def Ng_dot_Snapshot(param,rock_catalog, type ='xray'):
     if type == 'xray':
         sed_xray = param.source.alS_xray
         norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))
-        E_dot_xray = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
+        E_dot_xray = dMh_dt * f_star_Halo(param, H_Masses) * param.cosmo.Ob / param.cosmo.Om * param.source.cX/param.cosmo.h  ## [erg / s]
 
         nu_range = np.logspace(np.log10(param.source.E_min_xray / h_eV_sec),np.log10(param.source.E_max_sed_xray / h_eV_sec), 3000, base=10)
         Lumi_xray  = eV_per_erg * norm_xray * nu_range ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]/E_dot_xray
@@ -185,6 +204,7 @@ def Ng_dot_Snapshot(param,rock_catalog, type ='xray'):
 
 def Optical_Depth(param,rock_catalog):
     """
+    NOT DONE YET
     WORKS FOR EXP MAR
     Mean number of ionising photons emitted per sec for a given rockstar snapshot. [s**-1]
     rock_catalog : rockstar halo cataloa
