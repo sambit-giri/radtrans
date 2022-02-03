@@ -363,17 +363,16 @@ def compute_GS(param):
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
     Om, Ob = param.cosmo.Om, param.cosmo.Ob
+    factor = 27 * Om * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)
     Tadiab = []
     z_ = []
     Tk = []
     Tk_neutral = []
     dTb  =[]
     x_HII = []
-   #x_tot_ov_1plusxtot = []
     x_al = []
     x_coll=[]
     T_spin= []
-
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         with open(catalog_dir+filename, "r") as file:
@@ -397,17 +396,20 @@ def compute_GS(param):
         x_coll.append(np.mean(Grid_xcoll))
         #x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
         dTb.append(np.mean(Grid_dTb))
+
         Tadiab.append( Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab),np.array(T_spin)
-    matrice = np.array([z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin])
-    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin = matrice[:, matrice[0].argsort()]  ## sort according to z_
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin ,dTb= np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab),np.array(T_spin),np.array(dTb)
+    matrice = np.array([z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin,dTb])
+    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin ,dTb= matrice[:, matrice[0].argsort()]  ## sort according to z_
 
-    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin}
+    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / T_spin)  * (1-x_HII)
+
+    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS}
     pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
