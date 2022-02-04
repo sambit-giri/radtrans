@@ -88,7 +88,7 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "store_grids": True,        # whether or not to store the grids. If not, will just store the power spectra.
         "dens_field": None,         # path and name of the gridded density field. Used in run.py to compute dTb
         "Nh_part_min":50,            # Minimum number of particles in halo to trust
-
+        "cores" : 2, #number of cores used in parallelisation
         "kmin": 3e-2,
         "kmax": 4,
         "kbin": 400,  ## min, max and number of bins in k-space for measuring power spectra.

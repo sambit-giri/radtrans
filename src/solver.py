@@ -283,7 +283,7 @@ def generate_table(param, z, n_HI):
             M = M_halo
 
             dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / h0
             E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX/h0   ## [erg / s]
 
             sed_ion = param.source.alS_ion
@@ -493,7 +493,7 @@ class Source_MAR:
         print('Solving the radiative equations...')
         t_start_solver = datetime.datetime.now()
         z = self.z  #starting redshift
-
+        h0 = param.cosmo.h
 
         dt_init = self.dt_init
 
@@ -569,7 +569,7 @@ class Source_MAR:
                     nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
                     x_al_history[str(round(zstep_l[0], 2))] = 0
-                    rho_bar_mean = rhoc0 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
+                    rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
                     xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
                     x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
                     x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
