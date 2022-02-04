@@ -18,6 +18,10 @@ from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from joblib import Parallel, delayed
 from radtrans.global_qty import xHII_approx
 
+
+
+
+
 def run_RT_single_source(Mhalo,parameters):
     """
     This is to parallelize with job lib. Make a copy of parameters, set the halo mass to Mhalo, and run the solver (and store the profiles.)
@@ -71,9 +75,24 @@ def run_solver(parameters):
     binn  = parameters.sim.binn  # let's start with 10 bins
     M_Bin = np.logspace(np.log10(M_i_min), np.log10(M_i_max), binn, base=10)
 
-    def run_RT_single(M):
-        return run_RT_single_source(M,parameters)
-    Parallel(n_jobs=parameters.sim.cores, prefer="threads")(delayed(run_RT_single)(M_Bin[i]) for i in range(len(M_Bin)))
+    if param.sim.mpi4py == 'yes':
+        import mpi4py.MPI
+        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+        size = mpi4py.MPI.COMM_WORLD.Get_size()
+    elif param.sim.mpi4py == 'no':
+        rank = 0
+        size = 1
+    else :
+        print('param.sim.mpi4py should be yes or no')
+
+    for ih, Mhalo in enumerate(M_Bin):
+        if rank == ih % size:
+            run_RT_single_source(M_Bin[ih], parameters)
+
+    #def run_RT_single(M):
+    #    return run_RT_single_source(M,parameters)
+
+    #Parallel(n_jobs=parameters.sim.cores, prefer="threads")(delayed(run_RT_single)(M_Bin[i]) for i in range(len(M_Bin)))
     end_time = datetime.datetime.now()
     print('It took in total:', end_time - start_time)
 
@@ -231,10 +250,25 @@ def paint_profiles(param):
 
     print('Painting T and ion profiles on a grid with', nGrid,'pixels per dim. Box size is',LBox ,'cMpc/h.')
 
-    def paint_single(filename):
-        return paint_profile_single_snap(filename,param)
 
-    Parallel(n_jobs=param.sim.cores, prefer="threads")(delayed(paint_single)(filename) for filename in os.listdir(catalog_dir))
+    if param.sim.mpi4py == 'yes':
+        import mpi4py.MPI
+        rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+        size = mpi4py.MPI.COMM_WORLD.Get_size()
+    elif param.sim.mpi4py == 'no':
+        rank = 0
+        size = 1
+    else :
+        print('param.sim.mpi4py should be yes or no')
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        if rank == ii%size :
+            paint_profile_single_snap(filename,param)
+
+    #def paint_single(filename):
+    #    return paint_profile_single_snap(filename,param)
+
+    #Parallel(n_jobs=param.sim.cores, prefer="threads")(delayed(paint_single)(filename) for filename in os.listdir(catalog_dir))
 
     endtime = datetime.datetime.now()
     print('END. Stored Tgrid, xal grid and xHII grid. It took in total: ',endtime-starttimeprofile,'to paint the grids.')
