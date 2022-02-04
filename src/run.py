@@ -75,11 +75,11 @@ def run_solver(parameters):
     binn  = parameters.sim.binn  # let's start with 10 bins
     M_Bin = np.logspace(np.log10(M_i_min), np.log10(M_i_max), binn, base=10)
 
-    if param.sim.mpi4py == 'yes':
+    if parameters.sim.mpi4py == 'yes':
         import mpi4py.MPI
         rank = mpi4py.MPI.COMM_WORLD.Get_rank()
         size = mpi4py.MPI.COMM_WORLD.Get_size()
-    elif param.sim.mpi4py == 'no':
+    elif parameters.sim.mpi4py == 'no':
         rank = 0
         size = 1
     else :
