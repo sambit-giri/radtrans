@@ -46,7 +46,7 @@ def run_RT_single_source(Mhalo,parameters):
     print(' ')
 
 
-def run_solver_joblib(parameters):
+def run_solver(parameters):
     """
     This function loops over Mbin, initial halo masses and compute the RT equation from zstart to zend for each halo mass. It uses joblib to parallelize.
     Parameters
