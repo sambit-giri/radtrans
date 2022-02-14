@@ -24,6 +24,7 @@ def NGamDot(param):
     """
     Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1] for ion and ev/s for xray
     """
+    Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
     E_0_ = param.source.E_min_sed_ion
     E_upp_ = param.source.E_max_sed_ion
     if (param.source.type == 'Miniqsos'):  ### Choose the source type
@@ -40,30 +41,34 @@ def NGamDot(param):
         f_c2ray = param.source.fc2ray
         M = param.source.M_halo
         Delta_T = 10 ** 7 * sec_per_year
-        Ngam_dot = f_c2ray * M * M_sun / m_H * param.cosmo.Ob / param.cosmo.Om / Delta_T  #### M_sun is in gramms
+        Ngam_dot = f_c2ray * M * M_sun / m_H * Ob / Om / Delta_T  #### M_sun is in gramms
         return Ngam_dot
 
     elif (param.source.type == 'Galaxies_MAR'):
         z = param.solver.z
         M_halo = param.source.M_halo
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-        Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h   # [s**-1]
+        Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * Ob / Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / h0   # [s**-1]
         return Ngam_dot
 
     elif (param.source.type == 'SED' ):
-
         z = param.solver.z
         M_halo = param.source.M_halo
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-        Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
-        E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX  ## [erg / s]
-
-
-
+        Ngam_dot_ion = dMh_dt/h0 * f_star_Halo(param, M_halo) * Ob /Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+        E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * Ob / Om * param.source.cX/h0  ## [erg / s]
         return Ngam_dot_ion, E_dot_xray * eV_per_erg
 
+    elif (param.source.type == 'Ross'):
+        Mhalo = param.source.M_halo
+        if Mhalo > 1e9:
+            g_gamma = 1.7
+        else:
+            g_gamma = 7.1
+        return Mhalo / h0 * Ob / Om * g_gamma / ( 10 * 1e6 * sec_per_year) / m_p_in_Msun, Mhalo / h0 * Ob / Om * 0.086 / (10 * 1e6 * sec_per_year) / m_p_in_Msun    # [s**-1], [s**-1]
+
     else:
-        print('Source Type not available. Should be Galaxies or Miniqsos')
+        print('Source Type not available. Should be SED or Ross.')
         exit()
 
 

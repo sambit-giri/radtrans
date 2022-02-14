@@ -16,6 +16,7 @@ import copy
 from scipy.optimize import curve_fit
 from scipy.integrate import cumtrapz
 
+
 ###Constants
 facr = 1 * u.Mpc
 cm_per_Mpc = (facr.to(u.cm)).value
@@ -253,11 +254,7 @@ def generate_table(param, z, n_HI):
             print('source emits', '{:.2e}'.format(Ngam_dot_ion), 'ionizing photons per seconds, in the energy range [', param.source.E_min_sed_ion, ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies_MAR'):
-            z = param.solver.z
-            M_halo = param.source.M_halo
-            M = M_halo
-            dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+            Ngam_dot_ion = NGamDot(param)
             print('Galaxies_MAR model chosen. M_halo is ', '{:.2e}'.format(M_halo))
 
             T_Galaxy = param.source.T_gal
@@ -278,21 +275,13 @@ def generate_table(param, z, n_HI):
 
 
         elif (param.source.type == 'SED'):
-            z = param.solver.z
-            M_halo = param.source.M_halo
-            M = M_halo
-
-            dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-            Ngam_dot_ion = dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / h0
-            E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * param.cosmo.Ob / param.cosmo.Om * param.source.cX/h0   ## [erg / s]
-
+            Ngam_dot_ion, E_dot_xray = NGamDot(param)
             sed_ion = param.source.alS_ion
             sed_xray = param.source.alS_xray
 
             norm_ion = (1 - sed_ion) / ((param.source.E_max_sed_ion / h_eV_sec) ** (1 - sed_ion) - (param.source.E_min_sed_ion / h_eV_sec) ** (1 - sed_ion))
             norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))
-
-            # nu**alpha*norm  is a count of [photons.Hz**-1]
+            # nu**-alpha*norm  is a count of [photons.Hz**-1]
 
             def Nion(E, n_HI0):
                 nu_ = Hz_per_eV * E
@@ -306,9 +295,46 @@ def generate_table(param, z, n_HI):
                 """
                 nu_ = Hz_per_eV * E
                 int = cm_per_Mpc / h0 * (n_HI0 * sigma_HI(E))
-                return np.exp(-int) * E_dot_xray * eV_per_erg * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]
+                return np.exp(-int) * E_dot_xray * norm_xray * nu_ ** (-sed_xray) * Hz_per_eV  # [eV/eV/s]
 
             nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
+            #plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
+            XraySed = Nxray(nu_range / Hz_per_eV, 1e-9)
+            Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9)
+
+
+
+        elif (param.source.type == 'Ross'):
+            Ngam_dot_ion, Ngam_dot_xray = NGamDot(param)
+
+            T_Galaxy = param.source.T_gal
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
+            norm__ = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
+            I__ = Ngam_dot_ion / norm__
+
+            def Nion(E, n_HI0):
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E))
+                return exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__
+
+            sed_xray = param.source.alS_xray ### sed for the luminosity, in erg/s. Since we normalize to a number of photons, we get alp+1
+            norm_xray = (- sed_xray)/ ((param.source.E_max_sed_xray / h_eV_sec) ** (- sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (- sed_xray))
+
+            def Nxray(E, n_HI0):
+                """
+                input : E in eV, n_HIO in Mpc/h.cm**-3 (column density, see in generate table how column density are initialized)
+                output : Divide it by 4*pi*r**2 ,and you get a flux [eV.s-1.r-2.eV-1], r meaning the unit of r
+                """
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / h0 * (n_HI0 * sigma_HI(E))
+                return np.exp(-int) * Ngam_dot_xray * norm_xray * nu_ ** (-sed_xray)   # [eV/eV/s]
+
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
+            nu_range_xray = np.logspace(np.log10(param.source.E_min_sed_xray / h_eV_sec),np.log10(param.source.E_max_sed_xray / h_eV_sec), 3000, base=10)
+
+            Edot_xray_ross = np.trapz(Nxray_ross * h_eV_sec, nu_range_xray)  ##[eV/s]
+
+            print('BB spectrum normalized to ', '{:.2e}'.format(Ngam_dot_ion), ' ionizing photons per s, in the energy range [',param.source.E_min_sed_ion, ' ', param.source.E_max_sed_ion, '] eV','. Xray spectrum total energy:  ',Edot_xray_ross,' eV')
             #plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
             XraySed = Nxray(nu_range / Hz_per_eV, 1e-9)
             Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9)
@@ -325,8 +351,8 @@ def generate_table(param, z, n_HI):
         IT_2a = zeros((n_HI.size))
         IT_2b = zeros((n_HI.size))
 
-        E_range_ion = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
-        E_range_xray    = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
+        E_range_ion  = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
+        E_range_xray = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
         IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + param.source.xray_in_ion * np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
         IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + param.source.xray_in_ion * np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
@@ -340,7 +366,7 @@ def generate_table(param, z, n_HI):
 
         Gamma_info = {'HI_1': IHI_1, 'HI_2': IHI_2,  'T_HI_1': IT_HI_1,'T_2a': IT_2a, 'T_2b': IT_2b}
 
-        input_info = {'M': M, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot_ion, 'E_dot_xray': E_dot_xray * eV_per_erg,
+        input_info = {'M': param.source.M_halo, 'z': z, 'type': param.source.type, 'N_ion_ph_dot': Ngam_dot_ion, 'E_dot_xray': E_dot_xray,
                       'n_HI': n_HI,  'E_0': param.source.E_min_sed_ion,
                       'E_upp': param.source.E_max_sed_ion,'SED':{'nu':nu_range,'ion':Ion_Sed,'xray':XraySed} }
 
@@ -398,8 +424,9 @@ class Source_MAR:
             self.M = param.source.M_miniqso
         elif param.source.type == 'SED':
             self.M = param.source.M_halo
-        elif param.source.type == 'Galaxies_MAR':
+        elif param.source.type == 'Galaxies_MAR' or param.source.type == 'Ross' :
             self.M = param.source.M_halo
+
         else:
             print('source.type should be Galaxies or Miniqsos')
             exit()
@@ -526,7 +553,6 @@ class Source_MAR:
             x_tot_history, x_al_history, x_coll_history = {},{},{}
             rho_al_history, rho_xray_history = {}, {}
             heat_history = {} ## profiles of heat energy deposited per baryons [eV/s]
-
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
             T_grid += T_adiab(z,param) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
 
@@ -540,7 +566,6 @@ class Source_MAR:
             JT_2a, JT_2b  = Gamma_info['T_2a'], Gamma_info['T_2b']
             Ng_dot_initial_ion= self.Gamma_grid_info['input']['N_ion_ph_dot']
             E_dot_initial_xray= self.Gamma_grid_info['input']['E_dot_xray']
-
 
             print('Solver will solve from z=', self.z_initial, 'to z=',param.solver.z_end, ', without turning off the source, with a time step of',param.solver.time_step,'Myr.')
 
@@ -601,8 +626,12 @@ class Source_MAR:
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 copy_param.source.M_halo = Mh_step_l
 
-                if param.source.type == 'SED' :
+                if param.source.type == 'SED'  :
                     Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,eV/s]
+
+                if param.source.type == 'Ross':
+                    Ngam_dot_step_l_ion = NGamDot(copy_param)[0]
+
                 else :
                     Ngam_dot_step_l = NGamDot(copy_param)
 
@@ -620,7 +649,7 @@ class Source_MAR:
                 n_HII_cell[n_HII_cell > nB_profile_z] = nB_profile_z[n_HII_cell > nB_profile_z] #xHII can't be >1
                 n_HI_cell = nB_profile_z - n_HII_cell   #set neutral physical density in cell
 
-                dr = r_grid[1]-r_grid[0] #lin spacing so tha'ts ok.
+                dr = r_grid[1]-r_grid[0]                #lin spacing so tha'ts ok.
                 r2 = self.r_grid_cell ** 2
 
                 n_HI_edge = (n_HI_cell[:-1]+n_HI_cell[1:])/2
@@ -649,6 +678,9 @@ class Source_MAR:
                 if param.source.type == 'SED':
                     I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
+                elif param.source.type == 'Ross':
+                    I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion /Ng_dot_initial_ion  # to account for source growth (via MAR in Ngamma dot formula Ross et al)
+                    I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * Mh_step_l / self.M_initial # no change in g_gamma in HMXB. see ross et al 2019..
                 else:
                     I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta,I2_Tb)) * Ngam_dot_step_l / Ng_dot_initial_ion  ### added correctrion for halo growth
 
@@ -697,6 +729,7 @@ class Source_MAR:
 
                     nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
 
+
                     # xray contrib to Lya coupling
                     J0xray = J0_xray(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
 
@@ -704,7 +737,7 @@ class Source_MAR:
                     rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
                     xHI_    = ydata   ### neutral fraction
                     xcoll_  = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
-                    rho_alpha_ = rho_alpha(self.r_grid_cell, np.array([Mh_step_l[0]]), np.array([zstep_l[0]]), param)[0][0]
+                    rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l[0], param)[0]
                     x_alpha_ = 1.81e11 * (rho_alpha_+J0xray) * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_   = (x_alpha_ + xcoll_)
                     x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
@@ -712,7 +745,7 @@ class Source_MAR:
                     x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
-                    heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) / nB_profile_z ) # eV/s
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy(D/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) *kb_eV_per_K) #np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) / nB_profile_z ) # eV/s
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 

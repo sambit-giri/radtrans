@@ -98,13 +98,13 @@ def eps_lyal(nu,param):
 
 
 
-def rho_alpha(r_grid, M_Bin, z_Bin, param):
+def rho_alpha(r_grid, MM, zz, param):
     """
     Ly-al coupling profile
-    of shape (z_Bin, M_Bin, r_grid)
+    of shape (r_grid)
     - r_grid : physical distance around halo center in [pMpc/h]
-    - z_Bin  : redshift binns
-    - M_Bin  : mass bins
+    - zz  : redshift
+    - MM  : halo mass
     """
     zstar = 35
     h0 = param.cosmo.h
@@ -119,42 +119,40 @@ def rho_alpha(r_grid, M_Bin, z_Bin, param):
     nu_n = nu_LL * (1 - 1 / rec['n'][2:] ** 2)
     nu_n = np.insert(nu_n, [0, 0], np.inf)
 
-    rho_alpha = np.zeros((len(z_Bin), len(M_Bin), len(r_grid)))
+    #rho_alpha = np.zeros((len(z_Bin), len(M_Bin), len(r_grid)))
+    rho_alpha = np.zeros_like(r_grid)
 
-    for i in range(len(z_Bin)):
-        if z_Bin[i]<zstar:
-            flux = []
+    if zz < zstar:
+        flux = []
+        for k in range(2, rectrunc):
+            zmax = (1 - (rec['n'][k] + 1) ** (-2)) / (1 - (rec['n'][k]) ** (-2)) * (1 + zz) - 1
+            zrange = np.minimum(zmax, zstar) - zz
 
+            N_prime = int(zrange / 0.01)  # dz_prime_lyal
 
-            for k in range(2, rectrunc):
-                zmax = (1 - (rec['n'][k] + 1) ** (-2)) / (1 - (rec['n'][k]) ** (-2)) * (1 + z_Bin[i]) - 1
-                zrange = np.minimum(zmax, zstar) - z_Bin[i]
+            if (N_prime < 4):
+                N_prime = 4
 
-                N_prime = int(zrange / 0.01)  # dz_prime_lyal
+            z_prime = np.logspace(np.log(zz), np.log(zmax), N_prime, base=np.e)
+            rcom_prime = comoving_distance(z_prime, param) * h0  # comoving distance in [cMpc/h]
 
-                if (N_prime < 4):
-                    N_prime = 4
+            # What follows is the emissivity of the source at z_prime (such that at z the photon is at rcom_prime)
+            # We then interpolate to find the correct emissivity such that the photon is at r_grid*(1+z) (in comoving unit)
 
-                z_prime = np.logspace(np.log(z_Bin[i]), np.log(zmax), N_prime, base=np.e)
-                rcom_prime = comoving_distance(z_prime, param) * h0  # comoving distance in [cMpc/h]
+            ### cosmidawn stuff, to compare
+            alpha = param.source.alpha_MAR
+            dMdt_int = alpha * MM * np.exp(alpha * (zz - z_prime)) * (z_prime + 1) * Hubble(z_prime,param) * f_star_Halo( param, MM) * param.cosmo.Ob / param.cosmo.Om  # SFR Msol/h/yr
 
-                # What follows is the emissivity of the source at z_prime (such that at z the photon is at rcom_prime)
-                # We then interpolate to find the correct emissivity such that the photon is at r_grid*(1+z) (in comoving unit)
+            eps_al = eps_lyal(nu_n[k] * (1 + z_prime) / (1 + zz), param)[None,:] * dMdt_int  # [photons.yr-1.Hz-1]
+            eps_int = interp1d(rcom_prime, eps_al, axis=1, fill_value=0.0, bounds_error=False)
 
-                ### cosmidawn stuff, to compare
-                alpha = param.source.alpha_MAR
-                dMdt_int = alpha * M_Bin[:, None] * np.exp(alpha*(z_Bin[i]-z_prime)) * (z_prime + 1) * Hubble(z_prime, param) * f_star_Halo(param, M_Bin[:, None] ) * param.cosmo.Ob / param.cosmo.Om # SFR Msol/h/yr
+            flux_m = eps_int(r_grid * (1 + zz)) * rec['f'][k]  # want to find the z' corresponding to comoving distance r_grid * (1 + z).
+            flux += [np.array(flux_m)]
 
-                eps_al = eps_lyal(nu_n[k] * (1 + z_prime) / (1 + z_Bin[i]), param)[ None,:] * dMdt_int    # [photons.yr-1.Hz-1]
-                eps_int = interp1d(rcom_prime, eps_al, axis=1, fill_value=0.0, bounds_error=False)
+        flux = np.array(flux)
+        flux_of_r = np.sum(flux, axis=0)  # shape is (Mbin,rgrid)
 
-                flux_m = eps_int(r_grid * (1 + z_Bin[i])) * rec['f'][k]   # want to find the z' corresponding to comoving distance r_grid * (1 + z).
-                flux += [np.array(flux_m)]
-
-            flux = np.array(flux)
-            flux_of_r = np.sum(flux, axis=0)  # shape is (Mbin,rgrid)
-
-            rho_alpha[i, :, :] = flux_of_r / (4 * np.pi * r_grid ** 2)[None, :]  ## physical flux in [(pMpc/h)-2.yr-1.Hz-1]
+        rho_alpha = flux_of_r / (4 * np.pi * r_grid ** 2) ## physical flux in [(pMpc/h)-2.yr-1.Hz-1]
 
     rho_alpha = rho_alpha * (h0 / cm_per_Mpc) ** 2 /sec_per_year  # [pcm-2.s-1.Hz-1]
 
@@ -224,7 +222,7 @@ def J0_xray(r_grid,xHII, n_HI, Edot,z, param):
     nu_range = Hz_per_eV * E_range
 
     cumul_nHI = cumtrapz(n_HI, r_grid, initial=0.0)  ## Mpc/h.cm-3
-    Edotflux = Edot / (4 * np.pi * r_grid * cm_per_Mpc ** 2 / param.cosmo.h ** 2)  # eV.s-1.pcm-2
+    Edotflux = Edot / (4 * np.pi * r_grid**2 * cm_per_Mpc ** 2 / param.cosmo.h ** 2)  # eV.s-1.pcm-2
 
     tau = cm_per_Mpc / param.cosmo.h * (cumul_nHI[:, None] * sigma_HI(E_range))  # shape is (r_grid,E_range)
 

@@ -1,3 +1,4 @@
+
 """
 In this script we define functions that can be called to :
 1. run the RT solver and compute the evolution of the T, x_HI profiles, and store them
@@ -18,6 +19,7 @@ from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from joblib import Parallel, delayed
 from radtrans.global_qty import xHII_approx
 
+import matplotlib.pyplot as plt
 
 
 
@@ -99,7 +101,7 @@ def run_solver(parameters):
 
 
 
-def paint_profile_single_snap(filename,param):
+def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=True,ion=True):
     """
     Paint the Tk, xHII and Lyman alpha profiles on a grid for a single snapshot named filename.
 
@@ -132,7 +134,7 @@ def paint_profile_single_snap(filename,param):
     zgrid = grid_model.z_history[ind_z]
 
     ##screening for xal
-    epsilon = LBox / nGrid / 10
+    epsilon = LBox / nGrid / epsilon_factor
 
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
     print('There are', H_Masses.size, 'halos at z=', z, )
@@ -166,10 +168,22 @@ def paint_profile_single_snap(filename,param):
                 if len(indices[0]) > 0:
 
                     grid_model   = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+
                     Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
                     radial_grid  = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
                     x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
+
+
+
+                    r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile
+                    rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
+                    T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
+                    xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
+                    x_alpha_prof = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1 - xHII_extrap) / (1 + zgrid)
+
+
+                    #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
                     Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
 
                     ## here we assume they all have M_bin[i]
@@ -179,15 +193,16 @@ def paint_profile_single_snap(filename,param):
                     profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False,fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                     kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
-                    profile_xal = interp1d(radial_grid * (1 + z), x_al_profile * (radial_grid * (1 + z) / (radial_grid * (1 + z) + epsilon)) ** 2, bounds_error=False, fill_value=0) #screening
+                    profile_xal = interp1d(r_lyal * (1 + z), x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2, bounds_error=False, fill_value=0)                    ##screening
                     kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
+                    renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xal)
 
-                    if not np.sum(kernel_T) < 1e-8:
+                    if not np.sum(kernel_T) < 1e-8  and temp ==True:
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T)
-                    if not np.sum(kernel_xal) < 1e-8:
-                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal)
+                    if not np.sum(kernel_xal) < 1e-8 and lyal == True:
+                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal)*renorm
 
-                    if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8:  ## To avoid error from convole_fft (renomalization)
+                    if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                         Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII)
                     else:
                         continue
@@ -229,7 +244,7 @@ def paint_profile_single_snap(filename,param):
 
 
 
-def paint_profiles(param):
+def paint_profiles(param,temp =True,lyal=True,ion=True):
     """
     Parameters
     ----------
@@ -263,7 +278,7 @@ def paint_profiles(param):
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii%size :
-            paint_profile_single_snap(filename,param)
+            paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True)
 
     #def paint_single(filename):
     #    return paint_profile_single_snap(filename,param)

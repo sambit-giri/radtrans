@@ -20,7 +20,6 @@ def source_par():
         "E_min_sed_ion": 13.6,                # minimum energy of normalization of ionizing photons in eV
         "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV
 
-
         "E_min_sed_xray": 500,             # minimum energy of normalization of xrays in eV
         "E_max_sed_xray": 8000,            # minimum energy of normalization of xrays in eV
 
@@ -94,7 +93,6 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "kbin": 400,  ## min, max and number of bins in k-space for measuring power spectra.
     }
     return Bunch(par)
-
 
 
 

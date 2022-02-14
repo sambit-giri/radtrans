@@ -2,11 +2,15 @@
 
 Global quantity computed directly from halo catalog
 """
+
 import os.path
 import numpy as np
+import pkg_resources
 from .cosmo import Hubble, hubble
 import pickle
-from .constants import rhoc0,c_km_s, Tcmb0, sec_per_year, km_per_Mpc
+from .couplings import eps_lyal, S_alpha, rho_alpha
+from scipy.interpolate import splrep,splev,interp1d
+from .constants import *
 from .astro import Read_Rockstar, f_star_Halo
 from .couplings import sigma_HI
 
@@ -16,7 +20,8 @@ def global_signal(param,heat=None):
     G_heat = []
     z = []
     sfrd = []
-
+    Jalpha = []
+    xal = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         catalog = catalog_dir + filename
         halo_catalog = Read_Rockstar(catalog)
@@ -28,17 +33,20 @@ def global_signal(param,heat=None):
 
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog)
+        Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog)
 
+        xal.append(x_alpha_)
+        Jalpha.append(Jalpha_)
         xHII.append(min(x_HII, 1))
         z.append(zz_)
         G_heat.append(heat_per_baryon)
         sfrd.append(SFRD)
 
-    sfrd, xHII, z_array, G_heat = np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat)
-    matrice = np.array([z, xHII,sfrd,G_heat])
-    z, xHII,sfrd,G_heat = matrice[:, matrice[0].argsort()] ## sort according to zarray
+    sfrd, xHII, z_array, G_heat, Jalpha, xal = np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal)
+    matrice = np.array([z, xHII,sfrd,G_heat, Jalpha, xal])
+    z, xHII,sfrd,G_heat, Jalpha, xal = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat}
+    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal}
 
 
 
@@ -107,7 +115,52 @@ def sfrd_approx(param,halo_catalog):
 
     SFRD = SFRD / LBox ** 3  ## [(Msol/h) / yr /(cMpc/h)**3]
 
-    return zgrid, SFRD
+    return z, SFRD
+
+
+def mean_Jalpha_approx(param,halo_catalog):
+    """
+    Approximation of the Jalpha in x_alpha calculation. To compare to Halo Model and to our calculation when puting profiles on grid.
+    """
+    LBox = param.sim.Lbox       # Mpc/h
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+
+    H_Masses = halo_catalog['M']
+    z = halo_catalog['z']
+
+    # quick load to find matching redshift between solver output and simulation snapshot.
+    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
+
+    r_grid = grid_model.r_grid_cell
+    r_lyal = np.logspace(-5,2,1000,base=10)## physical distance for lyal profile
+
+
+    Jal_mean = 0
+    X_al_mean = 0
+    for i in range(len(M_Bin) ):
+        nbr_halos = np.where(Indexing == i)[0].size
+        if nbr_halos > 0:
+            grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+            r_grid = grid_model.r_grid_cell
+
+            #grid_model.rho_al_history[str(round(zgrid, 2))]
+            #x_alpha = grid_model.x_al_history[str(round(zgrid, 2))]
+            rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
+            T_extrap  = np.interp(r_lyal,r_grid,grid_model.T_history[str(round(zgrid, 2))])
+            xHII_extrap  = np.interp(r_lyal,r_grid,grid_model.xHII_history[str(round(zgrid, 2))])
+            x_alpha   = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1-xHII_extrap) / (1 + zgrid)
+            mean_rho = np.trapz(rho_alpha_* 4 * np.pi * r_lyal ** 2, r_lyal)
+            Jal_mean += nbr_halos * mean_rho
+            X_al_mean+= nbr_halos * np.trapz(x_alpha* 4 * np.pi * r_lyal ** 2, r_lyal)
+
+    Jal_mean = Jal_mean / (LBox/(1+z)) ** 3  ## [pcm**-2.Hz-1.s-1]
+    X_al_mean = X_al_mean / (LBox/(1+z)) ** 3
+    return Jal_mean, X_al_mean
 
 
 def G_heat_approx(param, halo_catalog):
@@ -140,7 +193,59 @@ def G_heat_approx(param, halo_catalog):
 
     heat_per_baryon = heat_per_baryon / (LBox / (1 + z)) ** 3
 
-    return heat_per_baryon
+    return heat_per_baryon #[eV.s**-1]
+
+def J_alpha_n(zz, sfrd, param):
+    """
+    Same as in Halo model. take as an inputa the sfrd
+    """
+
+    Om = param.cosmo.Om
+    Ob = param.cosmo.Ob
+    h0 = param.cosmo.h
+
+    # comoving proton number density
+    nb0 = rhoc0 * Ob / (m_p_in_Msun * h0)  # [h/Mpc]^3
+
+    # rec fraction
+    names = 'n, f'
+    path_to_file = pkg_resources.resource_filename('radtrans', 'input_data/recfrac.dat')
+    rec = np.genfromtxt(path_to_file, usecols=(0, 1), comments='#', dtype=float, names=names)
+    rectrunc = 23
+
+    # line frequencies
+    nu_n = nu_LL * (1 - 1 / rec['n'][2:] ** 2)
+    nu_n = np.insert(nu_n, [0, 0], np.inf)
+
+    sfrd_tck = splrep(zz, sfrd)
+
+    # binning of z_prime
+    dz_prime = 0.01 # param.code.dz_prime_lyal
+
+    # flux intensity (Eq.15 in arXiv:astro-ph/0604040)
+    J_al = []
+    for i in range(len(zz)):
+        zmax_n = np.full(len(rec['n']), zz[i])
+        zmax_n[2:] = (1 - (rec['n'][2:] + np.ones(len(rec['n']) - 2)) ** (-2)) / (1 - (rec['n'][2:]) ** (-2)) * (1 + zz[i]) - 1
+
+        J_al_n = []
+        for k in range(0, rectrunc):
+            zrange = zmax_n[k] - zz[i]
+            N_prime = int(zrange / dz_prime)
+            if (N_prime < 2):
+                N_prime = 2
+            z_prime = np.logspace(np.log(zz[i]), np.log(zmax_n[k]), N_prime, base=np.e)
+
+            eps_b = eps_lyal(nu_n[k] * (1 + z_prime) / (1 + zz[i]), param)
+            J_al_n_prime = c_km_s * h0 / hubble(z_prime, param) * eps_b * splev(z_prime, sfrd_tck)  # [1/Hz/yr/(Mpc/h)^2]
+
+            J_al_nk = (1 + zz[i]) ** 2 / (4 * np.pi) * rec['f'][k] * np.trapz(J_al_n_prime, z_prime)  # [1/Hz/yr/(Mpc/h)^2]
+            J_al_n += [J_al_nk * (h0 / cm_per_Mpc) ** 2 / sec_per_year]  # [1/cm^2/Hz/s]
+        J_al += [J_al_n]
+    J_al = np.array(J_al)
+    J_al = np.ndarray.transpose(J_al)
+
+    return J_al
 
 
 def cum_optical_depth(zz,E,param):
