@@ -235,7 +235,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
         pickle.dump(file=open('./grid_output/T_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Temp)
         pickle.dump(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xHII)
-        pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal)
+        pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal/4/np.pi) #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
 
 
 
@@ -409,18 +409,71 @@ def compute_PS(param):
     """
 
     import tools21cm as t2c
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    nGrid = param.sim.Ncell
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    Lbox = param.sim.Lbox  #Mpc/h
+    kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10) #h/Mpc
 
-    kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10)
-    # (input_array_nd, kbins=100, box_dims=None, return_n_modes=False, binning='log', breakpoint=0.1
+    Dict = {}
 
-    PS_XHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
-    PS_rho = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=param.sim.Lbox, kbins=kbins)
-    PS_cross = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho, box_dims=param.sim.Lbox, kbins=kbins)
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        with open(catalog_dir+filename, "r") as file:
+            file.readline()
+            a = float(file.readline()[4:])
+            zz_ = 1 / a - 1
+        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+
+
+        delta_XHI = (1-Grid_xHII) / np.mean((1-Grid_xHII)) - 1
+        delta_T = Grid_Temp / np.mean(Grid_Temp) - 1
+        delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
+        delta_x_al = Grid_xal / np.mean(Grid_xal) - 1
+
+        dens_field = param.sim.dens_field
+        if dens_field is not None and param.sim.Ncell == 256:
+            dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+            pkd = dens.reshape(256, 256, 256)
+            pkd = pkd.T  ### take the transpose to match X_ion map coordinates
+            Lbox = param.sim.Lbox
+            N_cell = param.sim.Ncell
+            V_total = Lbox ** 3
+            V_cell = (Lbox / N_cell) ** 3
+            mass = pkd * rhoc0 * V_total
+            rho_m = mass / V_cell
+            delta_rho  = (rho_m - np.mean(rho_m)) / np.mean(rho_m)
+            PS_rho     = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)
+            PS_rho_xHI = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho,box_dims=Lbox , kbins=kbins)
+            PS_rho_xal = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox , kbins=kbins)
+            PS_rho_T   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox , kbins=kbins)
+
+        else:
+            delta_rho = 0,0  #  rho/rhomean-1
+            PS_rho = 0,0
+            PS_rho_xHI = 0,0
+            PS_rho_xal =0,0
+            PS_rho_T =0,0
+            print('no density field provided.')
 
 
 
+        PS_xHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI , box_dims=param.sim.Lbox, kbins=kbins)
+        PS_T   = t2c.power_spectrum.power_spectrum_1d(delta_T   , box_dims=param.sim.Lbox, kbins=kbins)
+        PS_xal = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=param.sim.Lbox, kbins=kbins)
+        PS_dTb = t2c.power_spectrum.power_spectrum_1d(delta_dTb , box_dims=param.sim.Lbox, kbins=kbins)
+
+        PS_T_lyal = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=param.sim.Lbox, kbins=kbins)
+        PS_T_xHI  = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
 
 
+        Dict[str(round(zz_,2))] = {'k':PS_xHI[1],'PS_xHI': PS_xHI[0], 'PS_T': PS_T[0], 'PS_xal': PS_xal[0], 'PS_dTb': PS_dTb[0], 'PS_T_lyal': PS_T_lyal[0], 'PS_T_xHI': PS_T_xHI[0],
+                'PS_rho': PS_rho[0], 'PS_rho_xHI': PS_rho_xHI[0], 'PS_rho_xal': PS_rho_xal[0], 'PS_rho_T': PS_rho_T[0]}
+
+    pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
 
 
