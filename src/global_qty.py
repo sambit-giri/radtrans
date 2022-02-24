@@ -11,8 +11,10 @@ import pickle
 from .couplings import eps_lyal, S_alpha, rho_alpha
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
-from .astro import Read_Rockstar, f_star_Halo
-from .couplings import sigma_HI
+from .astro import Read_Rockstar, f_star_Halo, NGamDot
+from .couplings import J_xray_with_redshifting, J_xray_no_redshifting
+from .bias import bar_density_2h
+from .cross_sections import sigma_HI
 
 def global_signal(param,heat=None):
     catalog_dir = param.sim.halo_catalogs
@@ -21,32 +23,44 @@ def global_signal(param,heat=None):
     z = []
     sfrd = []
     Jalpha = []
+    Gheat_GS_style = []
     xal = []
+    heat_per_baryon = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         catalog = catalog_dir + filename
         halo_catalog = Read_Rockstar(catalog)
 
-        if heat is not None :
-            heat_per_baryon = G_heat_approx(param,halo_catalog)
-        else :
-            heat_per_baryon = 0
+        #if heat is not None :
+        #    heat_per_baryon = G_heat_approx(param,halo_catalog)
+        #else :
+        #    heat_per_baryon = 0
+        heat_per_baryon.append(G_heat_approx(param, halo_catalog))
 
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog)
         Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog)
+        Erange,Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting='yes')
+
+        itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
+        itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
+        if Erange is not 0:
+            #Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
+            Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)  +  ) # eV/s
+        else :
+            Gheat_GS_style.append(0)
 
         xal.append(x_alpha_)
         Jalpha.append(Jalpha_)
         xHII.append(min(x_HII, 1))
         z.append(zz_)
-        G_heat.append(heat_per_baryon)
+        G_heat.append(Gam_heat)
         sfrd.append(SFRD)
 
-    sfrd, xHII, z_array, G_heat, Jalpha, xal = np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal)
-    matrice = np.array([z, xHII,sfrd,G_heat, Jalpha, xal])
-    z, xHII,sfrd,G_heat, Jalpha, xal = matrice[:, matrice[0].argsort()] ## sort according to zarray
+    sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon)
+    matrice = np.array([z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon])
+    z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal}
+    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Jalpha_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon}
 
 
 
@@ -291,62 +305,60 @@ def cum_optical_depth(zz,E,param):
     return tau
 
 
-def J_xray_nu(zz, sfrd, param):
+def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifting = 'yes'):
     """
-    X-ray flux per frequency nu
-    The numerical method is explained in
-    Sec. 3.1 of arXiv:1406.4120
+    X-ray flux per frequency nu. Same method as above (Jalpha_approx)
     """
-    Om = param.cosmo.Om
-    Ob = param.cosmo.Ob
-    h0 = param.cosmo.h
-    zstar = 25
-    Emin = param.code.Emin
-    Emax = param.code.Emax
-    NE = param.code.NE
+    LBox = param.sim.Lbox  # Mpc/h
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
 
-    # zprime binning
-    dz_prime = param.code.dz_prime_xray
+    H_Masses = halo_catalog['M']
+    z = halo_catalog['z']
 
-    # define frequency bin
-    nu_min = Emin / hP
-    nu_max = Emax / hP
-    N_mu = NE
-    nu = np.logspace(np.log(nu_min), np.log(nu_max), N_mu, base=np.e)
+    # quick load to find matching redshift between solver output and simulation snapshot.
+    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))),axis=1)  ## values of Mh at z_start, binned via M_Bin.
+    Ob, Om, h0 ,alpha= param.cosmo.Ob, param.cosmo.Om, param.cosmo.h,0.79
 
-    # energy bin
-    EE = nu * hP
+    mean_Gamma_heat = 0
+    Jxray_mean = 0
+    E_range = 0
+    for i in range(len(M_Bin)):
+        nbr_halos = np.where(Indexing == i)[0].size
+        if nbr_halos > 0:
+            grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
+            r_grid = grid_model.r_grid_cell
+            xHII   = grid_model.xHII_history[str(round(zgrid, 2))]
+            Mh   = grid_model.Mh_history[ind_z]
+            nB   =  (1 + z) ** 3 * bar_density_2h(r_grid, param, z, Mh)
+            n_HI = nB * (1 - xHII)
 
-    # SFRD
-    sfrd_tck = splrep(zz, sfrd)  # [(Msun/h)/yr/(Mpc/h)^3]
+            if param.source.type == 'SED':
+                dMh_dt = alpha * Mh * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr], SFR at zprime, at emission
+                Edot = dMh_dt * f_star_Halo(param, Mh) * Ob / Om * param.source.cX * eV_per_erg / h0  # eV/s at emission
+            else :
+                print('Jxray approx not implemented for source.type other than SED.')
 
-    J_X_nu = []
-    for i in range(len(zz)):
-        J_X_nu_z = []
-        if (zz[i] < zstar):
-            for j in range(len(nu)):
 
-                z_max = zstar
-                zrange = z_max - zz[i]
-                N_prime = int(zrange / dz_prime)
-                if (N_prime < 2):
-                    N_prime = 2
-                z_prime = np.logspace(np.log(zz[i]), np.log(z_max), N_prime, base=np.e)
-                tau_prime = cum_optical_depth(z_prime, nu[j] * hP, param)
+            if redshifting=='no':
+                E_range, Jxray_flux  = J_xray_no_redshifting(r_grid, n_HI*density_normalization, Edot, param)               # shape of Jxray is (r_grid,E_range)
+                mean_J = np.trapz(Jxray_flux * 4 * np.pi * r_grid[:, None] ** 2, r_grid,axis=0)  # shape is E_range. "spatial" mean
+                mean_Gam = 0
+            else :
+                E_range, Jxray_flux  = J_xray_with_redshifting(r_grid, n_HI*density_normalization, Mh, z,param)
+                factor_ = sigma_HI(E_range)*(E_range-E_HI)
+                Gamma_heat_ = np.trapz(Jxray_flux * factor_[:,None], E_range*Hz_per_eV,axis=0) #shape is (r_grid)
+                mean_J = np.trapz(Jxray_flux * 4 * np.pi * r_grid ** 2, r_grid,axis=1) # shape is E_range. "spatial" mean
+                mean_Gam = np.trapz(Gamma_heat_ * 4 * np.pi * r_grid ** 2, r_grid)
+            Jxray_mean += nbr_halos * mean_J
+            mean_Gamma_heat += nbr_halos * mean_Gam
 
-                eps = eps_xray(nu[j] * (1 + z_prime) / (1 + zz[i]), param) * splev(z_prime,sfrd_tck)  # [1/s * (h/Mpc)^3]
-                itd = c * h0 / hubble(z_prime, param) * eps * np.exp(-tau_prime)
 
-                J_X_nu_j = (1 + zz[i]) ** 2 / (4 * np.pi) * trapz(itd, z_prime)  # [1/s * (h/Mpc)^2]
-                J_X_nu_j = J_X_nu_j * (h0 / cm_per_Mpc) ** 2  # [1/s * (1/cm)^2]
-                J_X_nu_z += [J_X_nu_j]
-            J_X_nu += [J_X_nu_z]  # [1/s * (1/cm)^2]
-        else:
-            for j in range(len(nu)):
-                J_X_nu_z += [0.0]
-            J_X_nu += [J_X_nu_z]
+    Jxray_mean = Jxray_mean / (LBox / (1 + z)) ** 3  ## [pcm**-2.Hz-1.s-1]
+    mean_Gamma_heat = mean_Gamma_heat / (LBox / (1 + z)) ** 3  ## [pcm**-2.Hz-1.s-1]
 
-    J_X_nu = np.array(J_X_nu)
-    J_X_nu = np.ndarray.transpose(J_X_nu)
-
-    return nu, J_X_nu
+    return E_range, Jxray_mean, mean_Gamma_heat

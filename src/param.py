@@ -13,9 +13,9 @@ class Bunch(object):
 
 def source_par():
     par = {
-        "M_halo": 1e6,               # galaxy halo mass, miniqso halo mass (required for the profiles, i.e. for the bi  as )
+        "M_halo": 1e6,               # Msol/h
 
-        "type": 'SED',          # source type. Can be 'Galaxies' or 'Miniqsos' or SED
+        "type": 'SED',                   # source type. Can be 'Galaxies' or 'Miniqsos' or SED
 
         "E_min_sed_ion": 13.6,                # minimum energy of normalization of ionizing photons in eV
         "E_max_sed_ion": 1000,             # minimum energy of normalization of ionizing photons in eV

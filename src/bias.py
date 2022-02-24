@@ -121,6 +121,7 @@ def bar_density_2h(rgrid,param,z,Mass):
     """
     2h profiles in nbr of [baryons /co-cm**3]
     rgrid : radial coordinates in physical units [pMpc/h].
+    Mass : Halo mass in Msol/h. Used to compute the bias.
     """
     # Profiles
     cosmofile = param.cosmo.corr_fct
@@ -130,4 +131,5 @@ def bar_density_2h(rgrid,param,z,Mass):
     halo_bias = bias(z, param,Mass)
     # baryonic density profile in [co-cm**-3]
     norm_profile = profile(halo_bias, cosmo_corr, param, z) * param.cosmo.Ob / param.cosmo.Om * M_sun / (cm_per_Mpc) ** 3 / m_H
+
     return norm_profile

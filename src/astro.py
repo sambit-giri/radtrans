@@ -9,20 +9,32 @@ from .cosmo import Hubble
 
 
 
+def Tspin(Tcmb,Tk,xtot):
+    return ((1 / Tcmb + xtot / Tk ) / (1 + xtot)) ** -1
+
+def dTb( z, Tspin, nHI_norm,param):
+    """
+    nHI_norm : (1+delta_b)*(1-xHII) , or also rho_HI/rhob_mean
+    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
+    """
+    Om, h0,Ob = param.cosmo.Om, param.cosmo.h,param.cosmo.Ob
+    factor = 27  * ((1 + z) / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
+    return factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
+
 def BB_Planck( nu , T):
     """
     Input : nu in [Hz], T in [K]
     Returns : BB Spectrum [J.s-1.m−2.Hz−1]
     """
     a_ = 2.0 * h__ * nu**3 / c__**2
-    intensity = 4 * np.pi * a_ / ( np.exp(h__*nu/(k__*T)) - 1.0)
+    intensity = 4 * pi * a_ / ( exp(h__*nu/(k__*T)) - 1.0)
     return intensity
 
 
-
-def NGamDot(param):
+def NGamDot(param,Mass = None):
     """
     Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1] for ion and ev/s for xray
+    Mass : extra halo mass, when one want to compute Ngdot for a different mass than param.source.Mhalo. Only for param.source.type == SED
     """
     Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
     E_0_ = param.source.E_min_sed_ion
@@ -53,7 +65,10 @@ def NGamDot(param):
 
     elif (param.source.type == 'SED' ):
         z = param.solver.z
-        M_halo = param.source.M_halo
+        if Mass is None :
+            M_halo = param.source.M_halo
+        else :
+            M_halo = Mass
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
         Ngam_dot_ion = dMh_dt/h0 * f_star_Halo(param, M_halo) * Ob /Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
         E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * Ob / Om * param.source.cX/h0  ## [erg / s]

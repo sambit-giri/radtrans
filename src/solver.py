@@ -11,7 +11,8 @@ import datetime
 from .bias import *
 from .astro import *
 from .cosmo import T_adiab, correlation_fct
-from .couplings import x_coll, rho_alpha, S_alpha, J0_xray, sigma_HI
+from .cross_sections import *
+from .couplings import x_coll, rho_alpha, S_alpha, J0_xray_lyal
 import copy
 from scipy.optimize import curve_fit
 from scipy.integrate import cumtrapz
@@ -31,100 +32,9 @@ ns      = 0.97
 s8      = 0.81
 
 
-def Tspin(Tcmb,Tk,xtot):
-    return ((1 / Tcmb + xtot / Tk ) / (1 + xtot)) ** -1
-
-def dTb( z, Tspin, nHI_norm,param):
-    """
-    nHI_norm : (1+delta_b)*(1-xHII) , or also rho_HI/rhob_mean
-    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
-    """
-    Om, h0,Ob = param.cosmo.Om, param.cosmo.h,param.cosmo.Ob
-    factor = 27  * ((1 + z) / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
-    return factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / Tspin) * nHI_norm
-
-def BB_Planck( nu , T):
-    """
-    Input : nu in [Hz], T in [K]
-    Returns : BB Spectrum [J.s-1.m−2.Hz−1]
-    """
-    a_ = 2.0 * h__ * nu**3 / c__**2
-    intensity = 4 * pi * a_ / ( exp(h__*nu/(k__*T)) - 1.0)
-    return intensity
-
 def n_H(z ,C):
     return C * n_H_0 * (1 + z) ** 3
 
-
-
-
-
-# Ionization and Recombination coefficients. Expressions taken from Fukugita and Kawasaki 1994.
-def alpha_HII(T):
-    """
-    Recombination coefficient for Hydrogen :  [cm3.s-1]
-    Input : temperature in K
-    """
-    return 2.6 * 10 ** -13 * (T / 10 ** 4) ** -0.85
-
-
-def beta_HI(T):
-    """
-    Collisional ionization coefficient for Hydrogen :  [cm3.s-1]
-    Input : temperature in K
-    """
-    return 5.85 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.578 * 10 ** 5 / T)
-
-
-def xi_HI(T):
-    """
-    Collisional ionization cooling (see Fukugita & Kawazaki 1994) [eV.cm3.s-1]
-    """
-    return eV_per_erg * 1.27 * 10 ** -21 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.58 * 10 ** 5 / T)
-
-def eta_HII(T):
-    """
-    Recombination cooling [eV.cm3.s-1].
-    T ** 0.5 * (T / 10 ** 3) ** -0.2
-    """
-    return eV_per_erg * 6.5 * 10 ** -27 * T ** 0.3 * (1 / 10 ** 3) ** -0.2 * (1 + (T / 10 ** 6) ** 0.7) ** -1
-
-
-def psi_HI(T):
-    """
-    Collisional excitation cooling [eV.cm3.s-1]
-    """
-    return eV_per_erg * 7.5 * 10 ** -19 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * exp(-1.18 * 10 ** 5 / T)
-
-
-def theta_ff(T):
-    """
-    Free-free cooling coefficient [eV.cm3.s-1]
-    """
-    return eV_per_erg * 1.3 * 1.42 * 10 ** -27 * (T) ** 0.5
-
-
-def f_H(x_ion):
-    """
-    Factor for secondary ionization, due to kinetic energy carried by secondary e- (see Shull & van Steenberg 1985). [Dimensionless]
-    Input : x is the ionized fraction of hydrogen
-    """
-    #if isnan(x_ion):
-    #    x_ion = 1
-    return nan_to_num(0.3908 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4092) ** 1.7592)
-
-def f_Heat(xion):
-    """
-    Amount of heat deposited by secondary electrons. (Shull & van Steenberg (1985) fig.3 - according to Thomas&Zaroubi Miniqso). [Dimensionless]
-    """
-    #if isnan(xion):
-    #    xion = 1
-    #if xion> 10 ** -4:
-    #    output =  nan_to_num(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163))
-    #else :
-    #    output = 0.15
-
-    return np.maximum(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163),0.15)
 
 
 def gamma_HI(n_HIIx, n_HI ,Tx, I1_HI, I2_HI, gamma_2c):
@@ -433,11 +343,11 @@ class Source_MAR:
 
         self.z = param.solver.z  # starting redshift
         self.alpha = param.source.alpha
-
-        self.M_halo = param.source.M_halo
-        self.R_halo = R_halo(self.M_halo, self.z, param)  # physical halo size in Mpc
-        self.r_start = self.R_halo
-        print('R_halo is :', '{:.2e}'.format(self.R_halo), 'Mpc')
+        h0 = param.cosmo.h
+        self.M_halo = param.source.M_halo #Msol/h
+        self.R_halo = R_halo(self.M_halo/h0, self.z, param)  # physical halo size in Mpc
+        self.r_start = self.R_halo * param.cosmo.h # Mpc/h
+        print('R_halo is :', '{:.2e}'.format(self.R_halo), 'Mpc/h')
         self.r_end = param.solver.r_end  # maximal distance from source
         self.dn = param.solver.dn
         self.dn_table = param.solver.dn_table
@@ -692,13 +602,13 @@ class Source_MAR:
                 A1_HI = xi_HI(T_grid) * n_HI_cell * n_ee
                 A2_HII = eta_HII(T_grid) * n_HII_cell * n_ee
                 A4_HI = psi_HI(T_grid) * n_HI_cell * n_ee
-                A5 = theta_ff(T_grid) * (n_HII_cell) * n_ee
+                A5 = theta_ff(T_grid) * (n_HII_cell) * n_ee # eV/s/cm**3
                 H = pl.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
 
                 A = gamma_HI(n_HII_cell, n_HI_cell, T_grid, I1_HI, I2_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
-                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6))
+                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
 
                 n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
@@ -731,7 +641,7 @@ class Source_MAR:
 
 
                     # xray contrib to Lya coupling
-                    J0xray = J0_xray(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
+                    J0xray = J0_xray_lyal(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
 
                     ### x_alpha
                     rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
@@ -745,7 +655,7 @@ class Source_MAR:
                     x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
-                    heat_history[str(round(zstep_l[0], 2))] = np.copy( (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6))/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) *kb_eV_per_K) #np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) / nB_profile_z ) # eV/s
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 

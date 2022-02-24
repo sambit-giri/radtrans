@@ -4,6 +4,7 @@ Here we compute the Lyman_alpha and collisional coupling coefficient, in order t
 
 import numpy as np
 from .constants import *
+from .cross_sections import sigma_HI
 import pkg_resources
 from .cosmo import comoving_distance, Hubble, hubble
 from .astro import f_star_Halo
@@ -183,25 +184,11 @@ def a_alpha(x,E):
     return 2/np.pi * np.arctan(E/120 * (0.03/x**1.5 + 1)**0.25)
 
 
-def sigma_HI(E):
-    """
-    Input : E is in eV.
-    Returns : bound free photo-ionization cross section ,  [cm ** 2]
-    """
-    sigma_0 = 5.475 * 10 ** 4 * 10 ** -18 ## cm**2 1Mbarn = 1e-18 cm**2
-    E_01 = 4.298 * 10 ** -1
-    y_a = 3.288 * 10 ** 1
-    P = 2.963
-    y_w = y_0 = y_1 = 0
-    x = E / E_01 - y_0
-    y = np.sqrt(x ** 2 + y_1 ** 2)
-    F = ((x - 1) ** 2 + y_w ** 2) * y ** (0.5 * P - 5.5) * (1 + np.sqrt(y / y_a)) ** -P
-    sigma = sigma_0 * F
-    return sigma
 
-def J0_xray(r_grid,xHII, n_HI, Edot,z, param):
+def J0_xray_lyal(r_grid,xHII, n_HI, Edot,z, param):
     """
-    Xray flux that contributes to lyman alpha coupling. [pcm-2.s-1.Hz-1]. Will be added next to rho_alpha to cmopute x_alpha
+    Xray flux that contributes to lyman alpha coupling. [pcm-2.s-1.Hz-1]. Will be added next to rho_alpha to compute x_alpha.
+    Expression used in Thomas and Zaroubi 2011, and taken  from the appendix of Dijkstra 2004, a limit from the xray background...
 
     Parameters
     ----------
@@ -232,4 +219,76 @@ def J0_xray(r_grid,xHII, n_HI, Edot,z, param):
 
     integral = np.trapz(to_int, E_range, axis=1)  # shape is r_grid
     return c__ * 1e2 * sec_per_year / (4 * np.pi * Hubble(z, param) * nu_al) * n_HI * integral / (h_eV_sec * nu_al) # [s-1.pcm-2.Hz-1]
+
+
+
+def J_xray_no_redshifting(r_grid, n_HI, Edot, param):
+    """
+    Xray flux that contributes to heating. [pcm-2.s-1.Hz-1]. Will be added next to rho_alpha to compute x_alpha
+
+    Parameters
+    ----------
+    r_grid : radial distance form source [pMpc/h-1]
+    Edot : xray source energy in [eV.s-1] (float)
+    xHII : ionized fraction. (array of size r_grid)
+    n_HI : number density of hydrogen atoms in the cells [pcm-3] (array of size r_grid)
+    z : redshift
+    Returns
+    -------
+    array of size (r_grid,E_range) -- a xray spectrum at each r.
+    """
+    sed_xray = param.source.alS_xray
+    norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))   #Hz**(alpha-1)
+    E_range = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 400, base=10)  # eq(3) Thomas.2011
+    nu_range = Hz_per_eV * E_range
+
+    cumul_nHI = cumtrapz(n_HI, r_grid, initial=0.0)  ## Mpc/h.cm-3
+    Edotflux = Edot / (4 * np.pi * r_grid**2 * cm_per_Mpc ** 2 / param.cosmo.h ** 2)  # eV.s-1.pcm-2
+
+    tau = cm_per_Mpc / param.cosmo.h * (cumul_nHI[:, None] * sigma_HI(E_range))  # shape is (r_grid,E_range)
+
+    Nxray_arr = np.exp(-tau) * Edotflux[:, None] * norm_xray * nu_range[None, :] ** (-sed_xray) * Hz_per_eV  # [eV/eV/s/pcm^2], (r_grid,E_range)  array to integrate
+
+    return E_range, Nxray_arr  /nu_range[None, :]   # [photons/Hz/s/pcm^2], (r_grid,E_range)
+
+
+
+
+
+def J_xray_with_redshifting(r_grid, n_HI, Mhalo, zz,param):
+    """
+    Same as above, but acounting for the redshifting of photons from source center to distance r.
+    Returns
+    -------
+    array of size (E_range,r_grid) -- a xray spectrum at each r.
+    """
+    Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
+    sed_xray = param.source.alS_xray
+    norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))  # Hz**(alpha-1)
+    E_range = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 40, base=10)  # eq(3) Thomas.2011
+    nu_range = Hz_per_eV * E_range
+
+    alpha = param.source.alpha_MAR
+    cumul_nHI = cumtrapz(n_HI, r_grid, initial=0.0)  ## Mpc/h.cm-3
+
+    z_max = 35
+    zrange = z_max - zz
+    N_prime = int(zrange / 0.01)  ## ly al bin prime
+    if (N_prime < 4):
+        N_prime = 4
+    z_prime = np.logspace(np.log(zz), np.log(z_max), N_prime, base=np.e)
+
+    M_emission = Mhalo * np.exp(alpha * (zz - z_prime))
+    dMh_dt_em = alpha * M_emission * (z_prime + 1) * Hubble(z_prime,param)  ## [(Msol/h) / yr], SFR at zprime, at emission
+    E_dot_xray_em = dMh_dt_em * f_star_Halo(param,M_emission) * Ob / Om * param.source.cX * eV_per_erg / h0  # eV/s at emission
+
+    eps_xray_em = E_dot_xray_em * norm_xray * (nu_range[:, None] * (1 + z_prime) / (1 + zz)) ** ( -sed_xray) * Hz_per_eV  ## eV/eV/s at emission with correct frequency to redshift to nu at zz.
+
+    rcom_prime = comoving_distance(z_prime, param) * h0    # comoving distance in [cMpc/h]
+    eps_int = interp1d(rcom_prime, eps_xray_em, axis=1, fill_value=0.0, bounds_error=False)
+    tau = cm_per_Mpc / param.cosmo.h * (cumul_nHI * sigma_HI(E_range[:, None]))  # shape is (r_grid,E_range)
+
+    flux_m = np.exp(-tau) * eps_int(r_grid * (1 + zz)) / ( 4 * np.pi * r_grid ** 2 * cm_per_Mpc ** 2 / param.cosmo.h ** 2)
+
+    return E_range, flux_m/nu_range[:,None]       # [photons/Hz/s/pcm^2], (r_grid,E_range)
 
