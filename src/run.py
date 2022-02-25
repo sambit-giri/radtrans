@@ -11,7 +11,7 @@ import pickle
 import datetime
 from radtrans.constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
 from radtrans.bias import bias,profile
-from radtrans.astro import Read_Rockstar, NGamDot
+from radtrans.astro import Read_Rockstar
 import os
 import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast,put_profiles_group

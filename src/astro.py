@@ -31,8 +31,10 @@ def BB_Planck( nu , T):
     return intensity
 
 
-def NGamDot(param,Mass = None):
+def NGamDot(param,zz, Mass = None ):
     """
+    zz : redshift. Matters for the mass accretion rate!!
+    Mass : mass of the halo
     Number of ionising photons emitted per sec for a given source model and source parameter. [s**-1] for ion and ev/s for xray
     Mass : extra halo mass, when one want to compute Ngdot for a different mass than param.source.Mhalo. Only for param.source.type == SED
     """
@@ -57,20 +59,20 @@ def NGamDot(param,Mass = None):
         return Ngam_dot
 
     elif (param.source.type == 'Galaxies_MAR'):
-        z = param.solver.z
+        z = zz
         M_halo = param.source.M_halo
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
         Ngam_dot = dMh_dt * f_star_Halo(param, M_halo) * Ob / Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun / h0   # [s**-1]
         return Ngam_dot
 
     elif (param.source.type == 'SED' ):
-        z = param.solver.z
+        z = zz #param.solver.z
         if Mass is None :
             M_halo = param.source.M_halo
         else :
             M_halo = Mass
         dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
-        Ngam_dot_ion = dMh_dt/h0 * f_star_Halo(param, M_halo) * Ob /Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
+        Ngam_dot_ion = dMh_dt/h0 * f_star_Halo(param, M_halo) * Ob / Om * f_esc(param,M_halo) * param.source.Nion / sec_per_year / m_H * M_sun
         E_dot_xray = dMh_dt * f_star_Halo(param,M_halo) * Ob / Om * param.source.cX/h0  ## [erg / s]
         return Ngam_dot_ion, E_dot_xray * eV_per_erg
 

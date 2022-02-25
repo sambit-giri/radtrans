@@ -11,12 +11,12 @@ import pickle
 from .couplings import eps_lyal, S_alpha, rho_alpha
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
-from .astro import Read_Rockstar, f_star_Halo, NGamDot
+from .astro import Read_Rockstar, f_star_Halo
 from .couplings import J_xray_with_redshifting, J_xray_no_redshifting
 from .bias import bar_density_2h
 from .cross_sections import sigma_HI
 
-def global_signal(param,heat=None):
+def global_signal(param,heat=None,redshifting = 'yes'):
     catalog_dir = param.sim.halo_catalogs
     xHII = []
     G_heat = []
@@ -39,13 +39,13 @@ def global_signal(param,heat=None):
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog)
         Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog)
-        Erange,Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting='yes')
+        Erange,Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting=redshifting)
 
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
-        itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
+        #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
         if Erange is not 0:
             #Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
-            Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)   ) # eV/s
+            Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
         else :
             Gheat_GS_style.append(0)
 

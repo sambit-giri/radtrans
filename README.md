@@ -18,3 +18,6 @@ One can also install it using pip by running the following command::
     pip install git+https://github.com/sambit-giri/radtrans.git
 
 
+
+You need several python packages : 
+pip install scikit-image, matplotlib, scipy, astropy, tqdm, mpi4py

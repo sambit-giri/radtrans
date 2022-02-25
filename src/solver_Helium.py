@@ -172,7 +172,7 @@ def generate_table(param, z, n_HI, n_HeI):
     else:
         print('Calculating table...')
         if (param.source.type == 'SED'):
-            Ngam_dot_ion, E_dot_xray = NGamDot(param)
+            Ngam_dot_ion, E_dot_xray = NGamDot(param,param.solver.z)
             sed_ion = param.source.alS_ion
             sed_xray = param.source.alS_xray
 
@@ -513,13 +513,13 @@ class Source_MAR_Helium:
                 copy_param.source.M_halo = Mh_step_l
 
                 if param.source.type == 'SED':
-                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,eV/s]
+                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l) #[s**-1,eV/s]
 
                 if param.source.type == 'Ross':
-                    Ngam_dot_step_l_ion = NGamDot(copy_param)[0]
+                    Ngam_dot_step_l_ion = NGamDot(copy_param,zstep_l)[0]
 
                 else :
-                    Ngam_dot_step_l = NGamDot(copy_param)
+                    Ngam_dot_step_l = NGamDot(copy_param,zstep_l)
 
 
                 #### Update the profile due to expansion and Halo Growth

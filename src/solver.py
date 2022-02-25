@@ -164,7 +164,7 @@ def generate_table(param, z, n_HI):
             print('source emits', '{:.2e}'.format(Ngam_dot_ion), 'ionizing photons per seconds, in the energy range [', param.source.E_min_sed_ion, ',', param.source.E_upp, '] eV')
 
         elif (param.source.type == 'Galaxies_MAR'):
-            Ngam_dot_ion = NGamDot(param)
+            Ngam_dot_ion = NGamDot(param,param.solver.z)
             print('Galaxies_MAR model chosen. M_halo is ', '{:.2e}'.format(M_halo))
 
             T_Galaxy = param.source.T_gal
@@ -185,7 +185,7 @@ def generate_table(param, z, n_HI):
 
 
         elif (param.source.type == 'SED'):
-            Ngam_dot_ion, E_dot_xray = NGamDot(param)
+            Ngam_dot_ion, E_dot_xray = NGamDot(param,param.solver.z)
             sed_ion = param.source.alS_ion
             sed_xray = param.source.alS_xray
 
@@ -215,7 +215,7 @@ def generate_table(param, z, n_HI):
 
 
         elif (param.source.type == 'Ross'):
-            Ngam_dot_ion, Ngam_dot_xray = NGamDot(param)
+            Ngam_dot_ion, Ngam_dot_xray = NGamDot(param,param.solver.z)
 
             T_Galaxy = param.source.T_gal
             nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000, base=10)
@@ -537,13 +537,13 @@ class Source_MAR:
                 copy_param.source.M_halo = Mh_step_l
 
                 if param.source.type == 'SED'  :
-                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param) #[s**-1,eV/s]
+                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l) #[s**-1,eV/s]
 
                 if param.source.type == 'Ross':
-                    Ngam_dot_step_l_ion = NGamDot(copy_param)[0]
+                    Ngam_dot_step_l_ion = NGamDot(copy_param,zstep_l)[0]
 
                 else :
-                    Ngam_dot_step_l = NGamDot(copy_param)
+                    Ngam_dot_step_l = NGamDot(copy_param,zstep_l)
 
 
                 #### Update the profile due to expansion and Halo Growth
@@ -656,6 +656,7 @@ class Source_MAR:
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
                     heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
+
                     rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
