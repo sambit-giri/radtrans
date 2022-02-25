@@ -572,12 +572,12 @@ class Source_MAR:
                 ionized_indices = np.where(n_HI_cell == 0)
                 n_HI_cell[ionized_indices] = 1e-50 # to avoid division by zero
 
-                I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
-                I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
-                I1_T_HI = (np.interp(K_HI[:-1], n_HI, JT_HI_1) - np.interp(K_HI[1:], n_HI, JT_HI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr
+                I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3
+                I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3
+                I1_T_HI = (np.interp(K_HI[:-1], n_HI, JT_HI_1) - np.interp(K_HI[1:], n_HI, JT_HI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3 ## eV/s
 
-                I2_Ta = np.interp(K_HI[:-1], n_HI, JT_2a) / r2 / cm_per_Mpc ** 2 / 4 / pi
-                I2_Tb = np.interp(K_HI[:-1], n_HI, JT_2b) / r2 / cm_per_Mpc ** 2 / 4 / pi
+                I2_Ta = np.interp(K_HI[:-1], n_HI, JT_2a) / r2 / cm_per_Mpc ** 2 / 4 / pi *h0**2
+                I2_Tb = np.interp(K_HI[:-1], n_HI, JT_2b) / r2 / cm_per_Mpc ** 2 / 4 / pi *h0**2
 
                 I1_HI[ionized_indices] = 0
                 I2_HI[ionized_indices] = 0
