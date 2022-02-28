@@ -412,13 +412,34 @@ def compute_PS(param):
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
     nGrid = param.sim.Ncell
-    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    #Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     Lbox = param.sim.Lbox  #Mpc/h
     kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10) #h/Mpc
 
-    Dict = {}
+    z_arr = []
+    for filename in os.listdir(catalog_dir): #count the number of snapshots
+        with open(catalog_dir+filename, "r") as file:
+            file.readline()
+            a = float(file.readline()[4:])
+            zz_ = 1 / a - 1
+        z_arr.append(zz_)
 
-    for ii, filename in enumerate(os.listdir(catalog_dir)):
+    z_arr = np.sort(z_arr)
+    nbr_snap = len(z_arr)
+
+    PS_xHI = np.zeros((nbr_snap,len(kbins)-1))
+    PS_T   = np.zeros((nbr_snap,len(kbins)-1))
+    PS_xal = np.zeros((nbr_snap,len(kbins)-1))
+    PS_rho = np.zeros((nbr_snap,len(kbins)-1))
+    PS_dTb = np.zeros((nbr_snap,len(kbins)-1))
+    PS_T_lyal = np.zeros((nbr_snap,len(kbins)-1))
+    PS_T_xHI  = np.zeros((nbr_snap,len(kbins)-1))
+    PS_rho_xHI = np.zeros((nbr_snap,len(kbins)-1))
+    PS_rho_xal = np.zeros((nbr_snap,len(kbins)-1))
+    PS_rho_T   = np.zeros((nbr_snap,len(kbins)-1))
+    PS_lyal_xHI = np.zeros((nbr_snap,len(kbins)-1))
+
+    for filename in os.listdir(catalog_dir):
         with open(catalog_dir+filename, "r") as file:
             file.readline()
             a = float(file.readline()[4:])
@@ -434,6 +455,8 @@ def compute_PS(param):
         delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
         delta_x_al = Grid_xal / np.mean(Grid_xal) - 1
 
+        ii = np.where(z_arr == zz_)
+
         dens_field = param.sim.dens_field
         if dens_field is not None and param.sim.Ncell == 256:
             dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
@@ -446,33 +469,28 @@ def compute_PS(param):
             mass = pkd * rhoc0 * V_total
             rho_m = mass / V_cell
             delta_rho  = (rho_m - np.mean(rho_m)) / np.mean(rho_m)
-            PS_rho     = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)
-            PS_rho_xHI = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho,box_dims=Lbox , kbins=kbins)
-            PS_rho_xal = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox , kbins=kbins)
-            PS_rho_T   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox , kbins=kbins)
+            PS_rho[ii]      = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)[0]
+            PS_rho_xHI[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHI, delta_rho,box_dims=Lbox, kbins=kbins)[0]
+            PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
+            PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
 
         else:
             delta_rho = 0,0  #  rho/rhomean-1
-            PS_rho = 0,0
-            PS_rho_xHI = 0,0
-            PS_rho_xal =0,0
-            PS_rho_T =0,0
             print('no density field provided.')
 
+        z_arr[ii]  = zz_
+        PS_xHI[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHI , box_dims=Lbox, kbins=kbins)
+        PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T   , box_dims=Lbox, kbins=kbins)[0]
+        PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
+        PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb , box_dims=Lbox, kbins=kbins)[0]
+
+        PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
+        PS_T_xHI[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHI, box_dims=Lbox, kbins=kbins)[0]
+        PS_lyal_xHI[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHI, box_dims=Lbox, kbins=kbins)[0]
 
 
-        PS_xHI = t2c.power_spectrum.power_spectrum_1d(delta_XHI , box_dims=param.sim.Lbox, kbins=kbins)
-        PS_T   = t2c.power_spectrum.power_spectrum_1d(delta_T   , box_dims=param.sim.Lbox, kbins=kbins)
-        PS_xal = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=param.sim.Lbox, kbins=kbins)
-        PS_dTb = t2c.power_spectrum.power_spectrum_1d(delta_dTb , box_dims=param.sim.Lbox, kbins=kbins)
-
-        PS_T_lyal = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=param.sim.Lbox, kbins=kbins)
-        PS_T_xHI  = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
-        PS_lyal_xHI  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
-
-
-        Dict[str(round(zz_,2))] = {'k':PS_xHI[1],'PS_xHI': PS_xHI[0], 'PS_T': PS_T[0], 'PS_xal': PS_xal[0], 'PS_dTb': PS_dTb[0], 'PS_T_lyal': PS_T_lyal[0], 'PS_T_xHI': PS_T_xHI[0],
-                'PS_rho': PS_rho[0], 'PS_rho_xHI': PS_rho_xHI[0], 'PS_rho_xal': PS_rho_xal[0], 'PS_rho_T': PS_rho_T[0], 'PS_lyal_xHI':PS_lyal_xHI[0]}
+    Dict = {'z':z_arr,'k':k_bins,'PS_xHI': PS_xHI, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHI': PS_T_xHI,
+                'PS_rho': PS_rho, 'PS_rho_xHI': PS_rho_xHI, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHI':PS_lyal_xHI}
 
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
