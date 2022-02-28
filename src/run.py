@@ -172,7 +172,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
                     radial_grid  = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
-                    x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
+                    #x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
 
 
 
@@ -468,10 +468,11 @@ def compute_PS(param):
 
         PS_T_lyal = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=param.sim.Lbox, kbins=kbins)
         PS_T_xHI  = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
+        PS_lyal_xHI  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHI, box_dims=param.sim.Lbox, kbins=kbins)
 
 
         Dict[str(round(zz_,2))] = {'k':PS_xHI[1],'PS_xHI': PS_xHI[0], 'PS_T': PS_T[0], 'PS_xal': PS_xal[0], 'PS_dTb': PS_dTb[0], 'PS_T_lyal': PS_T_lyal[0], 'PS_T_xHI': PS_T_xHI[0],
-                'PS_rho': PS_rho[0], 'PS_rho_xHI': PS_rho_xHI[0], 'PS_rho_xal': PS_rho_xal[0], 'PS_rho_T': PS_rho_T[0]}
+                'PS_rho': PS_rho[0], 'PS_rho_xHI': PS_rho_xHI[0], 'PS_rho_xal': PS_rho_xal[0], 'PS_rho_T': PS_rho_T[0], 'PS_lyal_xHI':PS_lyal_xHI[0]}
 
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
