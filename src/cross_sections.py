@@ -44,7 +44,7 @@ def beta_HI(T):
     return 5.85 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-1.578 * 10 ** 5 / T)
 
 
-def xi_HI(T):
+def zeta_HI(T):
     """
     Collisional ionization cooling (see Fukugita & Kawazaki 1994) [eV.cm3.s-1]
     """
@@ -72,30 +72,23 @@ def theta_ff(T):
     return eV_per_erg * 1.3 * 1.42 * 10 ** -27 * (T) ** 0.5
 
 
+
+
 def f_H(x_ion):
     """
     Factor for secondary ionization, due to kinetic energy carried by secondary e- (see Shull & van Steenberg 1985). [Dimensionless]
     Input : x is the ionized fraction of hydrogen
     """
-    #if isnan(x_ion):
-    #    x_ion = 1
     return np.nan_to_num(0.3908 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4092) ** 1.7592)
 
-def f_Heat(xion):
+def f_He(x_ion):
+    return np.nan_to_num(0.0554 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4614) ** 1.6660)
+
+def f_Heat(x_ion):
     """
     Amount of heat deposited by secondary electrons. (Shull & van Steenberg (1985) fig.3 - according to Thomas&Zaroubi Miniqso). [Dimensionless]
     """
-    #if isnan(xion):
-    #    xion = 1
-    #if xion> 10 ** -4:
-    #    output =  nan_to_num(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163))
-    #else :
-    #    output = 0.15
-
-    return np.maximum(0.9971 * (1 - (1 - np.minimum(xion,1) ** 0.2663) ** 1.3163),0.15)
-
-
-
+    return np.maximum(0.9971 * (1 - (1 - np.maximum(np.minimum(x_ion, 1), 0) ** 0.2663) ** 1.3163), 0.11)  ## this 0.11 is a bit random, it should be 0.15 for xion<1e-4, but we do it like this to vectorize.
 
 
 ############ What follows is used when adding Helium to the calculations
@@ -108,24 +101,24 @@ def beta_HeI(T):
     return 2.38 * 10 ** -11 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-2.853 * 10 ** 5 / T)
 def beta_HeII(T):
     return 5.68 * 10 ** -12 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-6.315 * 10 ** 5 / T)
-def xi_HeI(T):
-    return 9.38 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-2.85 * 10 ** 5 / T)
-def xi_HeII(T):
-    return 4.95 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-6.31 * 10 ** 5 / T)
-def eta_HeII(T):
-    return 1.55 * 10 ** -26 * T ** 0.3647
-def eta_HeIII(T):
-    return 3.48 * 10 ** -26 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / (4 * 10 ** 6)) ** 0.7) ** -1
-def psi_HeI(T, neT, n_HeIIT):
-    return 9.1 * 10 ** -27 * T ** -0.1687 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-1.31 * 10 ** 4 / T)
-def psi_HeII(T):
-    return 5.54 * 10 ** -17 * T ** -0.397 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-4.73 * 10 ** 5 / T)
-def omega_HeII(T):
-    return 1.24 * 10 ** -13 * T ** -1.5 * np.exp(-4.7 * 10 ** 5 / T) * (1 + 0.3 * np.exp(-9.4 * 10 ** 4 / T))
-def theta_ff(T):
-    return 1.3 * 1.42 * 10 ** -27 * (T) ** 0.5
+def zeta_HeI(T):
+    return eV_per_erg * 9.38 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-2.85 * 10 ** 5 / T)
+
 def zeta_HeII(T):
-    return 1.9 * 10 ** -3 * T ** -1.5 * np.exp(-4.7 * 10 ** 5 / T) * (1 + 0.3 * np.exp(-9.4 * 10 ** 4 / T))
+    return eV_per_erg * 4.95 * 10 ** -22 * T ** 0.5 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-6.31 * 10 ** 5 / T)
+
+def eta_HeII(T):
+    return eV_per_erg * 1.55 * 10 ** -26 * T ** 0.3647
+def eta_HeIII(T):
+    return eV_per_erg * 3.48 * 10 ** -26 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / (4 * 10 ** 6)) ** 0.7) ** -1
+
+def psi_HeI(T, neT, n_HeIIT):
+    return eV_per_erg * 9.1 * 10 ** -27 * T ** -0.1687 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-1.31 * 10 ** 4 / T)
+def psi_HeII(T):
+    return eV_per_erg * 5.54 * 10 ** -17 * T ** -0.397 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-4.73 * 10 ** 5 / T)
+def omega_HeII(T):
+    return eV_per_erg * 1.24 * 10 ** -13 * T ** -1.5 * np.exp(-4.7 * 10 ** 5 / T) * (1 + 0.3 * np.exp(-9.4 * 10 ** 4 / T))
+
 def sigma_HeI(E):
     sigma_0 = 9.492 * 10 ** 2 * 10 ** -18
     E_01 = 1.361 * 10 ** 1

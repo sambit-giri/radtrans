@@ -31,26 +31,10 @@ Ol      = 1-Om-Ob
 h0      = 0.68
 ns      = 0.97
 s8      = 0.81
-def f_H(x_ion):
-    """
-    Factor for secondary ionization, due to kinetic energy carried by secondary e- (see Shull & van Steenberg 1985). [Dimensionless]
-    Input : x is the ionized fraction of hydrogen
-    """
-    #if isnan(x_ion):
-    #    x_ion = 1
-    return nan_to_num(0.3908 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4092) ** 1.7592)
-
-
-def f_He(xion):
-    return nan_to_num(0.0554 * (1 - np.maximum(np.minimum(x_ion,1),0) ** 0.4614) ** 1.6660)
-
-def f_Heat(xion):
-    return np.maximum(nan_to_num(0.9971 * (1 - (1 - np.maximum(np.minimum(x_ion,1),0)  ** 0.2663) ** 1.3163)), 0.11) ## this 0.11 is a bit random, it should be 0.15 for xion<1e-4, but we do it like this to vectorize.
 
 
 
-
-def gamma_HI(n_HIIx, n_HI, n_HeI ,Tx, I1_HI, I2_HI, I3_HI, gamma_2c):
+def gamma_HI(n_HI, n_HIIx, n_HeI ,Tx, I1_HI, I2_HI, I3_HI, gamma_2c):
     """
     Calculate gamma_HI given the densities and the temperature
     Parameters
@@ -74,7 +58,7 @@ def gamma_HI(n_HIIx, n_HI, n_HeI ,Tx, I1_HI, I2_HI, I3_HI, gamma_2c):
     """
     n_e = n_HIIx
     X_HII = n_HIIx / (n_HIIx + n_HI)
-    return gamma_2c + beta_HI(Tx) * n_e + I1_HI + f_H(X_HII) * I2_HI + f_H(X_HII)  * n_HeI/n_HI * I3_HI
+    return gamma_2c + beta_HI(Tx) * n_e + I1_HI + f_H(X_HII) * I2_HI + np.nan_to_num(f_H(X_HII)  * n_HeI/n_HI * I3_HI) # when n_HI==0, gives nan, turn to zero..
 
 
 def gamma_HeI(n_HI, n_HIIx, n_HeIx, I1_HeI, I2_HeI, I3_HeI):
@@ -90,14 +74,18 @@ def gamma_HeI(n_HI, n_HIIx, n_HeIx, I1_HeI, I2_HeI, I3_HeI):
      Single ionized helium density in cm**-3.
     n_HeIIIx : float
      Double ionized helium density in cm**-3.
+    I1_HeI, I2_HeI, I3_HeI : float
+     Ionisation rates,
     Returns
     -------
     float
      Gamma_HeI for the radiative transfer equation.
     """
-    return I1_HeI + f_He(n_HIIx/n_HI) * I2_HeI + f_He(n_HIIx/n_HI) * n_HI / n_HeIx * I3_HeI
+    return I1_HeI + f_He(n_HIIx/n_HI) * I2_HeI + np.nan_to_num(f_He(n_HIIx/n_HI) * n_HI / n_HeIx * I3_HeI)
 
 
+def add_zero_right(arr):
+    return np.concatenate((arr,[0]))
 
 def find_Ifront(x, r, show=False):
     """
@@ -208,7 +196,7 @@ def generate_table(param, z, n_HI, n_HeI):
         E_range_ion_HeI  = np.logspace(np.log10(E_HeI), np.log10(param.source.E_min_xray), 500, base=10)
         E_range_ion_HeII  = np.logspace(np.log10(E_HeII), np.log10(param.source.E_min_xray), 500, base=10)
         E_range_xray = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
-
+        """""""""""
         ## shapes are (n_HI,n_He)
         IHI_1 = np.trapz(sigma_HI(E_range_ion_HI) / E_range_ion_HI * Nion(E_range_ion_HI, n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI)      + param.source.xray_in_ion * np.trapz(sigma_HI(E_range_xray) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)
         IHI_2 = np.trapz(sigma_HI(E_range_ion_HI)*(E_range_ion_HI - E_HI) / (E_HI * E_range_ion_HI) * Nion(E_range_ion_HI, n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI) + param.source.xray_in_ion * np.trapz(sigma_HI(E_range_xray)*(E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)
@@ -224,6 +212,29 @@ def generate_table(param, z, n_HI, n_HeI):
         IT_HI_1 = np.trapz(sigma_HI(E_range_xray) *(E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)     + param.source.ion_in_xray * np.trapz(sigma_HI(E_range_ion_HI)   * (E_range_ion_HI - E_HI) / E_range_ion_HI * Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI) #[eV/s]then divide by r2
         IT_HeI_1 = np.trapz(sigma_HeI(E_range_xray) *(E_range_xray - E_HeI) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)   + param.source.ion_in_xray * np.trapz(sigma_HI(E_range_ion_HeI)  * (E_range_ion_HeI - E_HeI) / E_range_ion_HeI * Nion(E_range_ion_HeI,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HeI) #[eV/s]then divide by r2
         IT_HeII_1 = np.trapz(sigma_HeII(E_range_xray) *(E_range_xray - E_HeII) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray) + param.source.ion_in_xray * np.trapz(sigma_HI(E_range_ion_HeII) * (E_range_ion_HeII - E_HeII) / E_range_ion_HeII * Nion(E_range_ion_HeII,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HeII) #[eV/s]then divide by r2
+
+        IT_2a   = np.trapz(Nxray(E_range_xray,n_HI[:,None, None],n_HeI[:,None]) * E_range_xray, E_range_xray)                           + param.source.ion_in_xray * np.trapz(Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]) * E_range_ion_HI, E_range_ion_HI)
+        IT_2b   = np.trapz(Nxray(E_range_xray,n_HI[:,None, None],n_HeI[:,None]) * (-4 * kb_eV_per_K), E_range_xray)                     + param.source.ion_in_xray * np.trapz(Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]) * (-4 * kb_eV_per_K), E_range_ion_HI)
+        """""""""""
+
+
+
+
+        ## shapes are (n_HI,n_He)
+        IHI_1 = np.trapz(1 / E_range_ion_HI * Nion(E_range_ion_HI, n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI)      + param.source.xray_in_ion * np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)
+        IHI_2 = np.trapz(1*(E_range_ion_HI - E_HI) / (E_HI * E_range_ion_HI) * Nion(E_range_ion_HI, n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI) + param.source.xray_in_ion * np.trapz(1*(E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)
+        IHI_3 = np.trapz(1*(E_range_ion_HeI - E_HeI) / (E_range_ion_HeI * E_HI) * Nion(E_range_ion_HeI, n_HI[:,None, None],n_HeI[:,None]),E_range_ion_HeI) + param.source.xray_in_ion * np.trapz(1* (E_range_xray - E_HeI) / (E_range_xray * E_HI) * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]),E_range_xray)
+
+        IHeI_1 = np.trapz( 1 / E_range_ion_HeI * Nion(E_range_ion_HeI, n_HI[:,None, None],n_HeI[:,None]) , E_range_ion_HeI) + param.source.xray_in_ion * np.trapz(  1 / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]) , E_range_xray)
+        IHeI_2 = IHI_3 * E_HI / E_HeI
+        IHeI_3 = np.trapz( 1 * (E_range_ion_HeI - E_HI) / (E_range_ion_HeI * E_HeI) * Nion(E_range_ion_HeI, n_HI[:,None, None],n_HeI[:,None]),E_range_ion_HeI) + param.source.xray_in_ion * np.trapz(1* (E_range_xray - E_HI) / (E_range_xray * E_HeI) * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]),E_range_xray)
+
+        IHeII  = np.trapz( 1/ E_range_ion_HeII * Nion(E_range_ion_HeII, n_HI[:,None, None],n_HeI[:,None]) , E_range_ion_HeII)              + param.source.xray_in_ion * np.trapz( 1 / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]) , E_range_xray)
+
+        ##xray and ionizing photon are included in heating. Integrate from E_HI to Emax
+        IT_HI_1 = np.trapz(1 *(E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)     + param.source.ion_in_xray * np.trapz(1 * (E_range_ion_HI - E_HI) / E_range_ion_HI * Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HI) #[eV/s]then divide by r2
+        IT_HeI_1 = np.trapz(1*(E_range_xray - E_HeI) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray)   + param.source.ion_in_xray * np.trapz(1 * (E_range_ion_HeI - E_HeI) / E_range_ion_HeI * Nion(E_range_ion_HeI,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HeI) #[eV/s]then divide by r2
+        IT_HeII_1 = np.trapz(1 *(E_range_xray - E_HeII) / E_range_xray * Nxray(E_range_xray, n_HI[:,None, None],n_HeI[:,None]), E_range_xray) + param.source.ion_in_xray * np.trapz(1 * (E_range_ion_HeII - E_HeII) / E_range_ion_HeII * Nion(E_range_ion_HeII,  n_HI[:,None, None],n_HeI[:,None]), E_range_ion_HeII) #[eV/s]then divide by r2
 
         IT_2a   = np.trapz(Nxray(E_range_xray,n_HI[:,None, None],n_HeI[:,None]) * E_range_xray, E_range_xray)                           + param.source.ion_in_xray * np.trapz(Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]) * E_range_ion_HI, E_range_ion_HI)
         IT_2b   = np.trapz(Nxray(E_range_xray,n_HI[:,None, None],n_HeI[:,None]) * (-4 * kb_eV_per_K), E_range_xray)                     + param.source.ion_in_xray * np.trapz(Nion(E_range_ion_HI,  n_HI[:,None, None],n_HeI[:,None]) * (-4 * kb_eV_per_K), E_range_ion_HI)
@@ -341,21 +352,21 @@ class Source_MAR_Helium:
 
         HI_frac = param.cosmo.HI_frac
         # Column densities in physical Mpc/h.cm**-3.
-        nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), self.r_grid_cell) * (1 + self.z_initial) ** 3
-        nH_column = HI_frac * nH_column
-        nHe_column = (1-HI_frac) * nH_column
+        nB_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), self.r_grid_cell) * (1 + self.z_initial) ** 3
+        nH_column = HI_frac * nB_column
+        nHe_column = (1-HI_frac) * nB_column
 
         print('n_H_column max : ', '{:.2e}'.format(nH_column), 'Mpc/h.cm**-3.')
-        n_HI  = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column * HI_frac), dn_table, base=10)
+        n_HI  = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column ), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
-        n_HeI  = logspace(log10(nHe_column  * 1e-6),  log10(1.05 * nHe_column * (1-HI_frac)), dn_table, base=10)
+        n_HeI  = logspace(log10(nHe_column  * 1e-6),  log10(1.05 * nHe_column ), dn_table, base=10)
         n_HeI  = np.concatenate((np.array([0]), n_HeI))
 
-        n_HeII  = logspace(log10(nHe_column  * 1e-6),  log10(1.05 * nHe_column * (1-HI_frac)), dn_table, base=10)
+        n_HeII  = logspace(log10(nHe_column  * 1e-6),  log10(1.05 * nHe_column), dn_table, base=10)
         n_HeII  = np.concatenate((np.array([0]), n_HeII))
 
-        Gamma_grid_info = generate_table(param, self.z_initial, n_HI+n_HeII/0.11,n_HeII)
+        Gamma_grid_info = generate_table(param, self.z_initial, n_HI+n_HeII/0.11,n_HeI)
         self.Gamma_grid_info = Gamma_grid_info
 
 
@@ -430,8 +441,8 @@ class Source_MAR_Helium:
             xHII_history = {}
             dTb_history = {}
             nHI_norm = {} # neutral HI density normlized to mean baryon density. To be used in formula of dTb ~(1+delta_b)*xHI
-            x_tot_history, x_al_history, x_coll_history = {},{},{}
-            rho_al_history, rho_xray_history = {}, {}
+            #x_tot_history, x_al_history, x_coll_history = {},{},{}
+            #rho_al_history, rho_xray_history = {}, {}
             heat_history = {} ## profiles of heat energy deposited per baryons [eV/s]
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
             n_HeII_cell  = zeros_like(self.r_grid_cell)
@@ -479,11 +490,11 @@ class Source_MAR_Helium:
 
                     nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z * HI_frac - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
-                    x_al_history[str(round(zstep_l[0], 2))] = 0
+                  #  x_al_history[str(round(zstep_l[0], 2))] = 0
                     rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
                     xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
-                    x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
-                    x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
+                  #  x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
+                  #  x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
 
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1+zstep_l[0]), Tadiab,xcoll_ )
 
@@ -532,42 +543,73 @@ class Source_MAR_Helium:
                 #update the baryon profile
                 nB_profile_z = self.nB_profile * (1 + zstep_l) ** 3  ## physical total baryon density
 
-                n_HII_cell[n_HII_cell > nB_profile_z * HI_frac] = HI_frac * nB_profile_z[n_HII_cell > nB_profile_z] #xHII can't be >1
+                n_HII_cell[n_HII_cell > nB_profile_z * HI_frac] = HI_frac * nB_profile_z[n_HII_cell > nB_profile_z*HI_frac] #xHII can't be >1
                 n_HI_cell = HI_frac * nB_profile_z - n_HII_cell   #set neutral physical density in cell
                 n_HeI_cell = (1-HI_frac) * nB_profile_z - n_HeII_cell - n_HeIII_cell   #set neutral physical density in cell
 
-                dr = r_grid[1]-r_grid[0]                #lin spacing so tha'ts ok.
+                #n_HI_cell[n_HI_cell<0] = 0
+                n_HeI_cell[n_HeI_cell < 0] = 0
+                #n_HeI_cell[n_HeII_cell < 0] = 0
+
+
+                dr = r_grid[1]-r_grid[0]                #lin spacing so that's ok.
                 r2 = self.r_grid_cell ** 2
 
-                K_HI   = cumtrapz(n_HI_cell, self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
-                K_HeI  = cumtrapz(n_HeI_cell, self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
-                K_HeII = cumtrapz(n_HeII_cell, self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
+                K_HI   = cumtrapz(n_HI_cell  , self.r_grid_cell, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
+                K_HeI  = cumtrapz(n_HeI_cell , self.r_grid_cell, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
+                K_HeII = cumtrapz(n_HeII_cell, self.r_grid_cell, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
 
-                ionized_indices = np.where(n_HI_cell == 0)
-                #n_HI_cell[ionized_indices] = 1e-50 # to avoid division by zero
-
-                I1_HI = interpolate.interpn(points, JHI_1, (K_HI + K_HeI/0.11),method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I2_HI = interpolate.interpn(points, JHI_2, (K_HI + K_HeI/0.11),method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I3_HI = interpolate.interpn(points, JHI_3, (K_HI + K_HeI/0.11),method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-
-                I1_HeI = interpolate.interpn(points, JHeI_1, (K_HI + K_HeI/0.11), method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I2_HeI = interpolate.interpn(points, JHeI_2, (K_HI + K_HeI/0.11), method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I3_HeI = interpolate.interpn(points, JHeI_3, (K_HI + K_HeI/0.11), method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-
-                I1_HeII = interpolate.interpn(points, JHeII, (K_HI + K_HeI/0.11), method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-
-                I1_T_HI = interpolate.interpn(points, JT_HI_1, (K_HI + K_HeI/0.11),   method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I1_T_HeI = interpolate.interpn(points, JT_HeI_1, (K_HI + K_HeI/0.11), method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I1_T_HeII = interpolate.interpn(points, JT_HeII_1, (K_HI + K_HeI/0.11), method='linear')/ r2 / cm_per_Mpc ** 3 / 4 / pi
-
-                I2_Ta = interpolate.interpn(points, JT_2a, (K_HI + K_HeI/0.11), method='linear') / r2 / cm_per_Mpc ** 3 / 4 / pi
-                I2_Tb = interpolate.interpn(points, JT_2b, (K_HI + K_HeI/0.11),method='linear')  / r2 / cm_per_Mpc ** 3 / 4 / pi
+                ionized_ind_HI = np.where(n_HI_cell == 0)
+                ionized_ind_HeI = np.where(n_HeI_cell == 0)
+                ionized_ind_HeII = np.where(n_HeII_cell == 0)
+                n_HI_cell[ionized_ind_HI] = 1e-50 # to avoid division by zero
+                n_HeI_cell[ionized_ind_HeI] = 1e-50 # to avoid division by zero
+                n_HeII_cell[ionized_ind_HeII] = 1e-50 # to avoid division by zero
 
 
-                I1_HI[ionized_indices] = 0
-                I2_HI[ionized_indices] = 0
-                I1_T_HI[ionized_indices] = 0
-                n_HI_cell[ionized_indices] = 0
+                I1_HI  = (interpn(points, JHI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHI_1, (K_HI[1:] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') ) / r2[:-1]/ dr/n_HI_cell[:-1]/ cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I2_HI  = (interpn(points, JHI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHI_2, (K_HI[1:]  + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')) / r2[:-1] /dr/n_HI_cell[:-1]/ cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I3_HI  = (interpn(points, JHI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[1:]), method='linear') ) / r2[:-1] /dr/n_HeI_cell[:-1]/ cm_per_Mpc ** 3 / 4 / pi  * h0**3 ## eV/s
+
+                I1_HeI = (interpn(points, JHeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[1:]), method='linear')) / r2[:-1] /dr/n_HeI_cell[:-1]/ cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I2_HeI = (interpn(points, JHeI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHeI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[1:]), method='linear')) / r2[:-1] /dr/n_HeI_cell[:-1]/ cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I3_HeI = (interpn(points, JHeI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHeI_3, (K_HI[1:] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')) / r2[:-1] /dr/n_HI_cell[:-1] / cm_per_Mpc ** 3 / 4 / pi  * h0**3
+
+                I1_HeII = (interpn(points, JHeII, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JHeII, (K_HI[:-1] + K_HeII[1:]/0.11,K_HeI[:-1]), method='linear')) / r2[:-1] /dr/n_HeII_cell[:-1] / cm_per_Mpc ** 3 / 4 / pi  * h0**3
+
+                I1_T_HI   = (interpn(points, JT_HI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  - interpn(points, JT_HI_1, (K_HI[1:] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')) / r2[:-1] /dr/n_HI_cell[:-1] / cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I1_T_HeI  = (interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[1:]), method='linear')) / r2[:-1] /dr/n_HeI_cell[:-1] / cm_per_Mpc ** 3 / 4 / pi  * h0**3
+                I1_T_HeII = (interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')- interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[1:]/0.11,K_HeI[:-1]), method='linear')) /r2[:-1] /dr/n_HeII_cell[:-1] / cm_per_Mpc ** 3 / 4 / pi  * h0**3
+
+                ### we add zero to the right of these arrays to match dimension
+                I1_HI, I2_HI, I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII,I1_T_HI, I1_T_HeI, I1_T_HeII =  add_zero_right(I1_HI), add_zero_right( I2_HI), add_zero_right( I3_HI), add_zero_right( I1_HeI), add_zero_right( I2_HeI), add_zero_right( I3_HeI), add_zero_right( I1_HeII), add_zero_right( I1_T_HI), add_zero_right( I1_T_HeI), add_zero_right( I1_T_HeII)
+
+
+                """""""""
+                I1_HI   =  interpn(points, JHI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I2_HI   =  interpn(points, JHI_2, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I3_HI   =  interpn(points, JHI_3, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2 ## eV/s
+
+                I1_HeI = interpn(points, JHeI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I2_HeI = interpn(points, JHeI_2, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I3_HeI = interpn(points, JHeI_3, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+
+                I1_HeII = interpn(points, JHeII, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+
+                I1_T_HI   = interpn(points, JT_HI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeI  = interpn(points, JT_HeI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeII = interpn(points, JT_HeII_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                """""""""
+
+                I2_Ta = interpn(points, JT_2a, (K_HI + K_HeII/0.11,K_HeI), method='linear') / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I2_Tb = interpn(points, JT_2b, (K_HI + K_HeII/0.11,K_HeI),method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2  ## h0 because r is in Mpc/h
+
+                I1_HI[ionized_ind_HI] = 0
+                I2_HI[ionized_ind_HI] = 0
+                I1_T_HI[ionized_ind_HI] = 0
+                n_HI_cell[ionized_ind_HI] = 0
+                n_HeI_cell[ionized_ind_HeI] =0 # you need to set this back to zero otherwise A1_HeI, A1_HeII will be overestimated (contribution should be zero when n_HeI is zero...)
+                n_HeII_cell[ionized_ind_HeII] = 0 # to avoid division by zero
 
 
                 if param.source.type == 'SED':
@@ -577,45 +619,79 @@ class Source_MAR_Helium:
                     print('Source type not implemented yet with Helium.')
                     exit()
 
-                n_ee = n_HII_cell + n_HeI_cell + 2 * n_HeII_cell  #e- density
-                mu = (nB_profile_z* 4 *(1-HI_frac) + nB_profile_z * HI_frac)/ (nB_profile_z + n_ee)  #molecular weigth
+                n_ee = n_HII_cell + n_HeII_cell + 2 * n_HeIII_cell  #e- density
+                mu = (nB_profile_z * HI_frac + nB_profile_z * 4 * (1-HI_frac))/ (nB_profile_z + n_ee)  #molecular weigth (nH+4*nHe)/(nH+nHe+nee)
 
-
-                A1_HI   = xi_HI(T_grid) * n_HI_cell * n_ee
-                A1_HeI  = xi_HeI(T_grid) * n_HeI_cell * n_ee
-                A1_HeII = xi_HeII(T_grid) * n_HeII_cell * n_ee
-                A2_HII  = eta_HII(T_grid) * n_HII_cell * n_ee
+                A1_HI   = zeta_HI(T_grid)    * n_HI_cell   * n_ee
+                A1_HeI  = zeta_HeI(T_grid)   * n_HeI_cell  * n_ee
+                A1_HeII = zeta_HeII(T_grid)  * n_HeII_cell * n_ee
+                A2_HII  = eta_HII(T_grid)  * n_HII_cell  * n_ee
                 A2_HeII = eta_HeII(T_grid) * n_HeII_cell * n_ee
-                A2_HeIII= eta_HeIII(T_grid) * n_HeIII_cell * n_ee
+                A2_HeIII= eta_HeIII(T_grid)* n_HeIII_cell* n_ee
 
                 A3      = omega_HeII(T_grid) * n_ee * n_HeIII_cell
 
                 A4_HI   = psi_HI(T_grid) * n_HI_cell * n_ee
-                A4_HeI  = psi_HeI(T_grid, n_ee, n_HeIIx) * n_ee
+                A4_HeI  = psi_HeI(T_grid, n_ee, n_HeII_cell) * n_ee
                 A4_HeII = psi_HeII(T_grid) * n_HeII_cell * n_ee
+
+                A5      = theta_ff(T_grid) * (n_HII_cell + n_HeII_cell + 4 * n_HeIII_cell) * n_ee
 
                 H = pl.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
 
-                A = gamma_HI(n_HII_cell, n_HI_cell, n_HeI_cell, T_grid, I1_HI, I2_HI, I3_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
-                B = gamma_HeI(n_HIIx, n_HeIx, n_HeIIx, n_HeIIIx, I1_HeI, I2_HeI, I3_HeI, zstar, C) * n_HeIx + beta_HeI( Tx) * n_ee * n_HeIx - beta_HeII(Tx) * n_ee * n_HeIIx - alpha_HeII(
-                    Tx) * n_ee * n_HeIIx + alpha_HeIII(Tx) * n_ee * n_HeIIIx - zeta_HeII(
-                    Tx) * n_ee * n_HeIIx
 
-                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6))
+                n_HI_cell[ionized_ind_HI]   = 1e-50  # to avoid division by zero in gamma_HI and gamma_HeI and warnings
+                n_HeI_cell[ionized_ind_HeI] = 1e-50
 
-                n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
+                A = gamma_HI(n_HI_cell, n_HII_cell, n_HeI_cell, T_grid, I1_HI, I2_HI , I3_HI , gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
+
+                B = gamma_HeI(n_HI_cell,n_HII_cell, n_HeI_cell,I1_HeI, I2_HeI, I3_HeI) * n_HeI_cell + beta_HeI(T_grid) * n_ee * n_HeI_cell - beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeII(T_grid) * n_ee * n_HeII_cell + alpha_HeIII(T_grid) * n_ee * n_HeIII_cell - zeta_HeII(T_grid) * n_ee * n_HeII_cell
+
+                C = I1_HeII * n_HeII_cell + beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeIII(T_grid) * n_ee * n_HeIII_cell
+
+                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * ( I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
+              #  D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
+
+                n_HI_cell[ionized_ind_HI] = 0  # set value back to zero
+                n_HeI_cell[ionized_ind_HeI] = 0
+
+                n_HII_cell  = n_HII_cell  + dt_init.value * A   # discretize the diff equation.
+                n_HeII_cell = n_HeII_cell + dt_init.value * B
+                n_HeIII_cell= n_HeII_cell + dt_init.value * C
+
+
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
+                n_HeII_cell[np.where(n_HeII_cell<0)] = 0
+                n_HeIII_cell[np.where(n_HeIII_cell<0)] = 0
+
 
                 T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
                 T_grid = T_nB/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
 
-                n_HII_cell, T_grid = np.nan_to_num(n_HII_cell) ,np.nan_to_num(T_grid)
+                if np.any(T_grid<0):
+                    #print('B:',B)
+                    #print('T:',T_grid)
+                    #print('beta_HeI(T_grid):',beta_HeI(T_grid),'beta_HeII(T_grid):',beta_HeII(T_grid),' alpha_HeII(T_grid):', alpha_HeII(T_grid),'alpha_HeIII(T_grid) :',alpha_HeIII(T_grid) , 'zeta_HeII(T_grid): ',zeta_HeII(T_grid))
+                    #print('gamma:',gamma_HeI(n_HI_cell,n_HII_cell, n_HeI_cell,I1_HeI, I2_HeI, I3_HeI))
+                    #print('T:',T_grid)
+                    #if np.any(np.isnan(n_HeII_cell)):
+                    print('T_grid',T_grid,'D:',D,'T_grid * nB_profile_z/dt_init.value:',T_grid * nB_profile_z/dt_init.value)
+                    A1_HeI = zeta_HeI(T_grid) * n_HeI_cell * n_ee
+                    A1_HeII = zeta_HeII(T_grid) * n_HeII_cell * n_ee
+                    print('zeta_HeI(T_grid):',zeta_HeI(T_grid),'n_HeI_cell',n_HeI_cell)
+                    #print('A1_HI', A1_HI,'A1_HeI:',  A1_HeI ,'A1_HeII:', A1_HeII ,'A2_HII:',A2_HII ,'A5:',A5 ,'A6:', A6)
+                    #print('n_HI_cell:',n_HI_cell,'I1_T_HI:',I1_T_HI,'n_HeI_cell:',n_HeI_cell,'I1_T_HeI:',I1_T_HeI,'n_HeII_cell:',n_HeII_cell,'I1_T_HeII:',I1_T_HeII, 'I2_Ta:',I2_Ta, 'I2_Tb:',I2_Tb)
 
-                n_HII_cell[n_HII_cell>nB_profile_z] = nB_profile_z[n_HII_cell>nB_profile_z]   ## xHII can't be >1
 
-                front_step = find_Ifront(n_HII_cell / nB_profile_z, self.r_grid_cell )
+                n_HII_cell, n_HeII_cell, n_HeIII_cell, T_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(n_HeII_cell), np.nan_to_num(n_HeIII_cell), np.nan_to_num(T_grid)
+
+                n_HII_cell[n_HII_cell>nB_profile_z*HI_frac] = nB_profile_z[n_HII_cell>nB_profile_z*HI_frac]*HI_frac   ## xHII can't be >1
+                n_HeII_cell[n_HeII_cell>nB_profile_z*(1-HI_frac)] = nB_profile_z[n_HeII_cell>nB_profile_z*(1-HI_frac)]*(1-HI_frac)   ## xHII can't be >1
+                n_HeIII_cell[n_HeIII_cell>nB_profile_z*(1-HI_frac)] = nB_profile_z[n_HeIII_cell>nB_profile_z*(1-HI_frac)]*(1-HI_frac)   ## xHII can't be >1
+
+                front_step = find_Ifront(n_HII_cell / (nB_profile_z * HI_frac), self.r_grid_cell )
 
 
                 if np.exp(-cm_per_Mpc * (K_HI[-1] * sigma_HI(13.6))) > 0.1 and count__==0:
@@ -623,7 +699,7 @@ class Source_MAR_Helium:
                     count__ = 1 #  to print this only once
 
                 if l*param.solver.time_step % 10  == 0 and l != 0:
-                    xdata, ydata = self.r_grid_cell, (nB_profile_z - n_HII_cell) / nB_profile_z
+                    xdata, ydata = self.r_grid_cell, (nB_profile_z * HI_frac - n_HII_cell) / (nB_profile_z*HI_frac)
                     ydata = ydata.clip(min=0)  # remove neg elements
 
                     Ion_front_grid.append(front_step)
@@ -632,11 +708,11 @@ class Source_MAR_Helium:
                     T_history[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     xHII_history[str(round(zstep_l[0], 2))] = 1-ydata
 
-                    nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
+                    nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z * HI_frac - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
 
 
                     # xray contrib to Lya coupling
-                    J0xray = J0_xray_lyal(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
+                    J0xray = J0_xray_lyal(self.r_grid_cell, (1-ydata), n_HI_cell , E_dot_step_l_xray, z, param)
 
                     ### x_alpha
                     rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
@@ -645,13 +721,13 @@ class Source_MAR_Helium:
                     rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l[0], param)[0]
                     x_alpha_ = 1.81e11 * (rho_alpha_+J0xray) * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_   = (x_alpha_ + xcoll_)
-                    x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
-                    x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
-                    x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
+                    #x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
+                    #x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
+                    #x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
-                    heat_history[str(round(zstep_l[0], 2))] = np.copy( (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6))/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) *kb_eV_per_K) #np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) / nB_profile_z ) # eV/s
-                    rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/(nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3)) # eV/s
+                    #rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
@@ -666,20 +742,20 @@ class Source_MAR_Helium:
             break
 
 
-        self.n_HI_grid = nB_profile_z - n_HII_cell
+        self.n_HI_grid = n_HI_cell
         self.n_HII_cell = n_HII_cell
-        self.n_B = nB_profile_z ## total density in nbr of Hatoms per physical-cm**3
+        self.n_B = nB_profile_z       ## total density in nbr of Hatoms per physical-cm**3
         self.T_grid = np.copy(T_grid)
         self.Ion_front_grid = Ion_front_grid
         self.z_history = np.array(z_grid)
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
         self.heat_history = heat_history
-        self.rho_al_history = rho_al_history
+        #self.rho_al_history = rho_al_history
         #self.rho_xray_history = , rho_xray_history
-        self.x_tot_history = x_tot_history
-        self.x_coll_history = x_coll_history
-        self.x_al_history = x_al_history
+        #self.x_tot_history = x_tot_history
+        #self.x_coll_history = x_coll_history
+        #self.x_al_history = x_al_history
         self.dTb_history = dTb_history
         self.T_spin_history = T_spin_history
         self.xHII_history=xHII_history

@@ -600,7 +600,7 @@ class Source_MAR:
                 mu = nB_profile_z/ (nB_profile_z + n_HII_cell)  #molecular weigth
 
                 ##coeff for Temp eq
-                A1_HI = xi_HI(T_grid) * n_HI_cell * n_ee
+                A1_HI = zeta_HI(T_grid) * n_HI_cell * n_ee
                 A2_HII = eta_HII(T_grid) * n_HII_cell * n_ee
                 A4_HI = psi_HI(T_grid) * n_HI_cell * n_ee
                 A5 = theta_ff(T_grid) * (n_HII_cell) * n_ee # eV/s/cm**3
