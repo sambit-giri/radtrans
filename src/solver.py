@@ -460,8 +460,8 @@ class Source_MAR:
             xHII_history = {}
             dTb_history = {}
             nHI_norm = {} # neutral HI density normlized to mean baryon density. To be used in formula of dTb ~(1+delta_b)*xHI
-            x_tot_history, x_al_history, x_coll_history = {},{},{}
-            rho_al_history, rho_xray_history = {}, {}
+            #x_tot_history, x_al_history, x_coll_history = {},{},{}
+            #rho_al_history, rho_xray_history = {}, {}
             heat_history = {} ## profiles of heat energy deposited per baryons [eV/s]
             n_HII_cell, T_grid = zeros_like(self.r_grid_cell), zeros_like(self.r_grid_cell)
             T_grid += T_adiab(z,param) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
@@ -503,11 +503,11 @@ class Source_MAR:
                     nB_profile_z = self.nB_profile* (1 + zstep_l) ** 3
                     nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
-                    x_al_history[str(round(zstep_l[0], 2))] = 0
+                    #x_al_history[str(round(zstep_l[0], 2))] = 0
                     rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
                     xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
-                    x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
-                    x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
+                    #x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
+                    #x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
 
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1+zstep_l[0]), Tadiab,xcoll_ )
 
@@ -572,12 +572,13 @@ class Source_MAR:
                 ionized_indices = np.where(n_HI_cell == 0)
                 n_HI_cell[ionized_indices] = 1e-50 # to avoid division by zero
 
-                I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3
-                I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3
-                I1_T_HI = (np.interp(K_HI[:-1], n_HI, JT_HI_1) - np.interp(K_HI[1:], n_HI, JT_HI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr *h0**3 ## eV/s
+                I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr * h0**3
+                I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr * h0**3
+                I1_T_HI = (np.interp(K_HI[:-1], n_HI, JT_HI_1) - np.interp(K_HI[1:], n_HI, JT_HI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr * h0**3 ## eV/s
 
-                I2_Ta = np.interp(K_HI[:-1], n_HI, JT_2a) / r2 / cm_per_Mpc ** 2 / 4 / pi *h0**2
-                I2_Tb = np.interp(K_HI[:-1], n_HI, JT_2b) / r2 / cm_per_Mpc ** 2 / 4 / pi *h0**2
+                I2_Ta = np.interp(K_HI[:-1], n_HI, JT_2a) / r2 / cm_per_Mpc ** 2 / 4 / pi * h0**2
+                I2_Tb = np.interp(K_HI[:-1], n_HI, JT_2b) / r2 / cm_per_Mpc ** 2 / 4 / pi * h0**2
+
 
                 I1_HI[ionized_indices] = 0
                 I2_HI[ionized_indices] = 0
@@ -608,7 +609,11 @@ class Source_MAR:
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
 
                 A = gamma_HI(n_HII_cell, n_HI_cell, T_grid, I1_HI, I2_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
-                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
+
+
+
+                #D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3   ###SIMPLE HEATING VERSION
+                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
 
                 n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
@@ -616,7 +621,7 @@ class Source_MAR:
                 T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
                 T_grid = T_nB/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
 
-                n_HII_cell, T_grid = np.nan_to_num(n_HII_cell) ,np.nan_to_num(T_grid)
+                n_HII_cell, T_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(T_grid)
 
                 n_HII_cell[n_HII_cell>nB_profile_z] = nB_profile_z[n_HII_cell>nB_profile_z]   ## xHII can't be >1
 
@@ -650,14 +655,14 @@ class Source_MAR:
                     rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l[0], param)[0]
                     x_alpha_ = 1.81e11 * (rho_alpha_+J0xray) * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])
                     x_tot_   = (x_alpha_ + xcoll_)
-                    x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
-                    x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
-                    x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
+                    #x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
+                    #x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
+                    #x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
                     heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
 
-                    rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
+                    #rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
@@ -681,11 +686,11 @@ class Source_MAR:
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
         self.heat_history = heat_history
-        self.rho_al_history = rho_al_history
+       # self.rho_al_history = rho_al_history
         #self.rho_xray_history = , rho_xray_history
-        self.x_tot_history = x_tot_history
-        self.x_coll_history = x_coll_history
-        self.x_al_history = x_al_history
+        #self.x_tot_history = x_tot_history
+        #self.x_coll_history = x_coll_history
+        #self.x_al_history = x_al_history
         self.dTb_history = dTb_history
         self.T_spin_history = T_spin_history
         self.xHII_history=xHII_history

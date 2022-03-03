@@ -26,9 +26,9 @@ def source_par():
         "E_min_xray": 100,
         "E_max_xray": 10000,  # min and max energy that define what we call xrays.
 
-        "alS_ion" : 1.5 ,                 ##PL sed ion part
-        "alS_xray": 2.5 ,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
-        "cX" :  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
+        "alS_ion": 1.5,                 ##PL sed ion part
+        "alS_xray": 2.5,                 ##PL sed Xray part N ~ nu**-alS [nbr of photons/s/Hz]
+        "cX":  3.4e40,                # Xray normalization [(erg/s) * (yr/Msun)] (astro-ph/0607234 eq22)
 
         "N_al":9690,    #nbr of lyal photons per baryons in stars
         "alS_lyal":  1.001, ##PL for lyal
@@ -106,7 +106,7 @@ def cosmo_par():
     's8': None,
     'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),      ### This is the path to the input Linear Power Spectrum
     'corr_fct' : pkg_resources.resource_filename('radtrans', "files/corr_fct.dat"),  ### This is the path where the corresponding correlation function will be stored. You can change it to anything.
-    'HI_frac' : 0.7,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.
+    'HI_frac' : 0.08,     #fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.  0.2453 of total mass is in He according to BBN, so in terms of number density it is  1/(1+4*(1-f_He_bymass)/f_He_bymass)  ~0.075
     "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
     "profile" : 0,          #0 for constant background density, 1 for 2h term profile
     "z_decoupl" : 135,      # redshift at which the gas decouples from CMB and starts cooling adiabatically according to Tcmb0*(1+z)**2/(1+zdecoupl)
