@@ -43,11 +43,12 @@ def global_signal(param,heat=None,redshifting = 'yes'):
 
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
         #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
-        if Erange is not 0:
-            #Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
-            Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
-        else :
+        if np.any(Erange == 0): # similar to : if E is not 0
             Gheat_GS_style.append(0)
+
+        else :
+            Gheat_GS_style.append(np.trapz(itlH, Erange * Hz_per_eV))  # eV/s
+            # Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
 
         xal.append(x_alpha_)
         Jalpha.append(Jalpha_)
@@ -129,7 +130,7 @@ def sfrd_approx(param,halo_catalog):
 
     SFRD = SFRD / LBox ** 3  ## [(Msol/h) / yr /(cMpc/h)**3]
 
-    return z, SFRD
+    return z, SFRD[0]
 
 
 def mean_Jalpha_approx(param,halo_catalog):
