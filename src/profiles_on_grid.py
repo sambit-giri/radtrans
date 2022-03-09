@@ -1,4 +1,5 @@
 
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import fftconvolve
@@ -366,9 +367,10 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         - Binary_Grid : contains 1 where Grid_input>=1 and 0 elsewhere. This grid is used as input for scipy.measure.label. Format is (X,X,X).
         - Connected_regions : (X,X,X). Output of skimage.measure.label. Each pixel of it is labeled according to the ionized clump it belongs to.
         - x_ion_tot_i : total sum of ionizing fraction.
-        - region_nbr, size_of_region : region label, and size of it . We use it to idenfity the very small regions (small_regions) with less than 10 pixels. We treat them all together to speed up the process
+        - region_nbr, size_of_region : region label, and size of it . We use it to idenfity the very small regions (small_regions) with less than "pix_thresh" pixels. We treat them all together to speed up the process
         - Spread_Single :  spread the excess photons.
     """
+
     t0 = datetime.datetime.now()
     nGrid = len(Grid_input[0])
     Grid = np.copy(Grid_input)
@@ -395,13 +397,14 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         print('Universe not fully ionized : xHII is', x_ion_tot_i / Grid.size)
 
         region_nbr, size_of_region = np.unique(connected_regions, return_counts=True)
-        small_regions = np.where(np.isin(connected_regions, region_nbr[np.where(size_of_region < 10)[0]]))        ## small_regions : Gridmesh indices gathering all the connected regions that have less than 10 pixels
-        Small_regions_labels = region_nbr[np.where(size_of_region < 10)[0]]                                     ## labels of the small regions. Use this to exclude them from the for loop
+        pix_thresh = int(nGrid/12.8) # group all the connected regions that have less than pix_thresh pixels together for the spreading.. to go faster. ==10 for nGrid=128pixels..
+        small_regions = np.where(np.isin(connected_regions, region_nbr[np.where(size_of_region < pix_thresh)[0]]))        ## small_regions : Gridmesh indices gathering all the connected regions that have less than 10 pixels
+        Small_regions_labels = region_nbr[np.where(size_of_region < pix_thresh)[0]]                                     ## labels of the small regions. Use this to exclude them from the for loop
 
         initial_excess = np.sum(Grid[small_regions] - 1)
         excess_ion = initial_excess
 
-        print('there are ', len(Small_regions_labels),'connected regions with less than 10 pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
+        print('there are ', len(Small_regions_labels),'connected regions with less than ',pix_thresh,' pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
 
 
         Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None)                               # Do the spreading for the small regions
@@ -409,7 +412,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
             print('small regions not correctly spread')
 
         all_regions_labels = np.array(range(1, Nbr_regions))  # the remaining larges overlapping ionized regions
-        large_regions_labels = all_regions_labels[np.where(np.isin(all_regions_labels, Small_regions_labels) == False)[0]]  # indices of regions that have more than 10 pixels
+        large_regions_labels = all_regions_labels[np.where(np.isin(all_regions_labels, Small_regions_labels) == False)[0]]  # indices of regions that have more than pix_thresh pixels
 
         # Then do the spreading individually for large regions
         for i, ir in enumerate(large_regions_labels):
