@@ -120,17 +120,19 @@ def sfrd_approx(param,halo_catalog):
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
 
     SFRD = 0
-    for i in range(len(M_Bin) ):
+    for i in range(len(M_Bin)):
         nbr_halos = np.where(Indexing == i)[0].size
         if nbr_halos > 0:
-            grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
-            M_halo = grid_model.Mh_history[ind_z]
+            #grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+            M_halo = M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))   #grid_model.Mh_history[ind_z]
             dMh_dt = param.source.alpha_MAR * M_halo * (z + 1) * Hubble(z, param)  ## [(Msol/h) / yr]
             SFRD += nbr_halos * dMh_dt * f_star_Halo(param, M_halo) * param.cosmo.Ob / param.cosmo.Om
 
+
     SFRD = SFRD / LBox ** 3  ## [(Msol/h) / yr /(cMpc/h)**3]
 
-    return z, SFRD[0]
+
+    return z, float(SFRD)
 
 
 def mean_Jalpha_approx(param,halo_catalog):

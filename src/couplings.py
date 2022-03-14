@@ -142,11 +142,12 @@ def rho_alpha(r_grid, MM, zz, param):
 
             ### cosmidawn stuff, to compare
             alpha = param.source.alpha_MAR
-            dMdt_int = alpha * MM * np.exp(alpha * (zz - z_prime)) * (z_prime + 1) * Hubble(z_prime,param) * f_star_Halo( param, MM) * param.cosmo.Ob / param.cosmo.Om  # SFR Msol/h/yr
+            dMdt_int = alpha * MM * np.exp(alpha * (zz - z_prime)) * (z_prime + 1) * Hubble(z_prime,param) * f_star_Halo(param, MM * np.exp(alpha * (zz - z_prime))) * param.cosmo.Ob / param.cosmo.Om  # SFR Msol/h/yr
 
             eps_al = eps_lyal(nu_n[k] * (1 + z_prime) / (1 + zz), param)[None,:] * dMdt_int  # [photons.yr-1.Hz-1]
             eps_int = interp1d(rcom_prime, eps_al, axis=1, fill_value=0.0, bounds_error=False)
 
+            #print('zz',zz, 'rgrid',r_grid * (1 + zz))
             flux_m = eps_int(r_grid * (1 + zz)) * rec['f'][k]  # want to find the z' corresponding to comoving distance r_grid * (1 + z).
             flux += [np.array(flux_m)]
 
