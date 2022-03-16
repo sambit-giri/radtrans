@@ -62,7 +62,6 @@ def bias(z,param,Mass = None,bias_type='Tinker'):
         bias = 1.0 + e1 + E1
 
     elif (bias_type == 'Tinker'):
-
         # tinker bias
         dcz = delt_c(z,param)
         dc = delta_c
@@ -76,7 +75,6 @@ def bias(z,param,Mass = None,bias_type='Tinker'):
         C = 0.019 + 0.107 * y + 0.19 * np.exp(-(4 / y) ** 4)
         c = 2.4
         bias = 1 - A * nu ** (a / 2) / (nu ** (a / 2) + dc ** a) + B * nu ** (b / 2) + C * nu ** (c / 2)
-
     return bias
 
 
@@ -85,7 +83,7 @@ def rho_2h(bias_, cosmo_corr_ ,param, z):
     """
     Large scale 2halo profile, matter density around a halo. In Msol/cMpc**3
     """
-    return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) * param.cosmo.profile + 1.0) * param.cosmo.Om * rhoc_of_z(param, z) * param.cosmo.clumping
+    return (bias_ * cosmo_corr_ * D(1/(z+1)**2,param) * param.cosmo.profile + 1.0) * param.cosmo.Om * rhoc_of_z(param, 0) * param.cosmo.clumping
 
 
 def rhoNFW_fct(rbin,param):
@@ -94,7 +92,7 @@ def rhoNFW_fct(rbin,param):
     """
     Mvir = param.source.M_halo
     cvir = param.source.C_halo
-    rvir = (3.0*Mvir/(4.0*np.pi*200*rhoc_of_z(param)))**(1.0/3.0)
+    rvir = (3.0*Mvir/(4.0 * np.pi * 200*rhoc_of_z(param)))**(1.0/3.0)
     rho0 = 200*rhoc_of_z(param)*cvir**3.0/(3.0*np.log(1.0+cvir)-3.0*cvir/(1.0+cvir))
     x = cvir*rbin/rvir
     return rho0/(x * (1.0+x)**2.0)
