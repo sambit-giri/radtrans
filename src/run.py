@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 
 
-def run_RT_single_source(Mhalo,parameters):
+def run_RT_single_source(Mhalo,parameters,Helium):
     """
     This is to parallelize with job lib. Make a copy of parameters, set the halo mass to Mhalo, and run the solver (and store the profiles.)
     Regarding r_end : since we vectorized the radial direction, we can set r_end to the value that we want and increase dn if needed !
@@ -45,14 +45,17 @@ def run_RT_single_source(Mhalo,parameters):
     param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
 
     print('Solving the RT equations ..')
-    grid_model = rad.Source_MAR(param)
+    if Helium == True:
+        grid_model = rad.Source_MAR(param)
+    else :
+        grid_model = rad.Source_MAR_Helium(param)
     grid_model.solve(param)
     pickle.dump(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo), 'wb'),obj=grid_model)
     print('... RT equations solved. Profiles stored.')
     print(' ')
 
 
-def run_solver(parameters):
+def run_solver(parameters,Helium=False):
     """
     This function loops over Mbin, initial halo masses and compute the RT equation from zstart to zend for each halo mass. It uses joblib to parallelize.
     Parameters
@@ -89,7 +92,7 @@ def run_solver(parameters):
 
     for ih, Mhalo in enumerate(M_Bin):
         if rank == ih % size:
-            run_RT_single_source(M_Bin[ih], parameters)
+            run_RT_single_source(M_Bin[ih], parameters,Helium = Helium)
 
     #def run_RT_single(M):
     #    return run_RT_single_source(M,parameters)
@@ -101,7 +104,7 @@ def run_solver(parameters):
 
 
 
-def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=True,ion=True):
+def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=True,ion=True,check_approx = True):
     """
     Paint the Tk, xHII and Lyman alpha profiles on a grid for a single snapshot named filename.
 
@@ -147,14 +150,18 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         Grid_xal = np.array([0])
 
     else:
+
         ## Here we compute quickly the cumulative fraction of ionized volume and check if it largely exceeds the box volume
-        Ionized_vol = xHII_approx(param,halo_catalog)[1]
+        if check_approx :
+            Ionized_vol = xHII_approx(param,halo_catalog)[1]
+        else :
+            Ionized_vol =0
+
         if Ionized_vol > 2:
             print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
             Grid_xHII = np.array([1])
             Grid_Temp = np.array([1])
             Grid_xal = np.array([1])
-
         else:
             Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T # Halo positions.
             Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
@@ -174,14 +181,11 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
                     #x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
 
-
-
                     r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile
                     rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
                     T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
                     xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
                     x_alpha_prof = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1 - xHII_extrap) / (1 + zgrid)
-
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
                     Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
@@ -204,10 +208,9 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                         Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII)
-                    else:
-                        continue
+
                 endtimeprofile = datetime.datetime.now()
-                print('Putting profiles : done. took : ', endtimeprofile - starttimeprofile)
+                print(len(indices[0]),'halos in mass bin ',i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
 
             Grid_Storage = np.copy(Grid_xHII_i)
             Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
@@ -495,7 +498,85 @@ def compute_PS(param):
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
 
+def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
+    """
+    Paint the  Lyman alpha profiles on a grid for a single snapshot named filename.
+
+    Parameters
+    ----------
+    param : dictionnary containing all the input parameters
+    filename : the name of the snapshot, contained in param.sim.halo_catalogs.
+
+    Returns
+    -------
+    Does not return anything. Paints and stores the grids on the directory grid_outputs.
+    """
+    catalog_dir = param.sim.halo_catalogs
+    starttimeprofile = datetime.datetime.now()
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+
+    LBox = param.sim.Lbox  # Mpc/h
+    nGrid = param.sim.Ncell  # number of grid cells
+    catalog = catalog_dir + filename
+    halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
+    z = halo_catalog['z']
+
+    # quick load to find matching redshift between solver output and simulation snapshot.
+    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+
+    ##screening for xal
+    epsilon = LBox / nGrid / epsilon_factor
+
+    Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
 
 
+
+    print('There are', H_Masses.size, 'halos at z=', z, )
+
+    if H_Masses.size == 0:
+        print('There aint no sources')
+        Grid_xal = np.array([0])
+
+    else:
+        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
+        Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
+        Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1  # you don't want Pos_Bubbles_Grid==nGrid
+        Grid_xal = np.zeros((nGrid, nGrid, nGrid))
+
+        for i in range(len(M_Bin)):
+            indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
+            if len(indices[0]) > 0:
+                # grid_model = pickle.load(file=open( './profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+                # Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
+                # radial_grid = grid_model.r_grid_cell
+                # x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
+
+                r_lyal = np.logspace(-6, 2, 4000, base=10)  ## physical distance for lyal profile
+
+
+                Mhalo_z = M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))
+                rho_alpha_ = rho_alpha(r_lyal, Mhalo_z, z, param)[0]
+
+                # T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
+                # xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
+                x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
+
+                profile_xal = interp1d(r_lyal * (1 + z), x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2, bounds_error=False, fill_value=0)  ##screening
+                kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
+                renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
+                #print(renorm)
+                #renorm = 1
+                if not np.sum(kernel_xal) < 1e-8 :
+                    Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal) * renorm
+
+            endtimeprofile = datetime.datetime.now()
+            #print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile, 'to paint profiles')
+
+    pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal / 4 / np.pi)  #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
 
 
