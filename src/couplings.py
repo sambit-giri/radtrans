@@ -240,7 +240,7 @@ def J_xray_no_redshifting(r_grid, n_HI, Edot, param):
     """
     sed_xray = param.source.alS_xray
     norm_xray = (1 - sed_xray) / ((param.source.E_max_sed_xray / h_eV_sec) ** (1 - sed_xray) - (param.source.E_min_sed_xray / h_eV_sec) ** (1 - sed_xray))   #Hz**(alpha-1)
-    E_range = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 400, base=10)  # eq(3) Thomas.2011
+    E_range = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 1000, base=10)  # eq(3) Thomas.2011
     nu_range = Hz_per_eV * E_range
 
     cumul_nHI = cumtrapz(n_HI, r_grid, initial=0.0)  ## Mpc/h.cm-3

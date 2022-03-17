@@ -325,7 +325,7 @@ def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifti
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))),axis=1)  ## values of Mh at z_start, binned via M_Bin.
-    Ob, Om, h0 ,alpha= param.cosmo.Ob, param.cosmo.Om, param.cosmo.h,0.79
+    Ob, Om, h0, alpha = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h, 0.79
 
     mean_Gamma_heat = 0
     Jxray_mean = 0
@@ -337,7 +337,7 @@ def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifti
             r_grid = grid_model.r_grid_cell
             xHII   = grid_model.xHII_history[str(round(zgrid, 2))]
             Mh   = grid_model.Mh_history[ind_z]
-            nB   =  (1 + z) ** 3 * bar_density_2h(r_grid, param, z, Mh)
+            nB   = (1 + z) ** 3 * bar_density_2h(r_grid, param, z, Mh)
             n_HI = nB * (1 - xHII)
 
             if param.source.type == 'SED':
@@ -352,9 +352,9 @@ def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifti
                 mean_J = np.trapz(Jxray_flux * 4 * np.pi * r_grid[:, None] ** 2, r_grid,axis=0)  # shape is E_range. "spatial" mean
                 mean_Gam = 0
             else :
-                E_range, Jxray_flux  = J_xray_with_redshifting(r_grid, n_HI*density_normalization, Mh, z,param)
+                E_range, Jxray_flux  = J_xray_with_redshifting(r_grid, n_HI*density_normalization, Mh, z,param)  # [eV, gam/Hz/s/pcm^2]
                 factor_ = sigma_HI(E_range)*(E_range-E_HI)
-                Gamma_heat_ = np.trapz(Jxray_flux * factor_[:,None], E_range*Hz_per_eV,axis=0) #shape is (r_grid)
+                Gamma_heat_ = np.trapz(Jxray_flux * factor_[:,None], E_range*Hz_per_eV,axis=0) #shape is (r_grid), [eV/s]
                 mean_J = np.trapz(Jxray_flux * 4 * np.pi * r_grid ** 2, r_grid,axis=1) # shape is E_range. "spatial" mean
                 mean_Gam = np.trapz(Gamma_heat_ * 4 * np.pi * r_grid ** 2, r_grid)
             Jxray_mean += nbr_halos * mean_J

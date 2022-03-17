@@ -264,13 +264,16 @@ def generate_table(param, z, n_HI):
         E_range_ion  = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
         E_range_xray = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
+
         IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + param.source.xray_in_ion * np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
         IHI_2[:] = np.trapz((E_range_ion - E_HI) / (E_HI * E_range_ion) * Nion(E_range_ion, n_HI[:, None]), E_range_ion) + param.source.xray_in_ion * np.trapz((E_range_xray - E_HI) / (E_HI * E_range_xray) * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)
+
 
         ##xray and ionizing photon are included in heating. Integrate from E_HI to Emax
         IT_HI_1[:] = np.trapz((E_range_xray - E_HI) / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)   + param.source.ion_in_xray * np.trapz((E_range_ion - E_HI) / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion) #[eV/s]then divide by r2
         IT_2a[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * E_range_xray, E_range_xray)                           + param.source.ion_in_xray * np.trapz(Nion(E_range_ion, n_HI[:, None]) * E_range_ion, E_range_ion)
         IT_2b[:]   = np.trapz(Nxray(E_range_xray, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_xray)                     + param.source.ion_in_xray * np.trapz(Nion(E_range_ion, n_HI[:, None]) * (-4 * kb_eV_per_K), E_range_ion)
+
 
         print('...done')
 
@@ -360,7 +363,8 @@ class Source_MAR:
         dt_init =  param.solver.time_step * 1e6 * sec_per_year * u.s  ### time step of 0.1 Myr
         self.dt_init = dt_init
 
-
+        if param.source.g4 <-4 :
+            print('g4 too high, you should not have a too sharp cutoff, otherwise the calculations of the gamma tables give zero.' )
 
 
     def create_table(self, param):
@@ -453,12 +457,15 @@ class Source_MAR:
 
         while True:
 
-            Ion_front_grid,Mh_history,z_grid = [],[],[]
+            Ion_front_grid,Mh_history,z_grid,Nh_history = [],[],[], []
+            Ngdot_ratio = []
             # create a dictionnary to store the profiles at the desired redshifts
+            #A_grid_hist,D_grid_hist = {},{}
             T_history = {}
             T_spin_history = {}
             xHII_history = {}
             dTb_history = {}
+            #I1_HI_history, I2_HI_history ={},{}
             nHI_norm = {} # neutral HI density normlized to mean baryon density. To be used in formula of dTb ~(1+delta_b)*xHI
             #x_tot_history, x_al_history, x_coll_history = {},{},{}
             #rho_al_history, rho_xray_history = {}, {}
@@ -514,6 +521,11 @@ class Source_MAR:
                     xHII_history[str(round(zstep_l[0], 2))] = 0
                     heat_history[str(round(zstep_l[0], 2))] = 0
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    Nh_history.append(0)
+                    Ngdot_ratio.append(1)
+                    #A_grid_hist[str(round(zstep_l[0], 2))], D_grid_hist[str(round(zstep_l[0], 2))] = 0,0
+                   # I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = 0,0
+
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
@@ -536,7 +548,7 @@ class Source_MAR:
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 copy_param.source.M_halo = Mh_step_l
 
-                if param.source.type == 'SED'  :
+                if param.source.type == 'SED' :
                     Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l) #[s**-1,eV/s]
 
                 if param.source.type == 'Ross':
@@ -551,13 +563,13 @@ class Source_MAR:
 
 
                 ## dilute the ionized density according to redshift
-                n_HII_cell = n_HII_cell * (1+z_previous)**3/(1+zstep_l)**3
+                n_HII_cell = n_HII_cell * (1+zstep_l)**3 / (1+z_previous)**3
 
                 #update the baryon profile
                 nB_profile_z = self.nB_profile * (1 + zstep_l) ** 3  ## physical total baryon density
 
                 n_HII_cell[n_HII_cell > nB_profile_z] = nB_profile_z[n_HII_cell > nB_profile_z] #xHII can't be >1
-                n_HI_cell = nB_profile_z - n_HII_cell   #set neutral physical density in cell
+                n_HI_cell = nB_profile_z - n_HII_cell                       #set neutral physical density in cell
 
                 dr = r_grid[1]-r_grid[0]                #lin spacing so tha'ts ok.
                 r2 = self.r_grid_cell ** 2
@@ -571,6 +583,7 @@ class Source_MAR:
 
                 ionized_indices = np.where(n_HI_cell == 0)
                 n_HI_cell[ionized_indices] = 1e-50 # to avoid division by zero
+
 
                 I1_HI   = (np.interp(K_HI[:-1], n_HI, JHI_1)   - np.interp(K_HI[1:], n_HI, JHI_1)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr * h0**3
                 I2_HI   = (np.interp(K_HI[:-1], n_HI, JHI_2)   - np.interp(K_HI[1:], n_HI, JHI_2)) / r2 / cm_per_Mpc ** 3 / 4 / pi / n_HI_cell / dr * h0**3
@@ -586,6 +599,7 @@ class Source_MAR:
                 n_HI_cell[ionized_indices] = 0
 
 
+
                 if param.source.type == 'SED':
                     I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
@@ -594,6 +608,7 @@ class Source_MAR:
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * Mh_step_l / self.M_initial # no change in g_gamma in HMXB. see ross et al 2019..
                 else:
                     I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta,I2_Tb)) * Ngam_dot_step_l / Ng_dot_initial_ion  ### added correctrion for halo growth
+
 
 
                 n_ee = n_HII_cell  #e- density
@@ -610,10 +625,11 @@ class Source_MAR:
 
                 A = gamma_HI(n_HII_cell, n_HI_cell, T_grid, I1_HI, I2_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
 
-
-
                 #D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3   ###SIMPLE HEATING VERSION
                 D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
+
+                if l * param.solver.time_step % 10 == 0 and l != 0:
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy([f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI), sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb),(A1_HI + A2_HII + A4_HI + A5 + A6)])
 
                 n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
@@ -660,13 +676,17 @@ class Source_MAR:
                     #x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
                     T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
 
-                    heat_history[str(round(zstep_l[0], 2))] = np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
+                        #np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
 
                     #rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    Nh_history.append(Ngam_dot_step_l_ion)
+                    Ngdot_ratio.append(Ngam_dot_step_l_ion / Ng_dot_initial_ion)
+                   # A_grid_hist[str(round(zstep_l[0], 2))], D_grid_hist[str(round(zstep_l[0], 2))] =A, D
 
+                    #I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = I1_HI * Ng_dot_initial_ion / Ngam_dot_step_l_ion  , I2_HI * Ng_dot_initial_ion / Ngam_dot_step_l_ion
                 l += 1
 
 
@@ -676,6 +696,12 @@ class Source_MAR:
             print('solver took :', time_end_solve - t_start_solver)
             break
 
+        #self.A_hist = A_grid_hist
+        self.Ngdot_ratio = Ngdot_ratio
+        #self.D_hist = D_grid_hist
+        self.Nh_history = Nh_history
+       # self.I1_HI_history = I1_HI_history
+       # self.I2_HI_history = I2_HI_history
 
         self.n_HI_grid = nB_profile_z - n_HII_cell
         self.n_HII_cell = n_HII_cell
@@ -684,6 +710,7 @@ class Source_MAR:
         self.Ion_front_grid = Ion_front_grid
         self.z_history = np.array(z_grid)
         self.Mh_history = np.array(Mh_history)
+
         self.T_history  = T_history
         self.heat_history = heat_history
        # self.rho_al_history = rho_al_history

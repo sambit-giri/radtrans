@@ -112,8 +112,14 @@ def eta_HeII(T):
 def eta_HeIII(T):
     return eV_per_erg * 3.48 * 10 ** -26 * T ** 0.5 * (T / 10 ** 3) ** -0.2 * (1 + (T / (4 * 10 ** 6)) ** 0.7) ** -1
 
-def psi_HeI(T, neT, n_HeIIT):
-    return eV_per_erg * 9.1 * 10 ** -27 * T ** -0.1687 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-1.31 * 10 ** 4 / T)
+def psi_HeI(T, ne, n_HeII):
+    """
+    Collisional excitation cooling coefficient for Hydrogen :  [eV.s-1]
+    This is actually psi_HeI * nHeI . See B4.3(b) Fukugita
+    Multiply this by ne and you get the correct term in heating eq.
+    """
+    return eV_per_erg * 9.1 * 10 ** -27 * T ** -0.1687 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-1.31 * 10 ** 4 / T) * ne * n_HeII
+
 def psi_HeII(T):
     return eV_per_erg * 5.54 * 10 ** -17 * T ** -0.397 * (1 + (T / 10 ** 5) ** 0.5) ** -1 * np.exp(-4.73 * 10 ** 5 / T)
 def omega_HeII(T):
