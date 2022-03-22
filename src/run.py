@@ -46,9 +46,9 @@ def run_RT_single_source(Mhalo,parameters,Helium):
 
     print('Solving the RT equations ..')
     if Helium == True:
-        grid_model = rad.Source_MAR(param)
-    else :
         grid_model = rad.Source_MAR_Helium(param)
+    else :
+        grid_model = rad.Source_MAR(param)
     grid_model.solve(param)
     pickle.dump(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo), 'wb'),obj=grid_model)
     print('... RT equations solved. Profiles stored.')

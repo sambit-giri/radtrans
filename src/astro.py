@@ -139,11 +139,11 @@ def UV_emissivity(z,zprime,Mhalo,nu,param) :
     return I__ * BB_Planck(nu_prime, T_Galaxy) / h__  # [s^-1.Hz^-1]
 
 
-def Read_Rockstar(file,Nmin = 50):
+def Read_Rockstar(file,Nmin = 0,Mmin = 1e5,Mmax = 1e15 ,keep_subhalos=True):
     """
     Read in a rockstar halo catalog and return a dictionnary with all the information stored.
     R is in ckpc/h
-    Nmin : minimum number of particle in halo to consider
+    Nmin : not working yet
     """
 
     Halo_File = []
@@ -153,19 +153,32 @@ def Read_Rockstar(file,Nmin = 50):
     a = float(Halo_File[1][4:])
     z = 1 / a - 1
     LBox = float(Halo_File[6][10:-7])
+    Mpart = float(Halo_File[5][15:-7])
     Halo_File = Halo_File[16:]  ### Rockstar
     H_Masses, H_Radii = [], []
     H_X, H_Y, H_Z = [], [], []
+    subhalo_nbr = 0
     for i in range(len(Halo_File)):
         line = Halo_File[i].split(' ')
-        if float(line[2])>Nmin:
-            H_Masses.append(float(line[2]))
-            H_X.append(float(line[8]))
-            H_Y.append(float(line[9]))
-            H_Z.append(float(line[10]))
-            H_Radii.append(float(line[5]))
+        if float(line[2]) > Mmin and float(line[2]) < Mmax and Nmin * Mpart<float(line[2]):
+            if keep_subhalos: # keep subhalos
+                H_Masses.append(float(line[2]))
+                H_X.append(float(line[8]))
+                H_Y.append(float(line[9]))
+                H_Z.append(float(line[10]))
+                H_Radii.append(float(line[5]))
+            else :# do not keep subhalos
+                if float(line[-1]) ==-1 : #not a subhalo
+                    H_Masses.append(float(line[2]))
+                    H_X.append(float(line[8]))
+                    H_Y.append(float(line[9]))
+                    H_Z.append(float(line[10]))
+                    H_Radii.append(float(line[5]))
+                else :
+                    subhalo_nbr+=1 # add one to the count
+
     H_Masses, H_X, H_Y, H_Z, H_Radii = np.array(H_Masses), np.array(H_X), np.array(H_Y), np.array(H_Z), np.array(H_Radii)
-    Dict = {'M':H_Masses,'X':H_X,'Y':H_Y,'Z':H_Z, 'R':H_Radii,'z':z,'Lbox':LBox}
+    Dict = {'M':H_Masses,'X':H_X,'Y':H_Y,'Z':H_Z, 'R':H_Radii,'z':z,'Lbox':LBox,'subhalos': subhalo_nbr}
 
     return Dict
 
