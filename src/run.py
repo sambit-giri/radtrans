@@ -154,8 +154,8 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         ## Here we compute quickly the cumulative fraction of ionized volume and check if it largely exceeds the box volume
         if check_approx :
             Ionized_vol = xHII_approx(param,halo_catalog)[1]
-        else :
-            Ionized_vol =0
+        else:
+            Ionized_vol = 0
 
         if Ionized_vol > 2:
             print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
@@ -201,16 +201,17 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
                     renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xal)
 
-                    if not np.sum(kernel_T) < 1e-8  and temp ==True:
-                        Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T)
-                    if not np.sum(kernel_xal) < 1e-8 and lyal == True:
-                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal)*renorm
+                    if temp ==True:
+                        Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T)/ 1e-7
+                    if lyal == True:
+                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when nu.sum(kernel) is too close to zero.
 
-                    if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
-                        Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII)
+                    #if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
+                    if np.any(kernel_xHII > 0) and ion == True:
+                        Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
 
                 endtimeprofile = datetime.datetime.now()
-                print(len(indices[0]),'halos in mass bin ',i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
+                print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
 
             Grid_Storage = np.copy(Grid_xHII_i)
             Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
@@ -280,8 +281,8 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
         print('param.sim.mpi4py should be yes or no')
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        if rank == ii%size :
-            paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True)
+        if rank == ii % size:
+            paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
 
     #def paint_single(filename):
     #    return paint_profile_single_snap(filename,param)
@@ -452,6 +453,16 @@ def compute_PS(param):
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
+        if Grid_Temp.size==1: ## to avoid error when measuring power spectrum
+            Grid_Temp = np.full((nGrid, nGrid, nGrid),1)
+        if Grid_xHII.size==1:
+            Grid_xHII = np.full((nGrid, nGrid, nGrid),1)
+        if Grid_dTb.size==1:
+            Grid_dTb = np.full((nGrid, nGrid, nGrid),1)
+        if Grid_xal.size==1:
+            Grid_xal = np.full((nGrid, nGrid, nGrid),1)
+
+
 
         delta_XHI = (1-Grid_xHII) / np.mean((1-Grid_xHII)) - 1
         delta_T = Grid_Temp / np.mean(Grid_Temp) - 1
@@ -482,8 +493,8 @@ def compute_PS(param):
             print('no density field provided.')
 
         z_arr[ii]  = zz_
-        PS_xHI[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHI , box_dims=Lbox, kbins=kbins)
-        PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T   , box_dims=Lbox, kbins=kbins)[0]
+        PS_xHI[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHI, box_dims=Lbox, kbins=kbins)
+        PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T, box_dims=Lbox, kbins=kbins)[0]
         PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb , box_dims=Lbox, kbins=kbins)[0]
 
@@ -512,7 +523,6 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
     Does not return anything. Paints and stores the grids on the directory grid_outputs.
     """
     catalog_dir = param.sim.halo_catalogs
-    starttimeprofile = datetime.datetime.now()
     z_start = param.solver.z
     model_name = param.sim.model_name
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
@@ -533,9 +543,6 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
     epsilon = LBox / nGrid / epsilon_factor
 
     Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
-
-
-
     print('There are', H_Masses.size, 'halos at z=', z, )
 
     if H_Masses.size == 0:
@@ -551,32 +558,80 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
         for i in range(len(M_Bin)):
             indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
             if len(indices[0]) > 0:
-                # grid_model = pickle.load(file=open( './profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
-                # Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
-                # radial_grid = grid_model.r_grid_cell
-                # x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
-
                 r_lyal = np.logspace(-6, 2, 4000, base=10)  ## physical distance for lyal profile
-
-
                 Mhalo_z = M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))
                 rho_alpha_ = rho_alpha(r_lyal, Mhalo_z, z, param)[0]
-
-                # T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
-                # xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
                 x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
-
                 profile_xal = interp1d(r_lyal * (1 + z), x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2, bounds_error=False, fill_value=0)  ##screening
                 kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
                 renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
-                #print(renorm)
-                #renorm = 1
                 if not np.sum(kernel_xal) < 1e-8 :
                     Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal) * renorm
 
-            endtimeprofile = datetime.datetime.now()
-            #print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile, 'to paint profiles')
-
     pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal / 4 / np.pi)  #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
 
+
+
+
+
+
+
+
+
+
+def grid_dTb_from_profile(filename, param):
+    """
+    Paint the  Lyman alpha profiles on a grid for a single snapshot named filename.
+
+    Parameters
+    ----------
+    param : dictionnary containing all the input parameters
+    filename : the name of the snapshot, contained in param.sim.halo_catalogs.
+
+    Returns
+    -------
+    Does not return anything. Paints and stores the grids on the directory grid_outputs.
+    """
+    catalog_dir = param.sim.halo_catalogs
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+
+    LBox = param.sim.Lbox  # Mpc/h
+    nGrid = param.sim.Ncell  # number of grid cells
+    catalog = catalog_dir + filename
+    halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
+    z = halo_catalog['z']
+
+    # quick load to find matching redshift between solver output and simulation snapshot.
+    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+
+    Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
+    print('There are', H_Masses.size, 'halos at z=', z, )
+
+    if H_Masses.size == 0:
+        print('There aint no sources')
+        Grid_dTb = np.array([0])
+
+    else:
+        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
+        Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
+        Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1  # you don't want Pos_Bubbles_Grid==nGrid
+        Grid_dTb = np.zeros((nGrid, nGrid, nGrid))
+        radial_grid = grid_model.r_grid_cell
+        for i in range(len(M_Bin)):
+            indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
+            if len(indices[0]) > 0:
+                grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+                dTb_profile = grid_model.dTb_history[str(round(zgrid, 2))]
+                profile_dTb = interp1d(radial_grid * (1 + z), dTb_profile, bounds_error=False, fill_value=0)
+                kernel_dTb = profile_to_3Dkernel(profile_dTb, nGrid, LBox)
+
+                if not np.sum(kernel_dTb) < 1e-8 :
+                    Grid_dTb += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_dTb)
+
+    pickle.dump(file=open('./grid_output/dTb_Grid_from_prof' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_dTb)
 

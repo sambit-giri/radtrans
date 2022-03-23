@@ -39,7 +39,7 @@ def global_signal(param,heat=None,redshifting = 'yes'):
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog)
         Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog)
-        Erange,Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting=redshifting)
+        Erange, Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting=redshifting)
 
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
         #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
