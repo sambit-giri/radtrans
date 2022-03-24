@@ -139,7 +139,7 @@ def UV_emissivity(z,zprime,Mhalo,nu,param) :
     return I__ * BB_Planck(nu_prime, T_Galaxy) / h__  # [s^-1.Hz^-1]
 
 
-def Read_Rockstar(file,Nmin = 0,Mmin = 1e5,Mmax = 1e15 ,keep_subhalos=True):
+def Read_Rockstar(file,Nmin = 10,Mmin = 1e5,Mmax = 1e15 ,keep_subhalos=True):
     """
     Read in a rockstar halo catalog and return a dictionnary with all the information stored.
     R is in ckpc/h

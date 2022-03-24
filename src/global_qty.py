@@ -61,7 +61,7 @@ def global_signal(param,heat=None,redshifting = 'yes'):
     matrice = np.array([z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon])
     z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Jalpha_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon}
+    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon}
 
 
 
@@ -173,9 +173,9 @@ def mean_Jalpha_approx(param,halo_catalog):
             x_alpha   = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1-xHII_extrap) / (1 + zgrid)
             mean_rho = np.trapz(rho_alpha_* 4 * np.pi * r_lyal ** 2, r_lyal)
             Jal_mean += nbr_halos * mean_rho
-            X_al_mean+= nbr_halos * np.trapz(x_alpha* 4 * np.pi * r_lyal ** 2, r_lyal)
+            X_al_mean += nbr_halos * np.trapz(x_alpha * 4 * np.pi * r_lyal ** 2, r_lyal)
 
-    Jal_mean = Jal_mean / (LBox/(1+z)) ** 3  ## [pcm**-2.Hz-1.s-1]
+    Jal_mean  = Jal_mean / (LBox/(1+z)) ** 3  ## [pcm**-2.Hz-1.s-1]
     X_al_mean = X_al_mean / (LBox/(1+z)) ** 3
     return Jal_mean, X_al_mean
 
