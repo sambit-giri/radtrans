@@ -325,7 +325,7 @@ def generate_table(param, z, n_HI):
         IT_2a = zeros((n_HI.size))
         IT_2b = zeros((n_HI.size))
 
-        E_range_ion = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
+        E_range_ion = np.logspace(np.log10(E_HI), np.log10(param.source.E_max_sed_ion), 500, base=10)
         E_range_xray    = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
         IHI_1[:] = np.trapz(1 / E_range_ion * Nion(E_range_ion, n_HI[:, None]), E_range_ion)                             + param.source.xray_in_ion * np.trapz(1 / E_range_xray * Nxray(E_range_xray, n_HI[:, None]), E_range_xray)

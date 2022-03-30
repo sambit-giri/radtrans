@@ -192,9 +192,9 @@ def generate_table(param, z, n_HI, n_HeI):
             print('Source Type not available. Should be SED if you include Helium.')
             exit()
 
-        E_range_ion_HI  = np.logspace(np.log10(E_HI), np.log10(param.source.E_min_xray), 500, base=10)
-        E_range_ion_HeI  = np.logspace(np.log10(E_HeI), np.log10(param.source.E_min_xray), 500, base=10)
-        E_range_ion_HeII  = np.logspace(np.log10(E_HeII), np.log10(param.source.E_min_xray), 500, base=10)
+        E_range_ion_HI  = np.logspace(np.log10(E_HI), np.log10(param.source.E_max_sed_ion), 500, base=10)
+        E_range_ion_HeI  = np.logspace(np.log10(E_HeI), np.log10(param.source.E_max_sed_ion), 500, base=10)
+        E_range_ion_HeII  = np.logspace(np.log10(E_HeII), np.log10(param.source.E_max_sed_ion), 500, base=10)
         E_range_xray = np.logspace(np.log10(param.source.E_min_xray), np.log10(param.source.E_max_xray), 500, base=10) #xray photon range
 
 
@@ -662,7 +662,7 @@ class Source_MAR_Helium:
 
                 B = gamma_HeI(n_HI_cell,n_HII_cell, n_HeI_cell,I1_HeI, I2_HeI, I3_HeI) * n_HeI_cell + beta_HeI(T_grid) * n_ee * n_HeI_cell - beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeII(T_grid) * n_ee * n_HeII_cell + alpha_HeIII(T_grid) * n_ee * n_HeIII_cell - zeta_HeII(T_grid) * n_ee * n_HeII_cell
 
-                C = I1_HeII * n_HeII_cell + beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeIII(T_grid) * n_ee * n_HeIII_cell
+                #C = I1_HeII * n_HeII_cell + beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeIII(T_grid) * n_ee * n_HeIII_cell
 
                 D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * ( I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
               #  D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))

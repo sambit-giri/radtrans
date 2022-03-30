@@ -461,7 +461,7 @@ def compute_PS(param):
         if Grid_Temp.size==1: ## to avoid error when measuring power spectrum
             Grid_Temp = np.full((nGrid, nGrid, nGrid),1)
         if Grid_xHII.size==1:
-            Grid_xHII = np.full((nGrid, nGrid, nGrid),1)
+            Grid_xHII = np.full((nGrid, nGrid, nGrid),0) ## to avoid div by zero
         if Grid_dTb.size==1:
             Grid_dTb = np.full((nGrid, nGrid, nGrid),1)
         if Grid_xal.size==1:
