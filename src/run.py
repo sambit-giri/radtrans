@@ -184,9 +184,9 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile
                     rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
-                    T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
-                    xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
-                    x_alpha_prof = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1 - xHII_extrap) / (1 + zgrid)
+                    #T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
+                    #xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
+                    x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid) #* S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
                     Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
@@ -202,7 +202,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
                     renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xal)
 
-                    if temp ==True:
+                    if temp ==True and np.any(kernel_T>0):
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T)/ 1e-7
                     if lyal == True:
                         Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when nu.sum(kernel) is too close to zero.
@@ -338,8 +338,10 @@ def grid_dTb(param):
         Grid_xHI = 1-Grid_xHII  ### neutral fraction
 
 
-
+        Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
+        Grid_xal = Grid_xal * Grid_Sal
         Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI= Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
+
         Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
         Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
 
@@ -385,7 +387,7 @@ def compute_GS(param):
         Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.1)]))
         T_spin.append(np.mean(Grid_Tspin))
         x_HII.append(np.mean(Grid_xHII))
-        x_al.append(np.mean(Grid_xal))
+        x_al.append(np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)))
         x_coll.append(np.mean(Grid_xcoll))
         #x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
         dTb.append(np.mean(Grid_dTb))
@@ -398,8 +400,8 @@ def compute_GS(param):
 
     z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin ,dTb= np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab),np.array(T_spin),np.array(dTb)
     matrice = np.array([z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin,dTb])
-    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin ,dTb= matrice[:, matrice[0].argsort()]  ## sort according to z_
 
+    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin ,dTb= matrice[:, matrice[0].argsort()]  ## sort according to z_
     dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / T_spin)  * (1-x_HII)
 
     Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS}
@@ -458,19 +460,19 @@ def compute_PS(param):
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
-        if Grid_Temp.size==1: ## to avoid error when measuring power spectrum
+        if Grid_Temp.size == 1: ## to avoid error when measuring power spectrum
             Grid_Temp = np.full((nGrid, nGrid, nGrid),1)
-        if Grid_xHII.size==1:
+        if Grid_xHII.size == 1:
             Grid_xHII = np.full((nGrid, nGrid, nGrid),0) ## to avoid div by zero
-        if Grid_dTb.size==1:
-            Grid_dTb = np.full((nGrid, nGrid, nGrid),1)
-        if Grid_xal.size==1:
-            Grid_xal = np.full((nGrid, nGrid, nGrid),1)
+        if Grid_dTb.size == 1:
+            Grid_dTb = np.full((nGrid, nGrid, nGrid), 1)
+        if Grid_xal.size == 1:
+            Grid_xal = np.full((nGrid, nGrid, nGrid), 1)
 
 
 
         delta_XHI = (1-Grid_xHII) / np.mean((1-Grid_xHII)) - 1
-        delta_T = Grid_Temp / np.mean(Grid_Temp) - 1
+        delta_T   = Grid_Temp / np.mean(Grid_Temp) - 1
         delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
         delta_x_al = Grid_xal / np.mean(Grid_xal) - 1
 
@@ -506,7 +508,6 @@ def compute_PS(param):
         PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_T_xHI[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHI, box_dims=Lbox, kbins=kbins)[0]
         PS_lyal_xHI[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHI, box_dims=Lbox, kbins=kbins)[0]
-
 
     Dict = {'z':z_arr,'k':k_bins,'PS_xHI': PS_xHI, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHI': PS_T_xHI,
                 'PS_rho': PS_rho, 'PS_rho_xHI': PS_rho_xHI, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHI':PS_lyal_xHI}
