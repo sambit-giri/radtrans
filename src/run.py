@@ -153,16 +153,16 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     else:
 
         ## Here we compute quickly the cumulative fraction of ionized volume and check if it largely exceeds the box volume
-        if check_approx :
-            Ionized_vol = xHII_approx(param,halo_catalog)[1]
-        else:
-            Ionized_vol = 0
-
-        if Ionized_vol > 2:
+        #if check_approx :
+        #    Ionized_vol = xHII_approx(param,halo_catalog)[1]
+        #else:
+        #    Ionized_vol = 0
+        Ionized_vol = 0
+        if Ionized_vol > 2: ###skip this step, We actually want the full Temperature and xal history
             print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
-            Grid_xHII = np.array([1])
-            Grid_Temp = np.array([1])
-            Grid_xal = np.array([1])
+        #    Grid_xHII = np.array([1])
+        #    Grid_Temp = np.array([1])
+        #    Grid_xal = np.array([1])
         else:
             Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T # Halo positions.
             Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
@@ -217,7 +217,11 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
             Grid_Storage = np.copy(Grid_xHII_i)
             Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
 
-            Grid_xHII = Spreading_Excess_Fast(Grid_Storage)
+            if np.sum(Grid_Storage)< nGrid ** 3 :
+                Grid_xHII = Spreading_Excess_Fast(Grid_Storage)
+            else :
+                Grid_xHII = np.array([1])
+
             endtimespread = datetime.datetime.now()
             print('It took:', endtimespread - endtimeprofile, 'to spread the excess photons')
 
@@ -225,9 +229,9 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                 Grid_xHII = np.array([0])
 
             if np.all(Grid_xHII == 1):
-                print('universe is fully inoinzed. return 1 for Grid_xHII but the other still computed.')#. Return [1] for the XHII, T and xtot grid.')
+                print('universe is fully inoinzed. return 1 for Grid_xHII.')#. Return [1] for the XHII, T and xtot grid.')
                 #Grid_xal = np.array([1])
-                # Grid_xtot_ov = np.array([1])
+                #Grid_xtot_ov = np.array([1])
                 #Grid_Temp = np.array([1])
                 Grid_xHII = np.array([1])
 
@@ -378,7 +382,7 @@ def compute_GS(param):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.5)]))
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.1)]))
         T_spin.append(np.mean(Grid_Tspin))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(np.mean(Grid_xal))
