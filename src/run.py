@@ -131,11 +131,12 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     z = halo_catalog['z']
     T_adiab_z = Tcmb0 * (1 + z) ** 2 / (1 + param.cosmo.z_decoupl)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
+
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
-
+    
     ##screening for xal
     epsilon = LBox / nGrid / epsilon_factor
 
