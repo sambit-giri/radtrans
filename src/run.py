@@ -189,7 +189,8 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid) #* S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
-                    Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
+                    #Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
+                    Temp_profile = (Temp_profile - T_adiab_z).clip(min=0)
 
                     ## here we assume they all have M_bin[i]
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
@@ -236,6 +237,10 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                 Grid_xHII = np.array([1])
 
     # Grid_dTb_over_rho_b = factor * np.sqrt(1+z) * Grid_xtot/(1+Grid_xtot)* (1-T_cmb_z/Grid_Temp) * (1-Grid_xHII) #careful, this is dTb/(1+deltab)
+
+    ### Add up the adiabatic temperature
+    Grid_Temp +=T_adiab_z
+
 
     # Store Tk, xHII, and xal on a grid.
     if param.sim.store_grids == True:
@@ -377,14 +382,14 @@ def compute_GS(param):
         Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
-        #Grid_xtot_ov           = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xcoll            = pickle.load(file=open('./grid_output/xcoll_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.1)]))
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.5)]))
         T_spin.append(np.mean(Grid_Tspin))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)))
