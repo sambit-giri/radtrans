@@ -216,9 +216,9 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                 print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
 
             Grid_Storage = np.copy(Grid_xHII_i)
-            Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
+            #Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
 
-            if np.sum(Grid_Storage)< nGrid ** 3 :
+            if np.sum(Grid_Storage)< nGrid ** 3 and ion == True:
                 Grid_xHII = Spreading_Excess_Fast(Grid_Storage)
             else :
                 Grid_xHII = np.array([1])
@@ -236,10 +236,10 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                 #Grid_Temp = np.array([1])
                 Grid_xHII = np.array([1])
 
-    # Grid_dTb_over_rho_b = factor * np.sqrt(1+z) * Grid_xtot/(1+Grid_xtot)* (1-T_cmb_z/Grid_Temp) * (1-Grid_xHII) #careful, this is dTb/(1+deltab)
+        # Grid_dTb_over_rho_b = factor * np.sqrt(1+z) * Grid_xtot/(1+Grid_xtot)* (1-T_cmb_z/Grid_Temp) * (1-Grid_xHII) #careful, this is dTb/(1+deltab)
 
-    ### Add up the adiabatic temperature
-    Grid_Temp +=T_adiab_z
+        ### Add up the adiabatic temperature
+        Grid_Temp +=T_adiab_z
 
 
     # Store Tk, xHII, and xal on a grid.
@@ -247,9 +247,12 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         if not os.path.isdir('./grid_output'):
             os.mkdir('./grid_output')
 
-        pickle.dump(file=open('./grid_output/T_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Temp)
-        pickle.dump(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xHII)
-        pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal/4/np.pi) #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
+        if temp == True:
+            pickle.dump(file=open('./grid_output/T_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Temp)
+        if ion == True:
+            pickle.dump(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xHII)
+        if lyal == True:
+            pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal/4/np.pi) #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
 
 
 
