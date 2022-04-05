@@ -136,7 +136,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
-    
+    T_adiab_z_solver = grid_model.T_history[str(round(zgrid, 2))][-1]  ## solver does not give exactly the correct adiabatic temperature, and this causes troubles
     ##screening for xal
     epsilon = LBox / nGrid / epsilon_factor
 
@@ -190,7 +190,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
                     #Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
-                    Temp_profile = (Temp_profile - T_adiab_z).clip(min=0)
+                    Temp_profile = (Temp_profile - T_adiab_z_solver).clip(min=0)
 
                     ## here we assume they all have M_bin[i]
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
@@ -205,8 +205,10 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     if temp ==True and np.any(kernel_T>0):
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T)/ 1e-7
+
+
                     if lyal == True:
-                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when nu.sum(kernel) is too close to zero.
+                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
 
                     #if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                     if np.any(kernel_xHII > 0) and ion == True:
