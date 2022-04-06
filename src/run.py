@@ -360,6 +360,7 @@ def grid_dTb(param):
         pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
 
+
 def compute_GS(param):
     """
     Reads in the grids and compute the global quantities averaged.
@@ -394,8 +395,8 @@ def compute_GS(param):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII<0.5)]))
-        T_spin.append(np.mean(Grid_Tspin))
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < 0.5)]))
+        T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < 0.5)]))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)))
         x_coll.append(np.mean(Grid_xcoll))
