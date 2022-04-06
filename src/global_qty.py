@@ -234,7 +234,7 @@ def J_alpha_n(zz, sfrd, param):
     nu_n = nu_LL * (1 - 1 / rec['n'][2:] ** 2)
     nu_n = np.insert(nu_n, [0, 0], np.inf)
 
-    sfrd_tck = splrep(zz, sfrd)
+    #sfrd_tck = splrep(zz, sfrd)
 
     # binning of z_prime
     dz_prime = 0.01 # param.code.dz_prime_lyal
@@ -254,7 +254,7 @@ def J_alpha_n(zz, sfrd, param):
             z_prime = np.logspace(np.log(zz[i]), np.log(zmax_n[k]), N_prime, base=np.e)
 
             eps_b = eps_lyal(nu_n[k] * (1 + z_prime) / (1 + zz[i]), param)
-            J_al_n_prime = c_km_s * h0 / hubble(z_prime, param) * eps_b * splev(z_prime, sfrd_tck)  # [1/Hz/yr/(Mpc/h)^2]
+            J_al_n_prime = c_km_s * h0 / hubble(z_prime, param) * eps_b * np.interp(z_prime,zz, sfrd)#splev(z_prime, sfrd_tck)  # [1/Hz/yr/(Mpc/h)^2]
 
             J_al_nk = (1 + zz[i]) ** 2 / (4 * np.pi) * rec['f'][k] * np.trapz(J_al_n_prime, z_prime)  # [1/Hz/yr/(Mpc/h)^2]
             J_al_n += [J_al_nk * (h0 / cm_per_Mpc) ** 2 / sec_per_year]  # [1/cm^2/Hz/s]

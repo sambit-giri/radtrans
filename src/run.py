@@ -17,10 +17,9 @@ import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast,put_profiles_group
 from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from joblib import Parallel, delayed
-from radtrans.global_qty import xHII_approx
+from radtrans.global_qty import J_alpha_n
 
 import matplotlib.pyplot as plt
-
 
 
 
@@ -379,6 +378,9 @@ def compute_GS(param):
     x_al = []
     x_coll=[]
     T_spin= []
+    beta_a = []
+    beta_T = []
+    beta_r = []
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         with open(catalog_dir+filename, "r") as file:
@@ -393,29 +395,44 @@ def compute_GS(param):
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xcoll            = pickle.load(file=open('./grid_output/xcoll_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
+        xal_  = np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII))
+        xcol_ = np.mean(Grid_xcoll)
+        Tcmb = (1 + zz_) * Tcmb0
+
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < 0.5)]))
-        T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < 0.5)]))
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
+        T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
-        x_al.append(np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)))
-        x_coll.append(np.mean(Grid_xcoll))
-        #x_tot_ov_1plusxtot.append(np.mean(Grid_xtot_ov))
+        x_al.append(xal_)
+        x_coll.append(xcol_)
         dTb.append(np.mean(Grid_dTb))
+        beta_a.append(xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
+        beta_T.append(Tcmb /(Tk_neutral[ii]-Tcmb))
+        beta_r.append(-x_HII[ii] / (1 - x_HII[ii]))
 
-        Tadiab.append( Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
+        Tadiab.append(Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin ,dTb= np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab),np.array(T_spin),np.array(dTb)
-    matrice = np.array([z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin,dTb])
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(T_spin), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+    matrice = np.array([z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r])
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r = matrice[:, matrice[ 0].argsort()]  ## sort according to z_
 
-    z_,Tk,Tk_neutral,x_HII,x_al,x_coll,Tadiab,T_spin ,dTb= matrice[:, matrice[0].argsort()]  ## sort according to z_
-    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / T_spin)  * (1-x_HII)
+    #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
+    GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+str(nGrid)+'.pkl', 'rb'))
+    redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
+    Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
+    xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(z_, Tk_neutral, 1 - x_HII) * 1.81e11 / (1+redshifts)
 
-    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS}
+
+    ### dTb formula similar to coda HM code.
+    xtot = (xal_coda_style + x_coll)
+    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk_neutral) * xtot/(1 + xtot) * (1-x_HII)
+
+    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 

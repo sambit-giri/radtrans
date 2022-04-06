@@ -92,6 +92,8 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "kmin": 3e-2,
         "kmax": 4,
         "kbin": 400,  ## min, max and number of bins in k-space for measuring power spectra.
+        "thresh_xHII" :0.1  ### mean(Tk_neutral) and mean(Tspin) are computed over cells that are below this fraction of ionized hydrogen.
+
     }
     return Bunch(par)
 
