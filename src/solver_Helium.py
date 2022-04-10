@@ -438,6 +438,7 @@ class Source_MAR_Helium:
             Ion_front_grid,Mh_history,z_grid = [],[],[]
             # create a dictionnary to store the profiles at the desired redshifts
             T_history = {}
+            T_neutral_hist = {} ### value of the temperature assuming only neutral phase, to compare to HM
             T_spin_history = {}
             xHII_history = {}
             dTb_history = {}
@@ -491,6 +492,7 @@ class Source_MAR_Helium:
 
                     nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z * HI_frac - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
                     T_history[str(round(zstep_l[0],2))] = Tadiab
+                    T_neutral_hist[str(round(zstep_l[0],2))] = Tadiab
                   #  x_al_history[str(round(zstep_l[0], 2))] = 0
                     rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
                     xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
@@ -506,6 +508,8 @@ class Source_MAR_Helium:
 
             T_grid = zeros_like(self.r_grid_cell)
             T_grid += T_adiab(zstep_l,param)
+            print('FULL D VALUE IN SOLVER_MAR_HELIUM')
+            T_neutral_grid = np.copy(T_grid)
 
             while zstep_l > param.solver.z_end :
                 z_previous = zstep_l
@@ -550,13 +554,29 @@ class Source_MAR_Helium:
                 n_HI_cell = HI_frac * nB_profile_z - n_HII_cell   #set neutral physical density in cell
                 n_HeI_cell = (1-HI_frac) * nB_profile_z - n_HeII_cell - n_HeIII_cell   #set neutral physical density in cell
 
+
+                dr = r_grid[1]-r_grid[0]                #lin spacing so that's ok.
+                r2 = self.r_grid_cell ** 2
+
+
+
+                ##### for test against HM
+                n_HI_cell_neutral = HI_frac * nB_profile_z
+                n_HeI_cell_neutral = (1 - HI_frac) * nB_profile_z   # set neutral physical density in cell
+                n_HI_edge_neutral = (n_HI_cell_neutral[:-1] + n_HI_cell_neutral[1:]) / 2
+                n_HI_edge_neutral = np.concatenate((np.array([0]), n_HI_edge_neutral, np.array([n_HI_cell_neutral[-1]])))
+                n_HeI_edge_neutral = (n_HeI_cell_neutral[:-1] + n_HeI_cell_neutral[1:]) / 2
+                n_HeI_edge_neutral = np.concatenate((np.array([0]), n_HeI_edge_neutral, np.array([n_HeI_cell_neutral[-1]])))
+                K_HI_neutral  = cumtrapz(n_HI_edge_neutral, self.r_grid, initial=0.0)
+                K_HeI_neutral = cumtrapz(n_HeI_edge_neutral , self.r_grid, initial=0.0)
+                I1_T_HI_neutral = (interpn(points, JT_HI_1, (K_HI_neutral[:-1] , K_HeI_neutral[:-1]),method='linear') - interpn(points, JT_HI_1, (K_HI_neutral[1:] , K_HeI_neutral[:-1]), method='linear')) / r2 / dr / n_HI_cell_neutral / cm_per_Mpc ** 3 / 4 / pi * h0 ** 3
+                I1_T_HeI_neutral = (interpn(points, JT_HeI_1, (K_HI_neutral[:-1], K_HeI_neutral[:-1]), method='linear') - interpn(points, JT_HeI_1,  (K_HI_neutral[:-1], K_HeI_neutral[1:]), method='linear')) / r2 / dr / n_HeI_cell_neutral / cm_per_Mpc ** 3 / 4 / pi * h0 ** 3
+
                 n_HI_cell[n_HI_cell<0] = 0
                 n_HeI_cell[n_HeI_cell < 0] = 0
                 #n_HeI_cell[n_HeII_cell < 0] = 0
 
 
-                dr = r_grid[1]-r_grid[0]                #lin spacing so that's ok.
-                r2 = self.r_grid_cell ** 2
 
                 n_HI_edge = (n_HI_cell[:-1] + n_HI_cell[1:]) / 2
                 n_HI_edge = np.concatenate((np.array([0]), n_HI_edge, np.array([n_HI_cell[-1]])))
@@ -570,7 +590,6 @@ class Source_MAR_Helium:
                 K_HI   = cumtrapz(n_HI_edge  , self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
                 K_HeI  = cumtrapz(n_HeI_edge , self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
                 K_HeII = cumtrapz(n_HeII_edge, self.r_grid, initial=0.0) ## cumulative densities : before first cell, before second cell... etc up to right after last one. size is (r_grid)
-
 
                 ionized_ind_HI = np.where(n_HI_cell == 0)
                 ionized_ind_HeI = np.where(n_HeI_cell == 0)
@@ -628,6 +647,7 @@ class Source_MAR_Helium:
                 if param.source.type == 'SED':
                     I1_HI, I2_HI, I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII = np.nan_to_num((I1_HI, I2_HI,I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
+                    I1_T_HI_neutral, I1_T_HeI_neutral = np.nan_to_num((I1_T_HI_neutral, I1_T_HeI_neutral)) * E_dot_step_l_xray / E_dot_initial_xray
                 else :
                     print('Source type not implemented yet with Helium.')
                     exit()
@@ -653,6 +673,7 @@ class Source_MAR_Helium:
                 H = pl.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
+                A6_neutral = (15 / 2 * H * kb_eV_per_K * T_neutral_grid * nB_profile_z / mu)
 
 
                 n_HI_cell[ionized_ind_HI]   = 1e-100  # to avoid division by zero in gamma_HI and gamma_HeI and warnings
@@ -665,7 +686,9 @@ class Source_MAR_Helium:
                 #C = I1_HeII * n_HeII_cell + beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeIII(T_grid) * n_ee * n_HeIII_cell
 
                 D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * ( I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
-              #  D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
+              #  print('WARNING ONLY PARTIAAL D VALUE IN SOLVER_MAR_HELIUM')
+                D_neutral = (2 / 3) * (4-3*HI_frac) / (kb_eV_per_K) * (f_Heat(0) * (n_HI_cell_neutral * I1_T_HI_neutral + n_HeI_cell_neutral * I1_T_HeI_neutral) -A6_neutral )######+ n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
+
 
                 n_HI_cell[ionized_ind_HI] = 0  # set value back to zero
                 n_HeI_cell[ionized_ind_HeI] = 0
@@ -686,6 +709,12 @@ class Source_MAR_Helium:
                 T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
                 T_grid = T_nB /( nB_profile_z * (1+zstep_l)**3 / (1+z_previous)**3) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
                 T_grid = T_grid.clip(min=0)
+
+                #### Test against HM
+                T_nB_neutral = T_neutral_grid * nB_profile_z + dt_init.value * D_neutral
+                T_neutral_grid = T_nB_neutral/( nB_profile_z * (1+zstep_l)**3 / (1+z_previous)**3)
+                T_neutral_grid = T_neutral_grid.clip(min=0)
+
 
                 if np.any(T_grid<0):
                     #print('B:',B)
@@ -709,7 +738,7 @@ class Source_MAR_Helium:
 
 
 
-                n_HII_cell, n_HeII_cell, n_HeIII_cell, T_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(n_HeII_cell), np.nan_to_num(n_HeIII_cell), np.nan_to_num(T_grid)
+                n_HII_cell, n_HeII_cell, n_HeIII_cell, T_grid, T_neutral_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(n_HeII_cell), np.nan_to_num(n_HeIII_cell), np.nan_to_num(T_grid), np.nan_to_num(T_neutral_grid)
 
                # n_HII_cell[n_HII_cell>nB_profile_z*HI_frac] = nB_profile_z[n_HII_cell>nB_profile_z*HI_frac]*HI_frac   ## xHII can't be >1
                 #n_HeII_cell[n_HeII_cell>nB_profile_z*(1-HI_frac)] = nB_profile_z[n_HeII_cell>nB_profile_z*(1-HI_frac)]*(1-HI_frac)   ## xHII can't be >1
@@ -730,6 +759,7 @@ class Source_MAR_Helium:
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
                     T_history[str(round(zstep_l[0],2))] = np.copy(T_grid)
+                    T_neutral_hist[str(round(zstep_l[0],2))] = np.copy(T_neutral_grid)
                     xHII_history[str(round(zstep_l[0], 2))] = 1-ydata
 
                     nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z * HI_frac - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
@@ -774,6 +804,7 @@ class Source_MAR_Helium:
         self.z_history = np.array(z_grid)
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
+        self.T_neutral_hist = T_neutral_hist
         self.heat_history = heat_history
         #self.rho_al_history = rho_al_history
         #self.rho_xray_history = , rho_xray_history

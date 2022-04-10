@@ -176,7 +176,12 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     grid_model   = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
-                    Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
+                    if temp =='neutral' :
+                        Temp_profile = grid_model.T_neutral_hist[str(round(zgrid, 2))]
+                    else :
+                        Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
+
+
                     radial_grid  = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
                     #x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
@@ -202,9 +207,8 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
                     renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xal)
 
-                    if temp ==True and np.any(kernel_T>0):
+                    if (temp==True or temp=='neutral') and np.any(kernel_T>0):
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T)/ 1e-7
-
 
                     if lyal == True:
                         Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
@@ -248,7 +252,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         if not os.path.isdir('./grid_output'):
             os.mkdir('./grid_output')
 
-        if temp == True:
+        if temp == True or temp == 'neutral':
             pickle.dump(file=open('./grid_output/T_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Temp)
         if ion == True:
             pickle.dump(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xHII)
