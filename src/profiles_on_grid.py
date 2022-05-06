@@ -10,6 +10,8 @@ from skimage.measure import label
 from scipy.ndimage import distance_transform_edt
 from astropy.convolution import convolve_fft
 import datetime
+from scipy.interpolate import splrep,splev, interp1d
+
 
 
 def profile_1D_ion(r, c1=2, c2=5):  #
@@ -407,7 +409,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         print('there are ', len(Small_regions_labels),'connected regions with less than ',pix_thresh,' pixels. They contain a fraction ', excess_ion / x_ion_tot_i,'of the total ionizing fraction.')
 
 
-        Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None)                               # Do the spreading for the small regions
+        Grid = Spread_Single(Grid, small_regions, Grid_of_1 = Grid_of_1, print_time=None) # Do the spreading for the small regions
         if np.any(Grid[small_regions] > 1):
             print('small regions not correctly spread')
 
@@ -587,4 +589,45 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
     return Grid
 
 
+def stacked_lyal_kernel(rr_al, lyal_array, LBox, nGrid, nGrid_min):
+    """
+    This function is quite original. It paints the lyal profile on a meshgrid whose size is the size where the lyal profile reaches zeros.
+    Hence it is larger than LBox. It has a lower resolution than the Grid (nGrid_min = 64). We then chunk this large box into suboxes of sizes LBox and stack them.
+    This ensures that despite a small LBox, we ensure full periodic boundary conditions and account for the wide spread of lyal profiles.
+    rr_al : the comoving radius range
+    lyal_array : the lyal profile (array)
+    LBox,nGrid : the box size and grid rez of the current run.
+    """
+    profile_xal_HM = interp1d(rr_al, lyal_array, bounds_error=False, fill_value=0)  ##screening
+    ind_lya_0 = np.min(np.where(lyal_array == 0))  ## indice where the lyman alpha profile gets to zero
+    rr_al_max = rr_al[ind_lya_0]  ### max radius that we need to consider to fully include the lyman alpha profile
+    box_extension = int(rr_al_max / (LBox / 2))
 
+    # nGrid_min = 64
+    if box_extension < 1:
+        box_extension = 1
+
+    elif box_extension % 2 == 0:
+        box_extension += 1  ### this need to be even to make things work
+
+    kernel_xal_HM = profile_to_3Dkernel(profile_xal_HM, box_extension * nGrid_min, box_extension * LBox)
+    #nGrid_extd = box_extension * nGrid_min
+    #LBox_extd = box_extension * LBox  ## size and nbr of pix of the larger box
+
+    stacked_xal_ker = np.zeros((nGrid_min, nGrid_min, nGrid_min))
+    for ii in range(box_extension):  ## loop over the box_extension**3 subboxes and stack them
+        for jj in range(box_extension):
+            for kk in range(box_extension):
+                stacked_xal_ker += kernel_xal_HM[ii * nGrid_min:(ii + 1) * nGrid_min,
+                                   jj * nGrid_min:(jj + 1) * nGrid_min, kk * nGrid_min:(kk + 1) * nGrid_min]
+
+    pix_lft = int(box_extension / 2) * nGrid_min  ### coordinate of the central subbox
+    pix_rgth = (1 + int(box_extension / 2)) * nGrid_min
+    ## remove the central box, to then add it later with full nGrid resolution
+    stacked_xal_ker = stacked_xal_ker - kernel_xal_HM[pix_lft:pix_rgth, pix_lft:pix_rgth, pix_lft:pix_rgth]
+
+    incr_rez = np.asarray(np.arange(0, nGrid) * nGrid_min / nGrid, int)  ## indices to then add
+
+    kernel_xal_HM = profile_to_3Dkernel(profile_xal_HM, nGrid, LBox) + stacked_xal_ker[incr_rez, incr_rez, incr_rez]
+
+    return kernel_xal_HM
