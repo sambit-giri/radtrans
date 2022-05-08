@@ -11,6 +11,7 @@ import pickle
 import datetime
 from radtrans.constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
 from radtrans.astro import Read_Rockstar
+from radtrans.cosmo import T_adiab
 import os
 import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel
