@@ -127,7 +127,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], \
                                        halo_catalog['R']
     z = halo_catalog['z']
-    T_adiab_z = Tcmb0 * (1 + z) ** 2 / ( 1 + param.cosmo.z_decoupl)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
+    T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
@@ -254,7 +254,20 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         # Grid_dTb_over_rho_b = factor * np.sqrt(1+z) * Grid_xtot/(1+Grid_xtot)* (1-T_cmb_z/Grid_Temp) * (1-Grid_xHII) #careful, this is dTb/(1+deltab)
 
         ### Add up the adiabatic temperature
-        Grid_Temp += T_adiab_z
+        dens_field = param.sim.dens_field
+        if dens_field is not None and nGrid == 256:
+            dens = np.fromfile(dens_field + filename[4:-5]+ '.0',dtype=np.float32)
+            pkd=dens.reshape(256,256,256)
+            pkd = pkd.T  ### take the transpose to match X_ion map coordinates
+            V_total = LBox**3
+            V_cell = (LBox/nGrid)**3
+            mass = pkd * rhoc0 * V_total
+            rho_m = mass / V_cell
+            delta_b = (rho_m)/np.mean(rho_m)
+        else :
+            delta_b = 0 #rho/rhomean-1 (usual delta here..)
+
+        Grid_Temp += T_adiab_z * (1+delta_b)**(2/3)
 
 
     # Store Tk, xHII, and xal on a grid.
@@ -361,12 +374,15 @@ def grid_dTb(param):
         Grid_xHI = 1-Grid_xHII  ### neutral fraction
 
 
-        Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
-        Grid_xal = Grid_xal * Grid_Sal
-        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
+
+        print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
+        #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
+        Grid_xal = Grid_xal #* Grid_Sal
+        Grid_xcoll = 0 # x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= delta_b * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
 
         Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
         Grid_xtot = Grid_xcoll+Grid_xal
+
         #Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * delta_b    # this is dTb*(1+deltab)
         Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - T_cmb_z / Grid_Temp) * Grid_xtot / (1 + Grid_xtot) * Grid_xHI * delta_b
         pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
