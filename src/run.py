@@ -225,7 +225,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     if lyal == True:
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
 
-                    renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
+                        renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
 
 
                     if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
