@@ -143,7 +143,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         rho_m = mass / V_cell
         delta_b = (rho_m) / np.mean(rho_m)
     else:
-        delta_b = 0  # rho/rhomean-1 (usual delta here..)
+        delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
 
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
@@ -222,8 +222,8 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     #                       x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2,
                     #                       bounds_error=False, fill_value=0)  ##screening
                     #kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
-
-                    kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
+                    if lyal == True:
+                        kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
 
                     renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
 
