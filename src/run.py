@@ -130,13 +130,28 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     z = halo_catalog['z']
     T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
+
+    ### Add up the adiabatic temperature
+    dens_field = param.sim.dens_field
+    if dens_field is not None and nGrid == 256:
+        dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+        pkd = dens.reshape(256, 256, 256)
+        pkd = pkd.T  ### take the transpose to match X_ion map coordinates
+        V_total = LBox ** 3
+        V_cell = (LBox / nGrid) ** 3
+        mass = pkd * rhoc0 * V_total
+        rho_m = mass / V_cell
+        delta_b = (rho_m) / np.mean(rho_m)
+    else:
+        delta_b = 0  # rho/rhomean-1 (usual delta here..)
+
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     T_adiab_z_solver = grid_model.T_history[str(round(zgrid, 2))][-1]  ## solver does not give exactly the correct adiabatic temperature, and this causes troubles
     ##screening for xal
-    epsilon = LBox / nGrid / epsilon_factor
+    #epsilon = LBox / nGrid / epsilon_factor
 
     Indexing = np.argmin(
         np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
@@ -145,7 +160,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     if H_Masses.size == 0:
         print('There aint no sources')
         Grid_xHII = np.array([0])
-        Grid_Temp = np.array([T_adiab_z])
+        Grid_Temp = T_adiab_z * (1+delta_b)**(2/3)
         Grid_xal = np.array([0])
 
     else:
@@ -253,21 +268,6 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                 Grid_xHII = np.array([1])
 
         # Grid_dTb_over_rho_b = factor * np.sqrt(1+z) * Grid_xtot/(1+Grid_xtot)* (1-T_cmb_z/Grid_Temp) * (1-Grid_xHII) #careful, this is dTb/(1+deltab)
-
-        ### Add up the adiabatic temperature
-        dens_field = param.sim.dens_field
-        if dens_field is not None and nGrid == 256:
-            dens = np.fromfile(dens_field + filename[4:-5]+ '.0',dtype=np.float32)
-            pkd=dens.reshape(256,256,256)
-            pkd = pkd.T  ### take the transpose to match X_ion map coordinates
-            V_total = LBox**3
-            V_cell = (LBox/nGrid)**3
-            mass = pkd * rhoc0 * V_total
-            rho_m = mass / V_cell
-            delta_b = (rho_m)/np.mean(rho_m)
-        else :
-            delta_b = 0 #rho/rhomean-1 (usual delta here..)
-
         Grid_Temp += T_adiab_z * (1+delta_b)**(2/3)
 
 
