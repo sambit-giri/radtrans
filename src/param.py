@@ -72,6 +72,7 @@ def solver_par():
         "dn_table" : 100,        ## number of radial sample points for the table
         "method": 'bruteforce',  ## "sol" for using the clean solver and "bruteforce" to just solve the equation by discretizing independently nH and T
         "time_step" : 0.1,       ## time step for the solver, in Myr.
+        "full_output" : False,  # # if True, then will store dTb, Tspin, and nHI profiles. If False, only Temperature and ionised fractions.
     }
     return Bunch(par)
 
