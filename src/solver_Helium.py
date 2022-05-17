@@ -481,6 +481,7 @@ class Source_MAR_Helium:
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
+
                 if l*param.solver.time_step % 10 == 0 and l != 0:
                     #time_grid.append(l * self.dt_init.value)
 
@@ -781,11 +782,11 @@ class Source_MAR_Helium:
             break
 
 
-        self.n_HI_grid = n_HI_cell
+        #self.n_HI_grid = n_HI_cell
         self.n_HII_cell = n_HII_cell
         self.n_B = nB_profile_z       ## total density in nbr of Hatoms per physical-cm**3
         self.T_grid = np.copy(T_grid)
-        
+
         self.z_history = np.array(z_grid)
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
