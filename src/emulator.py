@@ -55,6 +55,7 @@ def gen_training_set(param, bounds, Nsamples,Niteration = 2000,Helium = True):
     LHS = sampler.Lhs(lhs_type='centered', criterion='maximin', iterations=Niteration)
     Sampling = LHS.generate(dimensions=bounds, n_samples=Nsamples, random_state=None) ## shape is (Nsamples,size(bounds) )
 
+    pickle.dump(file = open('./sampling_arr.pkl','wb'),obj = Sampling)
 
     LBox = param.sim.Lbox  # Mpc/h
     z_start = param.solver.z

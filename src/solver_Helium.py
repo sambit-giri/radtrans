@@ -435,7 +435,7 @@ class Source_MAR_Helium:
 
         while True:
 
-            Ion_front_grid,Mh_history,z_grid = [],[],[]
+            Ion_front_grid,Mh_history,z_grid, mean_e_frac = [],[],[], []
             # create a dictionnary to store the profiles at the desired redshifts
             T_history = {}
             T_neutral_hist = {} ### value of the temperature assuming only neutral phase, to compare to HM
@@ -487,6 +487,7 @@ class Source_MAR_Helium:
 
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
+                    mean_e_frac.append(0)
                     #Ng_dot_history.append(0)
                     Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + param.cosmo.z_decoupl)
                     nB_profile_z = self.nB_profile* (1 + zstep_l) ** 3
@@ -656,6 +657,7 @@ class Source_MAR_Helium:
                     print('Source type not implemented yet with Helium.')
                     exit()
 
+
                 n_ee = n_HII_cell + n_HeII_cell + 2 * n_HeIII_cell  #e- density
                 mu = (nB_profile_z * HI_frac + nB_profile_z * 4 * (1-HI_frac))/ (nB_profile_z + n_ee)  #molecular weigth (nH+4*nHe)/(nH+nHe+nee)
 
@@ -740,6 +742,7 @@ class Source_MAR_Helium:
 
                     Mh_history.append(Mh_step_l)
                     z_grid.append(zstep_l[0])
+                    mean_e_frac.append(np.mean(np.nan_to_num(n_ee/n_HII_cell)))
                     T_history[str(round(zstep_l[0],2))] = np.copy(T_grid)
                     T_neutral_hist[str(round(zstep_l[0],2))] = np.copy(T_neutral_grid)
                     xHII_history[str(round(zstep_l[0], 2))] = 1-ydata
@@ -791,7 +794,7 @@ class Source_MAR_Helium:
         self.Mh_history = np.array(Mh_history)
         self.T_history  = T_history
         self.T_neutral_hist = T_neutral_hist
-
+        self.mean_e_frac = mean_e_frac ## mean ratio between electron density and n_HII density.
         self.Ion_front_grid = Ion_front_grid
         self.heat_history = heat_history
         #self.rho_al_history = rho_al_history
