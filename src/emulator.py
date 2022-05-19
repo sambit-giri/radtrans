@@ -42,21 +42,23 @@ def run_RT_for_emul(Mhalo,fstar,parameters,Helium):
     print(' ')
 
 
+def gen_Sampling(bounds, Nsamples,Niteration = 2000):
+    print('generating a training set made of',Nsamples,'samples, for Mhalo in range [',bounds[0][0],bounds[0][1], '], and fstar in the range[',bounds[1][0],bounds[1][1],'].')
+    LHS = sampler.Lhs(lhs_type='centered', criterion='maximin', iterations=Niteration)
+    Sampling = LHS.generate(dimensions=bounds, n_samples=Nsamples, random_state=None) ## shape is (Nsamples,size(bounds) )
+    pickle.dump(file=open('./sampling_arr.pkl', 'wb'), obj=Sampling)
+    print('storing it in ./sampling_arr.pkl')
+    return Sampling
 
 
-def gen_training_set(param, bounds, Nsamples,Niteration = 2000,Helium = True):
+def gen_training_set(param,Sampling, Helium = True):
     """
     This function loops over astro parameters, starting with the halo mass, and generate profiles, scanning the parameter space according to a Latin Hypercube distribution.
     ----------
     bounds : list of tuples [(),(),()]. For now (Mhalo,fstar)
     Nsamples : total number of points in param space for which we solve RT eq.
+    Sampling : output of gen_Sampling
     """
-    print('generating a training set made of',Nsamples,'samples, for Mhalo in range [',bounds[0][0],bounds[0][1], '], and fstar in the range[',bounds[1][0],bounds[1][1],'].')
-    LHS = sampler.Lhs(lhs_type='centered', criterion='maximin', iterations=Niteration)
-    Sampling = LHS.generate(dimensions=bounds, n_samples=Nsamples, random_state=None) ## shape is (Nsamples,size(bounds) )
-
-    pickle.dump(file = open('./sampling_arr.pkl','wb'),obj = Sampling)
-
     LBox = param.sim.Lbox  # Mpc/h
     z_start = param.solver.z
     ### Let's deal with r_end :
