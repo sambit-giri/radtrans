@@ -37,7 +37,9 @@ def run_RT_for_emul(Mhalo,fstar,parameters,Helium):
         grid_model = rad.Source_MAR(param)
 
     grid_model.solve(param)
-    pickle.dump(file=open('./profiles_output/profiles_fst_' + str(round(fstar,2)) + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo), 'wb'),obj=grid_model)
+
+    pickle.dump(file=open('./profiles_output/dict_profiles_fst_' + str(round(fstar,2)) + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo), 'wb'),
+                obj={'z':grid_model.z_history,'r':profile.r_grid_cell,'Temp':grid_model.T_history,'xHII':grid_model.xHII_history} )
     print('... RT equations solved. Profiles stored.')
     print(' ')
 
