@@ -62,12 +62,12 @@ def gen_training_set(param,Sampling, Helium = True):
     Sampling : output of gen_Sampling
     """
     LBox = param.sim.Lbox  # Mpc/h
-    z_start = param.solver.z
+    #z_start = param.solver.z
     ### Let's deal with r_end :
-    cosmofile = param.cosmo.corr_fct
-    vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
-    r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
-    param.solver.r_end = max(LBox /10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
+    #cosmofile = param.cosmo.corr_fct
+    #vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
+    #r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
+    param.solver.r_end = LBox /10 #max(LBox /10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
 
     if param.sim.mpi4py == 'yes':
         import mpi4py.MPI
