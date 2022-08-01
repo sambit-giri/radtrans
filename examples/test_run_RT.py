@@ -30,8 +30,8 @@ param.cosmo.profile = 0
 ## Source sed
 param.source.N_al = 9690
 param.source.Nion = Nion
-param.source.xray_in_ion = 0
-param.source.ion_in_xray = 0
+param.source.xray_in_ion = 1 #0
+param.source.ion_in_xray = 1 #0
 param.source.E_min_xray = Emin
 param.source.E_max_xray = 10000
 param.source.E_min_sed_xray = 500
@@ -62,6 +62,7 @@ grid_model.solve(param)
 
 ## Plot profiles
 import matplotlib.pyplot as plt 
+import matplotlib as mpl
 
 zs   = np.sort(grid_model.z_history[1::4])
 norm = mpl.colors.Normalize(vmin=zs.min(), vmax=zs.max())
