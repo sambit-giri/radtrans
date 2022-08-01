@@ -197,11 +197,11 @@ n_jobs = check_sysargv('--n_jobs=', 64, int)
 n_samples = check_sysargv('--n_samples=', data_train['X'].shape[0], int)
 print(n_jobs,n_samples)
 
-for i in tqdm(np.arange(n_samples)):
-    pp = data_train['X'][i]
-    print('{}/{}...'.format(i+1,data_train['X'].shape[0]))
-    prof = run_rt(i)
-    print('...done.')
+# for i in tqdm(np.arange(n_samples)):
+#     pp = data_train['X'][i]
+#     print('{}/{}...'.format(i+1,data_train['X'].shape[0]))
+#     prof = run_rt(i)
+#     print('...done.')
 
 import multiprocessing
 print('{} CPUs'.format(multiprocessing.cpu_count()))
