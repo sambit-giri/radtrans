@@ -15,10 +15,10 @@ Nion = 4000
 
 # solver param
 param.solver.time_step = 0.05
-param.solver.dn = 50  # rad bins
+param.solver.dn = 500  # rad bins
 param.solver.z_end = 5
 param.solver.z = 25
-param.solver.r_end = 3
+param.solver.r_end = 10
 
 # cosmo
 param.cosmo.Om = 0.31
@@ -51,9 +51,9 @@ param.source.g2 = -0.61
 param.source.g3 = 4
 param.source.g4 = -1
 param.source.Mp = 1e11
-param.source.Mt = 4e9
+param.source.Mt = 7e7
 
-param.source.M_halo = 1e10
+param.source.M_halo = 1e8
 
 grid_model = Source_MAR_Helium(param)
 grid_model.solve(param)
