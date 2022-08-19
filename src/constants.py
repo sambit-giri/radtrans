@@ -13,7 +13,6 @@ Tstar = 0.068   # [K] (astro-ph/0608032 below Eq.11)
 A10 = 2.85e-15  # [1/s] (astro-ph/0608032 below Eq.14)
 
 
-
 nu21  = 1420.4                      # 21cm frequency [MHz]
 nu_LL = 3.2898e15                   # Lyman-limit frequency [Hz]
 nu_al = 2.4674e15                   # Lyman-alpha frequency [Hz]
@@ -47,5 +46,9 @@ kb_eV_per_K = 8.61733e-5  # [eV/K]
 m_e = 9.10938 * 10 ** -31 # [kg]
 m_e_eV = 511e3            # [eV], 511keV
 
+##Thomson scattering cross-section
 sigma_s = 6.6524 * 10 ** -25 # [cm**2]
 Hz_per_eV = 241799050402293
+
+##Thomson scattering cross-section in meters
+sigma_T = 6.6524 * 10 ** -29

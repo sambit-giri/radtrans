@@ -27,7 +27,7 @@ def BB_Planck( nu , T):
     Returns : BB Spectrum [J.s-1.m−2.Hz−1]
     """
     a_ = 2.0 * h__ * nu**3 / c__**2
-    intensity = 4 * pi * a_ / ( exp(h__*nu/(k__*T)) - 1.0)
+    intensity = 4 * np.pi * a_ / ( np.exp(h__*nu/(k__*T)) - 1.0)
     return intensity
 
 
@@ -77,12 +77,9 @@ def NGamDot(param,zz, Mass = None ):
         return Ngam_dot_ion, E_dot_xray * eV_per_erg
 
     elif (param.source.type == 'Ross'):
-        Mhalo = param.source.M_halo
-        if Mhalo > 1e9:
-            g_gamma = 1.7
-        else:
-            g_gamma = 7.1
-        return Mhalo / h0 * Ob / Om * g_gamma / ( 10 * 1e6 * sec_per_year) / m_p_in_Msun, Mhalo / h0 * Ob / Om * 0.086 / (10 * 1e6 * sec_per_year) / m_p_in_Msun    # [s**-1], [s**-1]
+        Mhalo = param.source.M_halo   
+        #### We do that for XRays to avoid having zeros (not to have nans when updating halo mass in the solver..)
+        return Mhalo / h0 * Ob / Om / ( 10 * 1e6 * sec_per_year) / m_p_in_Msun,   1e-80 * 1e10 / h0 * Ob / Om * 0.086 / (10 * 1e6 * sec_per_year) / m_p_in_Msun    # [s**-1], [s**-1]
 
     else:
         print('Source Type not available. Should be SED or Ross.')

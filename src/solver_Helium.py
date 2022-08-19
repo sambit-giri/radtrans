@@ -187,10 +187,48 @@ def generate_table(param, z, n_HI, n_HeI):
             XraySed = Nxray(nu_range / Hz_per_eV, 1e-9,1e-9)
             Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9,1e-9)
 
+        elif (param.source.type == 'Ross'):
+            Ngam_dot_ion, Ngam_dot_xray = NGamDot(param,param.solver.z)
+            sed_ion = param.source.alS_ion
+            sed_xray = param.source.alS_xray
+
+            #norm_ion = (1 - sed_ion) / ((param.source.E_max_sed_ion / h_eV_sec) ** (1 - sed_ion) - (param.source.E_min_sed_ion / h_eV_sec) ** (1 - sed_ion))
+            norm_xray = sed_xray / (-(param.source.E_max_sed_xray / h_eV_sec) ** -sed_xray + (param.source.E_min_sed_xray / h_eV_sec) ** - sed_xray)
+            # nu**-alpha*norm  is a count of [photons.Hz**-1]
+            T_Galaxy = param.source.T_gal
+            nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec), np.log10(param.source.E_max_sed_ion / h_eV_sec), 3000,base=10)
+            norm_ion = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
+
+            I__ = Ngam_dot_ion / norm_ion
+            print('BB spectrum normalized to ', '{:.2e}'.format(Ngam_dot_ion), ' ionizing photons per s, in the energy range [', param.source.E_min_sed_ion, ' ', param.source.E_max_sed_ion, '] eV')
+
+            def Nion(E, n_HI0, nHeI0):
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / param.cosmo.h * (n_HI0 * sigma_HI(E) + nHeI0 * sigma_HeI(E))  ##
+                return np.exp(-int) * I__ * BB_Planck(nu_, T_Galaxy) / h__  # this is [Hz*Hz**-1 . s**-1] normalized to Ngdot in the range min-max
+                   # np.exp(-int) * Ngam_dot_ion * nu_ ** (-sed_ion) * norm_ion * nu_
+
+
+            def Nxray(E, n_HI0, nHeI0):
+                """
+                input : E in eV, n_HIO in Mpc/h.cm**-3 (column density, see in generate table how column density are initialized)
+                output : Divide it by 4*pi*r**2 ,and you get a flux [eV.s-1.r-2.eV-1], r meaning the unit of r
+                """
+                nu_ = Hz_per_eV * E
+                int = cm_per_Mpc / h0 * (n_HI0 * sigma_HI(E)+ nHeI0 * sigma_HeI(E))
+                return np.exp(-int) * Ngam_dot_xray * norm_xray * nu_ ** -sed_xray  # [eV/eV/s]
+
+            nu_range_xray = np.logspace(np.log10(param.source.E_min_xray/ h_eV_sec), np.log10(param.source.E_max_xray/ h_eV_sec), 500, base=10)
+            E_dot_xray = Ngam_dot_xray  # np.trapz(Ngam_dot_xray * norm_xray * nu_range_xray ** -sed_xray,nu_range_xray)
+            
+            #plt.loglog(nu_range, Nion(nu_range / Hz_per_eV, 1e-9))
+            XraySed = Nxray(nu_range / Hz_per_eV, 1e-9,1e-9)
+            Ion_Sed = Nion(nu_range / Hz_per_eV, 1e-9,1e-9)
 
         else:
             print('Source Type not available. Should be SED if you include Helium.')
             exit()
+        print('Source type is', param.source.type,'with ',Ngam_dot_ion,'ionising photons per sec')
 
         E_range_ion_HI  = np.logspace(np.log10(E_HI), np.log10(param.source.E_max_sed_ion), 500, base=10)
         E_range_ion_HeI  = np.logspace(np.log10(E_HeI), np.log10(param.source.E_max_sed_ion), 500, base=10)
@@ -437,6 +475,8 @@ class Source_MAR_Helium:
 
             Ion_front_grid,Mh_history,z_grid, mean_e_frac = [], [], [], []
             # create a dictionnary to store the profiles at the desired redshifts
+            A_hist, B_hist , C_hist, D_hist = {},{},{},{}
+
             T_history = {}
             T_neutral_hist = {} ### value of the temperature assuming only neutral phase, to compare to HM
             T_spin_history = {}
@@ -450,7 +490,12 @@ class Source_MAR_Helium:
             n_HeII_cell  = zeros_like(self.r_grid_cell)
             n_HeIII_cell = zeros_like(self.r_grid_cell)
 
+
+            #### initial conditions :
             T_grid += T_adiab(z,param) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
+            xHII_history[str(z)] = 0
+            T_history[str(z)] = T_grid
+            self.nHI_initial = HI_frac * self.profiles(param, z, Mass=self.M_initial) * (1 + z) ** 3
 
             l = 0
             zstep_l = self.z_initial
@@ -537,7 +582,7 @@ class Source_MAR_Helium:
                     Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l) #[s**-1,eV/s]
 
                 if param.source.type == 'Ross':
-                    Ngam_dot_step_l_ion = NGamDot(copy_param,zstep_l)[0]
+                    Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l)##### Careful, here Edot is zero
 
                 else:
                     Ngam_dot_step_l = NGamDot(copy_param,zstep_l)
@@ -623,23 +668,25 @@ class Source_MAR_Helium:
 
                 """""""""
 
-                I1_HI   =  interpn(points, JHI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
-                I2_HI   =  interpn(points, JHI_2, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
-                I3_HI   =  interpn(points, JHI_3, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2 ## eV/s
+                I1_HI   =  interpn(points, JHI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I2_HI   =  interpn(points, JHI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I3_HI   =  interpn(points, JHI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2 ## eV/s
 
-                I1_HeI = interpn(points, JHeI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I2_HeI = interpn(points, JHeI_2, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I3_HeI = interpn(points, JHeI_3, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_HeI = interpn(points, JHeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I2_HeI = interpn(points, JHeI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I3_HeI = interpn(points, JHeI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
-                I1_HeII = interpn(points, JHeII, (K_HI + K_HeII/0.11,K_HeI), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_HeII = interpn(points, JHeII, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
-                I1_T_HI   = interpn(points, JT_HI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I1_T_HeI  = interpn(points, JT_HeI_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I1_T_HeII = interpn(points, JT_HeII_1, (K_HI + K_HeII/0.11,K_HeI), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HI   = interpn(points, JT_HI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeI  = interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeII = interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
                 """""""""
                 I2_Ta = interpn(points, JT_2a, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
                 I2_Tb = interpn(points, JT_2b, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]),method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2  ## h0 because r is in Mpc/h
+
+
 
                 I1_HI[ionized_ind_HI] = 0
                 I2_HI[ionized_ind_HI] = 0
@@ -649,7 +696,7 @@ class Source_MAR_Helium:
                 n_HeII_cell[ionized_ind_HeII] = 0 # to avoid division by zero
 
 
-                if param.source.type == 'SED':
+                if param.source.type == 'SED' or param.source.type == 'Ross':
                     I1_HI, I2_HI, I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII = np.nan_to_num((I1_HI, I2_HI,I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
                     I1_T_HI_neutral, I1_T_HeI_neutral = np.nan_to_num((I1_T_HI_neutral, I1_T_HeI_neutral)) * E_dot_step_l_xray / E_dot_initial_xray
@@ -687,6 +734,17 @@ class Source_MAR_Helium:
 
                 A = gamma_HI(n_HI_cell, n_HII_cell, n_HeI_cell, T_grid, I1_HI, I2_HI , I3_HI , gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
 
+                if param.solver.full_output == True:
+                    self.I1_HI, self.I2_HI , self.I3_HI = I1_HI, I2_HI , I3_HI
+                    self.n_HI_cell_test =n_HI_cell
+                    self.n_HII_cell_test = n_HII_cell
+                    self.n_HeI_cell_test = n_HeI_cell
+                    self.n_HeII_cell = n_HeII_cell
+                    self.n_HeIII_cell = n_HeIII_cell
+                    self.Tgrid_test = T_grid
+                    self.gamma_2c_test = gamma_2c
+
+
                 B = gamma_HeI(n_HI_cell,n_HII_cell, n_HeI_cell,I1_HeI, I2_HeI, I3_HeI) * n_HeI_cell + beta_HeI(T_grid) * n_ee * n_HeI_cell - beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeII(T_grid) * n_ee * n_HeII_cell + alpha_HeIII(T_grid) * n_ee * n_HeIII_cell - zeta_HeII(T_grid) * n_ee * n_HeII_cell
 
                 #C = I1_HeII * n_HeII_cell + beta_HeII(T_grid) * n_ee * n_HeII_cell - alpha_HeIII(T_grid) * n_ee * n_HeIII_cell
@@ -714,12 +772,12 @@ class Source_MAR_Helium:
 
                 T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
                 T_grid = T_nB /(nB_profile_z * (1+zstep_l)**3 / (1+z_previous)**3) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
-                T_grid = T_grid.clip(min=0)
+                T_grid = T_grid.clip(min=T_neutral_grid[-1])
 
                 #### Test against HM. Temperature profiles without ionisation included
                 T_nB_neutral = T_neutral_grid * nB_profile_z + dt_init.value * D_neutral
                 T_neutral_grid = T_nB_neutral/( nB_profile_z * (1+zstep_l)**3 / (1+z_previous)**3)
-                T_neutral_grid = T_neutral_grid.clip(min=0)
+                T_neutral_grid = T_neutral_grid.clip(min=T_neutral_grid[-1])  #### testing this. We don't want anything cooler than the adiabatic temp
 
 
                 n_HII_cell, n_HeII_cell, n_HeIII_cell, T_grid, T_neutral_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(n_HeII_cell), np.nan_to_num(n_HeIII_cell), np.nan_to_num(T_grid), np.nan_to_num(T_neutral_grid)
@@ -762,7 +820,7 @@ class Source_MAR_Helium:
                         rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l, Mh_step_l) * (1 + zstep_l) ** 3 #bar/physical cm**3
                         xHI_    = ydata   ### neutral fraction
                         xcoll_  = x_coll(zstep_l, T_grid, xHI_, rho_bar)
-                        rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l, param)[0]
+                        rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l, zstep_l, param)[0]
                         x_alpha_ = 1.81e11 * (rho_alpha_+J0xray) * S_alpha(zstep_l, T_grid, xHI_) / (1 + zstep_l)
                         x_tot_   = (x_alpha_ + xcoll_)
                         #x_tot_history[str(round(zstep_l,2))]   = np.copy(x_tot_)
@@ -774,6 +832,8 @@ class Source_MAR_Helium:
                         #rho_xray_history[str(round(zstep_l, 2))] = np.copy(J0xray)
 
                         dTb_history[str(zstep_l)] = dTb(zstep_l, T_spin_history[str(zstep_l)], nHI_norm[str(zstep_l)], param)
+
+                        A_hist[str(zstep_l)], B_hist[str(zstep_l)], D_hist[str(zstep_l)] = A,B,D
 
                 l += 1
 
@@ -805,6 +865,8 @@ class Source_MAR_Helium:
         self.dTb_history = dTb_history
         self.T_spin_history = T_spin_history
         self.xHII_history=xHII_history
+
+        self.A_hist, self.B_hist, self.D_hist= A_hist, B_hist, D_hist
 
     def fit(self):
         p0 = [30/self.Ion_front_grid[-1][0],  self.Ion_front_grid[-1][0]]  # intial guess for the fit. c1 has to be increased when the ion front goes to smaller scales (sharpness, log scale)
