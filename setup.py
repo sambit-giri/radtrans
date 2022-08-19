@@ -14,6 +14,7 @@ setup(name='radtrans',
       package_dir = {'radtrans' : 'src'},
       packages=['radtrans'],
       package_data={'radtrans':['input_data/*.dat','files/*.dat']},
-      install_requires=['numpy','scipy', 'joblib', 'tqdm'],# 'tools21cm@git+https://github.com/sambit-giri/tools21cm.git', 'joblib', 'tqdm'],
+      install_requires=['numpy','scipy', 'joblib', 'tqdm', 'astropy', 
+                        'scikit-image', 'scikit-optimize'],
       #include_package_data=True,
 )

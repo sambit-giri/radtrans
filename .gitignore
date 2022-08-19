@@ -2,6 +2,6 @@ site/
 build
 dist
 *.egg-info
-
+examples/*.pkl
 
 
