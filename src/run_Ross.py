@@ -20,7 +20,7 @@ from .couplings import eps_lyal
 
 
 
-def Read_Ross_halo(file,param):
+def Read_Ross_halo(file,param,Npart_ = 4000):
     """
     Read in a Ross halo catalog and return a dictionnary with all the information stored.
     M= Mgrid*Particle_Mesh**3 (mass is expressed in grid units)
@@ -30,7 +30,9 @@ def Read_Ross_halo(file,param):
     """
 
     Lbox  = param.sim.Lbox   # Mpc/h, Ross 2019 box size
-    Npart = 8000  # Npart per length from the sim
+    if Lbox!= 244 :
+        print('WARNING : in C2ray sim, Lbox should be 244 Mpc/h')
+    Npart = Npart_  # Npart per length from the sim
     Ncell = 250     # number of cells used to give halo positions. Fixed number, corresponds to Ross simulation
 
     Om = param.cosmo.Om
@@ -52,7 +54,7 @@ def Read_Ross_halo(file,param):
             Y.append(int(line[1]))
             Z.append(int(line[2]))
 
-    LMACHs, HMACHs = np.array(LMACHs) * Conversion * param.cosmo.h   , np.array(HMACHs) * Conversion *param.cosmo.h  ### in Msol
+    LMACHs, HMACHs = np.array(LMACHs) * Conversion * param.cosmo.h , np.array(HMACHs) * Conversion * param.cosmo.h  ### in Msol/h
 
     X_pos = (np.array(X) - 1) / Ncell * Lbox  # Grid_X goes from 1 to Ncell. Hence the "-1"
     Y_pos = (np.array(Y) - 1) / Ncell * Lbox
@@ -327,3 +329,53 @@ def rho_alpha_Ross(r_grid, MM, zz, param):
 
     return rho_alpha
 
+
+
+def xHII_approx_Ross(filename,param):
+
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    halo_catalog = Read_Ross_halo(catalog_dir + filename, param)
+    z_start = param.solver.z
+    HMACHs, H_X, H_Y, H_Z, LMACHs = halo_catalog['HMACHs'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'],   halo_catalog['LMACHs']  ### Fortran so 1,1,1 is 0,0,0
+    H_Masses = 7.1 * LMACHs + 1.7 * HMACHs
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+   # filename = '12.903-coarsest_wsubgrid_sources.dat'
+    z = float(filename[0:-30])
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
+    LBox = param.sim.Lbox
+    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]),'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+
+    Ionized_vol = 0
+    for i in range(len(M_Bin)):
+        indices = np.where( Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
+
+        if len(indices[0]) > 0:
+            nbr_halos = len(indices[0])
+            print(nbr_halos,'halos in mass bin', i)
+            grid_model = pickle.load( file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
+            radial_grid = grid_model.r_grid_cell
+
+            x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
+
+            bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
+            Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
+
+    x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
+    return zgrid, x_HII
+
+
+def GS_Ross(param):
+    catalog_dir = param.sim.halo_catalogs
+    xHII = []
+    z = []
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        zz,xHII__ = xHII_approx_Ross(filename,param)
+        xHII.append(xHII__)
+        z.append(zz)
+    xHII, z_array = np.array(xHII), np.array(z)
+    matrice = np.array([xHII, z_array])
+    z, xHII = matrice[:, matrice[0].argsort()] ## sort according to zarray
+    return {'z':z,'xHII':xHII}
