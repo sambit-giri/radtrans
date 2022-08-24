@@ -31,7 +31,7 @@ def Read_Ross_halo(file,param,Npart_ = 4000):
 
     Lbox  = param.sim.Lbox   # Mpc/h, Ross 2019 box size
     if param.sim.Ncell <250:
-        print('WARNING ! CANT HAVE LESS THAN 250 CELLS WHEN USING C2RAY HALO CATALOGS'
+        print('WARNING ! CANT HAVE LESS THAN 250 CELLS WHEN USING C2RAY HALO CATALOGS')
     if Lbox!= 244 :
         print('WARNING : in C2ray sim, Lbox should be 244 Mpc/h')
     Npart = Npart_  # Npart per length from the sim
