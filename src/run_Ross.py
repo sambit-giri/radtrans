@@ -30,6 +30,8 @@ def Read_Ross_halo(file,param,Npart_ = 4000):
     """
 
     Lbox  = param.sim.Lbox   # Mpc/h, Ross 2019 box size
+    if param.sim.Ncell <250:
+        print('WARNING ! CANT HAVE LESS THAN 250 CELLS WHEN USING C2RAY HALO CATALOGS'
     if Lbox!= 244 :
         print('WARNING : in C2ray sim, Lbox should be 244 Mpc/h')
     Npart = Npart_  # Npart per length from the sim
@@ -67,7 +69,7 @@ def Read_Ross_halo(file,param,Npart_ = 4000):
 
 
 
-def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
+def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion=True):
     """
     Paint the Tk, xHII and Lyman alpha profiles on a grid for a single snapshot named filename.
 
@@ -75,7 +77,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
     ----------
     param : dictionnary containing all the input parameters
     filename : the name of the snapshot, contained in param.sim.halo_catalogs.
-
+    previous_z : the redshift of the snapshot one time step before the filename snapshot. Used for the feedback (ionised cells with xHII>0.1 do not form stars)
     Returns
     -------
     Does not return anything. Paints and stores the grids on the directory grid_outputs.
@@ -121,6 +123,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
     Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
     print('There are', H_Masses.size, 'halos at z=', z, )
 
+
+
+
     if H_Masses.size == 0:
         print('There aint no sources')
         Grid_xHII = np.array([0])
@@ -128,8 +133,26 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
         Grid_xal = np.array([0])
 
     else:
-        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # comoving Halo positions
-        Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
+        if previous_z is not None:
+            xHII_before = pickle.load( file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + str(previous_z), 'rb'))
+        else:
+            xHII_before = np.array([0])
+
+        feedback_indices = np.where(xHII_before > 0.1)
+
+        Grid_HMass = np.zeros((nGrid, nGrid, nGrid))
+        H_X_Grid = np.array([H_X / LBox * nGrid]).astype(int)[0]
+        H_Y_Grid = np.array([H_Y / LBox * nGrid]).astype(int)[0]
+        H_Z_Grid = np.array([H_Z / LBox * nGrid]).astype(int)[0]
+        Grid_HMass[H_X_Grid, H_Y_Grid, H_Z_Grid] = H_Masses  # create a grid with halo masses stored at halo positions
+        Grid_HMass[feedback_indices] = 0                     # write 0 where feedback operates
+        H_Masses_SF = Grid_HMass[np.where(Grid_HMass > 0)]   # new array of star forming halos
+        H_X_Grid_SF, H_Y_Grid_SF, H_Z_Grid_SF = np.where(Grid_HMass > 0) #  and their position on the grid
+
+        Indexing = np.argmin( np.abs(np.log10(H_Masses_SF[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
+        print('There are', H_Masses_SF.size, 'star forming halos halos at z=', z, )
+
+        Pos_Bubbles_Grid = np.vstack( (H_X_Grid_SF, H_Y_Grid_SF, H_Z_Grid_SF )).T
         Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1  # you don't want Pos_Bubbles_Grid==nGrid
 
         Grid_xHII_i = np.zeros((nGrid, nGrid, nGrid))
@@ -138,7 +161,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
 
         for i in range(len(M_Bin)):
             indices = np.where( Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
+
             if len(indices[0]) > 0:
+
                 grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
                 if temp == 'neutral':
                     Temp_profile = grid_model.T_neutral_hist[str(round(zgrid, 2))]
@@ -174,10 +199,10 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
                     renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xal)
 
                 if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
-                    Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7
+                    Grid_Temp += put_profiles_group(Pos_Bubbles_Grid, kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7
 
                 if lyal == True:
-                    Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
+                    Grid_xal += put_profiles_group(Pos_Bubbles_Grid, kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
 
 
                 # if np.any(kernel_xHII > 0) and np.max(kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
@@ -193,7 +218,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
                         inner_ind = np.where(radial_grid * (1 + z) < cell_length)
                         kernel_xHII[central_cell] = 1 / cell_vol * np.trapz(4 * np.pi * radial_grid[inner_ind] ** 2 * x_HII_profile[inner_ind],radial_grid[inner_ind]) * (1 + z) ** 3
 
-                    Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
+                    Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid, kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
 
 
                 #ara = ara+2
@@ -237,7 +262,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
 
 
 
-def paint_profiles(param,temp =True,lyal=True,ion=True):
+def paint_profiles(param,temp =True,lyal=True,ion=True,feedback=False):
     """
     Parameters
     ----------
@@ -269,9 +294,25 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
     else :
         print('param.sim.mpi4py should be yes or no')
 
+    z_liste = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        if rank == ii % size:
-            paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
+        z_liste.append(float(filename[0:-30]))
+    catalog_name = filename[-30:]
+
+    z_liste.sort()
+    z_liste = np.flip(z_liste)
+
+    for ii, zz in enumerate(z_liste):
+        filename = "{0:.3f}".format(float(zz))+catalog_name
+        if ii == 0: #paint first snapshot
+            paint_profile_single_snap(filename,param,previous_z = None,temp=temp, lyal=lyal, ion=ion)
+        else :
+            if feedback:
+                paint_profile_single_snap(filename, param,previous_z=z_liste[ii-1], temp=temp, lyal=lyal, ion=ion)
+            else :
+                paint_profile_single_snap(filename, param,previous_z=None, temp=temp, lyal=lyal, ion=ion)
+
+
 
     endtime = datetime.datetime.now()
     print('END. Stored Tgrid, xal grid and xHII grid. It took in total: ',endtime-starttimeprofile,'to paint the grids.')
@@ -378,7 +419,6 @@ def xHII_approx_Ross(filename,param):
 
             bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
             Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
-            print('bubble_volume is ',bubble_volume)
     x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
     return zgrid, x_HII
 
@@ -392,8 +432,8 @@ def GS_Ross(param):
         xHII.append(xHII__)
         z.append(zz)
     xHII, z_array = np.array(xHII), np.array(z)
-    matrice = np.array([xHII, z_array])
+    matrice = np.array([ z_array,xHII])
     z, xHII = matrice[:, matrice[0].argsort()] ## sort according to zarray
-    Dict : {'z':z,'xHII':xHII}
+    Dict = {'z':z,'xHII':xHII}
     pickle.dump(file = open('./GS'+param.sim.model_name+'.pkl','wb'),obj = Dict)
     return Dict
