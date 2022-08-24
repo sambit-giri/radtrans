@@ -163,8 +163,10 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
                 profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
                 kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
 
+
                 profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False,  fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                 kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
+
 
 
                 if lyal == True:
@@ -177,9 +179,24 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True):
                 if lyal == True:
                     Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum(kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
 
+
                 # if np.any(kernel_xHII > 0) and np.max(kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                 if np.any(kernel_xHII > 0) and ion == True:
+
+                    #### To deal with the situation where the ion front is smaller than the grid cell size
+                    ion_front = np.argmin(np.abs(x_HII_profile - 0.5))
+                    cell_length = LBox / nGrid
+                    cell_vol = cell_length ** 3
+                    central_cell = (int(nGrid / 2), int(nGrid / 2), int(nGrid / 2))
+
+                    if radial_grid[ion_front] * (1 + z) < cell_length:  # if ion fron tis smaller than grid cell
+                        inner_ind = np.where(radial_grid * (1 + z) < cell_length)
+                        kernel_xHII[central_cell] = 1 / cell_vol * np.trapz(4 * np.pi * radial_grid[inner_ind] ** 2 * x_HII_profile[inner_ind],radial_grid[inner_ind]) * (1 + z) ** 3
+
                     Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
+
+
+                #ara = ara+2
 
             endtimeprofile = datetime.datetime.now()
             print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
@@ -340,7 +357,6 @@ def xHII_approx_Ross(filename,param):
     HMACHs, H_X, H_Y, H_Z, LMACHs = halo_catalog['HMACHs'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'],   halo_catalog['LMACHs']  ### Fortran so 1,1,1 is 0,0,0
     H_Masses = 7.1 * LMACHs + 1.7 * HMACHs
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
-   # filename = '12.903-coarsest_wsubgrid_sources.dat'
     z = float(filename[0:-30])
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
     LBox = param.sim.Lbox
@@ -362,7 +378,7 @@ def xHII_approx_Ross(filename,param):
 
             bubble_volume = np.trapz(4 * np.pi * radial_grid ** 2 * x_HII_profile, radial_grid)
             Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
-
+            print('bubble_volume is ',bubble_volume)
     x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
     return zgrid, x_HII
 
