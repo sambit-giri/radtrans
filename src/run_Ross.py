@@ -394,4 +394,6 @@ def GS_Ross(param):
     xHII, z_array = np.array(xHII), np.array(z)
     matrice = np.array([xHII, z_array])
     z, xHII = matrice[:, matrice[0].argsort()] ## sort according to zarray
-    return {'z':z,'xHII':xHII}
+    Dict : {'z':z,'xHII':xHII}
+    pickle.dump(file = open('./GS'+param.sim.model_name+'.pkl','wb'),obj = Dict)
+    return Dict
