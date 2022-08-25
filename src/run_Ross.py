@@ -140,6 +140,7 @@ def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion
 
         feedback_indices = np.where(xHII_before > 0.1)
 
+
         Grid_HMass = np.zeros((nGrid, nGrid, nGrid))
         H_X_Grid = np.array([H_X / LBox * nGrid]).astype(int)[0]
         H_Y_Grid = np.array([H_Y / LBox * nGrid]).astype(int)[0]
@@ -147,7 +148,7 @@ def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion
         Grid_HMass[H_X_Grid, H_Y_Grid, H_Z_Grid] = H_Masses  # create a grid with halo masses stored at halo positions
         Grid_HMass[feedback_indices] = 0                     # write 0 where feedback operates
         H_Masses_SF = Grid_HMass[np.where(Grid_HMass > 0)]   # new array of star forming halos
-        H_X_Grid_SF, H_Y_Grid_SF, H_Z_Grid_SF = np.where(Grid_HMass > 0) #  and their position on the grid
+        H_X_Grid_SF, H_Y_Grid_SF, H_Z_Grid_SF =  np.where(Grid_HMass > 0) #  and their position on the grid
 
         Indexing = np.argmin( np.abs(np.log10(H_Masses_SF[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
         print('There are', H_Masses_SF.size, 'star forming halos halos at z=', z, )
@@ -164,7 +165,7 @@ def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion
 
             if len(indices[0]) > 0:
 
-                grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+                grid_model = pickle.load( file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
                 if temp == 'neutral':
                     Temp_profile = grid_model.T_neutral_hist[str(round(zgrid, 2))]
                 else:
@@ -172,12 +173,9 @@ def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion
 
                 radial_grid = grid_model.r_grid_cell
                 x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
-                # x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
 
                 r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile. Never goes further away than 100 pMpc/h (checked)
                 rho_alpha_ = rho_alpha_Ross(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
-                # T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
-                # xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
                 x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # * S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
                 #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
@@ -216,9 +214,10 @@ def paint_profile_single_snap(filename,param,previous_z,temp =True,lyal=True,ion
 
                     if radial_grid[ion_front] * (1 + z) < cell_length:  # if ion fron tis smaller than grid cell
                         inner_ind = np.where(radial_grid * (1 + z) < cell_length)
-                        kernel_xHII[central_cell] = 1 / cell_vol * np.trapz(4 * np.pi * radial_grid[inner_ind] ** 2 * x_HII_profile[inner_ind],radial_grid[inner_ind]) * (1 + z) ** 3
+                        kernel_xHII[central_cell] = 1 / cell_vol * np.trapz(4 * np.pi * radial_grid[inner_ind] ** 2 * x_HII_profile[inner_ind], radial_grid[inner_ind]) * (1 + z) ** 3
 
-                    Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid, kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
+
+                    Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7
 
 
                 #ara = ara+2
