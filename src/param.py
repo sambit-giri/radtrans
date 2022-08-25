@@ -115,6 +115,7 @@ def cosmo_par():
     "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
     "profile" : 0,          # 0 for constant background density, 1 for 2h term profile
     "z_decoupl" : 135,      # redshift at which the gas decouples from CMB and starts cooling adiabatically according to Tcmb0*(1+z)**2/(1+zdecoupl)
+    "Temp_IC" : 1,          # Initial conditions to compute the temperature profiles. 1 --> for adiabatic IC, 1e-50 or less --> for zero K IC.
     }
     return Bunch(par)
 

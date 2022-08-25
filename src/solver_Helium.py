@@ -17,7 +17,7 @@ from .couplings import x_coll, rho_alpha, S_alpha, J0_xray_lyal
 import copy
 from scipy.optimize import curve_fit
 from scipy.integrate import cumtrapz
-
+import matplotlib.pyplot as plt
 
 ###Constants
 facr = 1 * u.Mpc
@@ -159,7 +159,7 @@ def generate_table(param, z, n_HI, n_HeI):
 
     else:
         print('Calculating table...')
-        if (param.source.type == 'SED'):
+        if (param.source.type == 'SED' or param.source.type == 'Miniqsos'):
             Ngam_dot_ion, E_dot_xray = NGamDot(param,param.solver.z)
             sed_ion = param.source.alS_ion
             sed_xray = param.source.alS_xray
@@ -340,7 +340,7 @@ class Source_MAR_Helium:
     def __init__(self, param):
 
         if param.source.type == 'Miniqsos':
-            self.M = param.source.M_miniqso
+            self.M = param.source.M_halo
         elif param.source.type == 'SED':
             self.M = param.source.M_halo
         elif param.source.type == 'Galaxies_MAR' or param.source.type == 'Ross' :
@@ -356,6 +356,11 @@ class Source_MAR_Helium:
         self.M_halo = param.source.M_halo #Msol/h
         self.R_halo = R_halo(self.M_halo/h0, self.z, param)  # physical halo size in Mpc
         self.r_start = self.R_halo * param.cosmo.h # Mpc/h
+
+        if param.source.type == 'Ross':
+            print('Source type is Ross, we choose rstart = Rhalo / 1')
+            self.r_start = self.r_start/1  # Mpc/h
+
         print('R_halo is :', '{:.2e}'.format(self.R_halo), 'Mpc/h')
         self.r_end = param.solver.r_end  # maximal distance from source
         self.dn = param.solver.dn
@@ -578,7 +583,7 @@ class Source_MAR_Helium:
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 copy_param.source.M_halo = Mh_step_l
 
-                if param.source.type == 'SED':
+                if param.source.type == 'SED' or 'Miniqsos':
                     Ngam_dot_step_l_ion, E_dot_step_l_xray = NGamDot(copy_param,zstep_l) #[s**-1,eV/s]
 
                 if param.source.type == 'Ross':
@@ -663,29 +668,30 @@ class Source_MAR_Helium:
                 I1_T_HeI  = (interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[1:]), method='linear')) / r2 /dr/n_HeI_cell / cm_per_Mpc ** 3 / 4 / pi  * h0**3
                 I1_T_HeII = (interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') - interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[1:]/0.11,K_HeI[:-1]), method='linear')) /r2 /dr/n_HeII_cell / cm_per_Mpc ** 3 / 4 / pi  * h0**3
 
+
+
                 ### we add zero to the right of these arrays to match dimension
                 #I1_HI, I2_HI, I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII,I1_T_HI, I1_T_HeI, I1_T_HeII =  add_zero_right(I1_HI), add_zero_right( I2_HI), add_zero_right( I3_HI), add_zero_right( I1_HeI), add_zero_right( I2_HeI), add_zero_right( I3_HeI), add_zero_right( I1_HeII), add_zero_right( I1_T_HI), add_zero_right( I1_T_HeI), add_zero_right( I1_T_HeII)
 
                 """""""""
 
-                I1_HI   =  interpn(points, JHI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
-                I2_HI   =  interpn(points, JHI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
-                I3_HI   =  interpn(points, JHI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2 ## eV/s
+                I1_HI   =  interpn(points, JHI_1, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I2_HI   =  interpn(points, JHI_2, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2
+                I3_HI   =  interpn(points, JHI_3, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi  * h0**2 ## eV/s
 
-                I1_HeI = interpn(points, JHeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I2_HeI = interpn(points, JHeI_2, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I3_HeI = interpn(points, JHeI_3, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_HeI = interpn(points, JHeI_1, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I2_HeI = interpn(points, JHeI_2, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I3_HeI = interpn(points, JHeI_3, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
-                I1_HeII = interpn(points, JHeII, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_HeII = interpn(points, JHeII, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
-                I1_T_HI   = interpn(points, JT_HI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I1_T_HeI  = interpn(points, JT_HeI_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I1_T_HeII = interpn(points, JT_HeII_1, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HI   = interpn(points, JT_HI_1, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeI  = interpn(points, JT_HeI_1, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I1_T_HeII = interpn(points, JT_HeII_1, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear')/ r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
 
                 """""""""
-                I2_Ta = interpn(points, JT_2a, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]), method='linear') / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
-                I2_Tb = interpn(points, JT_2b, (K_HI[:-1] + K_HeII[:-1]/0.11,K_HeI[:-1]),method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2  ## h0 because r is in Mpc/h
-
+                I2_Ta = interpn(points, JT_2a, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]), method='linear') / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2
+                I2_Tb = interpn(points, JT_2b, (K_HI[1:] + K_HeII[1:]/0.11,K_HeI[1:]),method='linear')  / r2 / cm_per_Mpc ** 2 / 4 / pi*h0**2  ## h0 because r is in Mpc/h
 
 
                 I1_HI[ionized_ind_HI] = 0
@@ -696,7 +702,7 @@ class Source_MAR_Helium:
                 n_HeII_cell[ionized_ind_HeII] = 0 # to avoid division by zero
 
 
-                if param.source.type == 'SED' or param.source.type == 'Ross':
+                if param.source.type == 'SED' or param.source.type == 'Ross' or param.source.type == 'Miniqsos':
                     I1_HI, I2_HI, I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII = np.nan_to_num((I1_HI, I2_HI,I3_HI, I1_HeI, I2_HeI, I3_HeI, I1_HeII)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I1_T_HeI, I1_T_HeII, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
                     I1_T_HI_neutral, I1_T_HeI_neutral = np.nan_to_num((I1_T_HI_neutral, I1_T_HeI_neutral)) * E_dot_step_l_xray / E_dot_initial_xray
@@ -762,9 +768,10 @@ class Source_MAR_Helium:
                # n_HeIII_cell= n_HeII_cell + dt_init.value * C
                 n_HeIII_cell = (1-HI_frac) * nB_profile_z - n_HeI_cell - n_HeII_cell
 
-                n_HII_cell[n_HII_cell > nB_profile_z * HI_frac] = HI_frac * nB_profile_z[ n_HII_cell > nB_profile_z * HI_frac]  # xHII can't be >1
                 n_HeII_cell[n_HeII_cell > nB_profile_z * (1 - HI_frac)] = (1 - HI_frac) * nB_profile_z[   n_HeII_cell > nB_profile_z * (1 - HI_frac)]  # xHeII can't be >1
                 n_HeIII_cell[n_HeIII_cell > nB_profile_z * (1 - HI_frac)] = (1 - HI_frac) * nB_profile_z[    n_HeIII_cell > nB_profile_z * (1 - HI_frac)]  # xHeIII can't be >1
+
+
 
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
                 n_HeII_cell[np.where(n_HeII_cell<0)] = 0
