@@ -437,3 +437,49 @@ def GS_Ross(param):
     Dict = {'z':z,'xHII':xHII}
     pickle.dump(file = open('./GS'+param.sim.model_name+'.pkl','wb'),obj = Dict)
     return Dict
+
+
+
+
+def compute_GS(param):
+    """
+    Reads in the grids and compute the global quantities averaged.
+    """
+    catalog_dir = param.sim.halo_catalogs
+    model_name = param.sim.model_name
+    nGrid = param.sim.Ncell
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob,param.cosmo.h
+    factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
+    z_, Tk, dTb, x_HII,x_al = [], [], [], [], []
+
+
+    for ii, filename in enumerate(os.listdir(catalog_dir)):
+        zz_ = float(filename[0:-30])
+        Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + str(zz_), 'rb'))
+        Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + str(zz_), 'rb'))
+        Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + str(zz_), 'rb'))
+
+        xal_  = np.mean(Grid_xal*S_alpha(zz_, Grid_Temp, 1 - Grid_xHII))
+        xcol_ = 0
+        Tcmb = (1 + zz_) * Tcmb0
+
+        z_.append(zz_)
+        Temp = np.mean(Grid_Temp)
+        Tk.append(Temp)
+        xHII_ = np.mean(Grid_xHII)
+        x_HII.append(xHII_)
+        x_al.append(xal_)
+
+        dTb.append( factor * np.sqrt(1 + zz_) * (1 - Tcmb / Temp) * xal_/(1 + xal_) * (1 - xHII_))
+
+    if not os.path.isdir('./physics'):
+        os.mkdir('./physics')
+
+    z_, Tk, x_HII, x_al,dTb = np.array(z_),np.array(Tk),np.array(x_HII),np.array(x_al), np.array(dTb)
+    matrice = np.array([z_, Tk, x_HII, x_al,dTb])
+    z_, Tk, x_HII, x_al,dTb = matrice[:, matrice[0].argsort()]  ## sort according to z_
+
+
+    Dict = {'Tk':Tk,'x_HII':x_HII,'x_al':x_al,'dTb':dTb,'z':z_}
+    pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
+
