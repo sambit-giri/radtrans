@@ -29,17 +29,17 @@ def run_RT_single_source(Mhalo,parameters,Helium):
     So no need to do as we previously did (estimate r_end from the Stromgren sphere radius...)
     """
 
+    param = copy.deepcopy(parameters)
+    param.source.M_halo = Mhalo
+    LBox = param.sim.Lbox  # Mpc/h
+    nGrid = param.sim.Ncell  # number of grid cells
+    z_start = param.solver.z
+    model_name = param.sim.model_name
 
     pkl_name = './profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo)
     if exists(pkl_name):
         print('Mhalo',Mhalo,'already computed.')
     else:
-        param = copy.deepcopy(parameters)
-        param.source.M_halo = Mhalo
-        LBox = param.sim.Lbox  # Mpc/h
-        nGrid = param.sim.Ncell  # number of grid cells
-        z_start = param.solver.z
-        model_name = param.sim.model_name
         ### Let's deal with r_end :
         cosmofile = param.cosmo.corr_fct
         vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
