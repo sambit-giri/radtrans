@@ -30,11 +30,11 @@ def global_signal(param,heat=None,redshifting = 'yes'):
         catalog = catalog_dir + filename
         halo_catalog = Read_Rockstar(catalog)
 
-        #if heat is not None :
-        #    heat_per_baryon = G_heat_approx(param,halo_catalog)
-        #else :
-        #    heat_per_baryon = 0
-        heat_per_baryon.append(G_heat_approx(param, halo_catalog))
+        if heat is not None :
+            heat_per_baryon.append(G_heat_approx(param,halo_catalog))
+        else :
+            heat_per_baryon.append(0)
+
 
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog)
@@ -58,7 +58,7 @@ def global_signal(param,heat=None,redshifting = 'yes'):
         sfrd.append(SFRD)
 
     sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon)
-    matrice = np.array([z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon])
+    matrice = np.array([z_array, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon])
     z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
     return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon}
@@ -167,7 +167,7 @@ def mean_Jalpha_approx(param,halo_catalog):
 
             #grid_model.rho_al_history[str(round(zgrid, 2))]
             #x_alpha = grid_model.x_al_history[str(round(zgrid, 2))]
-            rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
+            rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
             T_extrap  = np.interp(r_lyal,r_grid,grid_model.T_history[str(round(zgrid, 2))])
             xHII_extrap  = np.interp(r_lyal,r_grid,grid_model.xHII_history[str(round(zgrid, 2))])
             x_alpha   = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1-xHII_extrap) / (1 + zgrid)

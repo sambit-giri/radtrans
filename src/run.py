@@ -18,7 +18,7 @@ from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast
 from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from joblib import Parallel, delayed
 from radtrans.global_qty import J_alpha_n
-
+from os.path import exists
 
 
 
@@ -28,29 +28,35 @@ def run_RT_single_source(Mhalo,parameters,Helium):
     Regarding r_end : since we vectorized the radial direction, we can set r_end to the value that we want and increase dn if needed !
     So no need to do as we previously did (estimate r_end from the Stromgren sphere radius...)
     """
-    param = copy.deepcopy(parameters)
-    param.source.M_halo = Mhalo
-    LBox = param.sim.Lbox  # Mpc/h
-    nGrid = param.sim.Ncell  # number of grid cells
-    z_start = param.solver.z
-    model_name = param.sim.model_name
-    ### Let's deal with r_end :
-    cosmofile = param.cosmo.corr_fct
-    vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
-    r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
 
-    param.solver.r_end = max(LBox /10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
-    param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
 
-    print('Solving the RT equations ..')
-    if Helium == True:
-        grid_model = rad.Source_MAR_Helium(param)
-    else :
-        grid_model = rad.Source_MAR(param)
-    grid_model.solve(param)
-    pickle.dump(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo), 'wb'),obj=grid_model)
-    print('... RT equations solved. Profiles stored.')
-    print(' ')
+    pkl_name = './profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo)
+    if exists(pkl_name):
+        print('Mhalo',Mhalo,'already computed.')
+    else:
+        param = copy.deepcopy(parameters)
+        param.source.M_halo = Mhalo
+        LBox = param.sim.Lbox  # Mpc/h
+        nGrid = param.sim.Ncell  # number of grid cells
+        z_start = param.solver.z
+        model_name = param.sim.model_name
+        ### Let's deal with r_end :
+        cosmofile = param.cosmo.corr_fct
+        vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
+        r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
+
+        param.solver.r_end = max(LBox /10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
+        param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
+
+        print('Solving the RT equations ..')
+        if Helium == True:
+            grid_model = rad.Source_MAR_Helium(param)
+        else :
+            grid_model = rad.Source_MAR(param)
+        grid_model.solve(param)
+        pickle.dump(file=open(pkl_name, 'wb'),obj=grid_model)
+        print('... RT equations solved. Profiles stored.')
+        print(' ')
 
 
 def run_solver(parameters,Helium=False):
@@ -198,14 +204,13 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     # x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
 
                     r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile. Never goes further away than 100 pMpc/h (checked)
-                    rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z][0], zgrid, param)[0]
+                    rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
                     # T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
                     # xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
                     x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # * S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
                     # Temp_profile[np.where(Temp_profile <= T_adiab_z + 0.2)] = 0 # set to zero to avoid spurious addition - we put the +0.2 to be sure....
-                    Temp_profile = (Temp_profile - T_adiab_z_solver).clip(min=0)
 
                     ## here we assume they all have M_bin[i]
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))

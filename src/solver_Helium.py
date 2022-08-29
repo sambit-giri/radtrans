@@ -497,7 +497,7 @@ class Source_MAR_Helium:
 
 
             #### initial conditions :
-            T_grid += T_adiab(z,param) ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
+            T_grid += T_adiab(z,param) * param.cosmo.Temp_IC ### assume gas decoupled from cmb at z=param.cosmo.z_decoupl and then adiabatically cooled
             xHII_history[str(z)] = 0
             T_history[str(z)] = T_grid
             self.nHI_initial = HI_frac * self.profiles(param, z, Mass=self.M_initial) * (1 + z) ** 3
@@ -562,7 +562,7 @@ class Source_MAR_Helium:
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(zstep_l,param)
+            T_grid += T_adiab(zstep_l,param)*param.cosmo.Temp_IC
             print('FULL D VALUE IN SOLVER_MAR_HELIUM')
             T_neutral_grid = np.copy(T_grid)
 

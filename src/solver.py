@@ -629,8 +629,6 @@ class Source_MAR:
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
                 elif param.source.type == 'Ross':
                     I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion /Ng_dot_initial_ion  # to account for source growth (via MAR in Ngamma dot formula Ross et al)
-                    if not (Ngam_dot_step_l_ion /Ng_dot_initial_ion)/(Mh_step_l / self.M_initial ) == 1:
-                        print((Ngam_dot_step_l_ion /Ng_dot_initial_ion)/(Mh_step_l / self.M_initial ))
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * Mh_step_l / self.M_initial # no change in g_gamma in HMXB. see ross et al 2019..
                 else:
                     I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta,I2_Tb)) * Ngam_dot_step_l / Ng_dot_initial_ion  ### added correctrion for halo growth
