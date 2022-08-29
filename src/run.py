@@ -216,7 +216,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
                     kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
 
-                    profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
+                    profile_T = interp1d(radial_grid * (1 + z), Temp_profile - T_adiab_z_solver, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                     kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
                     #profile_xal = interp1d(r_lyal * (1 + z),
