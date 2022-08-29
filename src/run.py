@@ -305,7 +305,8 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
     LBox = param.sim.Lbox  # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
     catalog_dir = param.sim.halo_catalogs
-
+    model_name = param.sim.model_name
+    
     if catalog_dir is None :
         print('You should specify param.sim.halo_catalogs. Should be a file containing the rockstar halo catalogs.')
 
