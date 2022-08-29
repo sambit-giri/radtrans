@@ -432,10 +432,10 @@ def compute_GS(param,string='',temp = 'normal'):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        if temp = 'normal':
+        if temp == 'normal':
             Tk_neutral.append(np.mean(Grid_Temp))
 
-        elif temp = 'neutral_regions':
+        elif temp == 'neutral_regions':
             Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         else :
             print('temp in compute_GS should be either normal or neutral_regions')
