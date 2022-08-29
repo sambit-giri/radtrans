@@ -323,8 +323,11 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
         print('param.sim.mpi4py should be yes or no')
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        if rank == ii % size:
-            paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
+        if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
+            print('xHII map for snapshot ',filename[4:-5]),'already painted. Skiping.')
+        else:
+            if rank == ii % size:
+                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
 
     #def paint_single(filename):
     #    return paint_profile_single_snap(filename,param)
@@ -391,7 +394,7 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param,string='',temp = 'normal'):
+def compute_GS(param,string=''):
     """
     Reads in the grids and compute the global quantities averaged.
     """
@@ -432,13 +435,7 @@ def compute_GS(param,string='',temp = 'normal'):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        if temp == 'normal':
-            Tk_neutral.append(np.mean(Grid_Temp))
-
-        elif temp == 'neutral_regions':
-            Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
-        else :
-            print('temp in compute_GS should be either normal or neutral_regions')
+        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
 
         T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
@@ -446,7 +443,7 @@ def compute_GS(param,string='',temp = 'normal'):
         x_coll.append(xcol_)
         dTb.append(np.mean(Grid_dTb))
         beta_a.append(xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
-        beta_T.append(Tcmb /(Tk_neutral[ii]-Tcmb))
+        beta_T.append(Tcmb /(Tk[ii]-Tcmb))
         beta_r.append(-x_HII[ii] / (1 - x_HII[ii]))
 
         Tadiab.append(Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
@@ -469,11 +466,12 @@ def compute_GS(param,string='',temp = 'normal'):
 
     ### dTb formula similar to coda HM code.
     xtot = (xal_coda_style + x_coll)
-    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk_neutral) * xtot/(1 + xtot) * (1-x_HII)
+    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk) * xtot/(1 + xtot) * (1-x_HII)
+    dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk_neutral) * xtot/(1 + xtot) * (1-x_HII)
     dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
     beta_a_coda_style = (xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
 
-    Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
+    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
