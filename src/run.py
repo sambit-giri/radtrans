@@ -199,9 +199,10 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     else:
                         Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
 
-                    if param.cosmo.Temp_IC == 1:
+                    if param.cosmo.Temp_IC == 1: ## adiab IC
                         T_adiab_z_solver = Temp_profile[-1]
                         Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=0)
+
 
                     radial_grid = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
@@ -220,7 +221,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
                     kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
 
-                    profile_T = interp1d(radial_grid * (1 + z), Temp_profile - T_adiab_z_solver, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
+                    profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                     kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
                     #profile_xal = interp1d(r_lyal * (1 + z),
@@ -377,7 +378,7 @@ def grid_dTb(param):
         print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
         #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
         Grid_xal = Grid_xal #* Grid_Sal
-        Grid_xcoll = 0 # x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= (delta_b+1) * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
+        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= (delta_b+1) * rhoc0 * Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
 
         Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
         Grid_xtot = Grid_xcoll+Grid_xal
@@ -390,7 +391,7 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param):
+def compute_GS(param,string='',temp = 'normal'):
     """
     Reads in the grids and compute the global quantities averaged.
     """
@@ -431,7 +432,14 @@ def compute_GS(param):
 
         z_.append(zz_)
         Tk.append(np.mean(Grid_Temp))
-        Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
+        if temp = 'normal':
+            Tk_neutral.append(np.mean(Grid_Temp))
+
+        elif temp = 'neutral_regions':
+            Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
+        else :
+            print('temp in compute_GS should be either normal or neutral_regions')
+
         T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(xal_)
@@ -466,7 +474,7 @@ def compute_GS(param):
     beta_a_coda_style = (xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
 
     Dict = {'Tk':Tk,'Tk_neutral':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
-    pickle.dump(file=open('./physics/GS_' + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
+    pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
 def compute_PS(param):
