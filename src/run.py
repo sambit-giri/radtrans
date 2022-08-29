@@ -199,9 +199,9 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     else:
                         Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
 
-                    if param.cosmo.Temp_IC ==1 : 
+                    if param.cosmo.Temp_IC == 1:
                         T_adiab_z_solver = Temp_profile[-1]
-                        Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=-1)
+                        Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=0)
 
                     radial_grid = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
