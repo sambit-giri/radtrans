@@ -154,7 +154,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
-    T_adiab_z_solver = grid_model.T_history[str(round(zgrid, 2))][-1]  ## solver does not give exactly the correct adiabatic temperature, and this causes troubles
+    #T_adiab_z_solver = grid_model.T_history[str(round(zgrid, 2))][-1]  ## solver does not give exactly the correct adiabatic temperature, and this causes troubles
     ##screening for xal
     #epsilon = LBox / nGrid / epsilon_factor
 
@@ -198,6 +198,10 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                         Temp_profile = grid_model.T_neutral_hist[str(round(zgrid, 2))]
                     else:
                         Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
+
+                    if param.cosmo.Temp_IC ==1 : 
+                        T_adiab_z_solver = Temp_profile[-1]
+                        Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=-1)
 
                     radial_grid = grid_model.r_grid_cell
                     x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
