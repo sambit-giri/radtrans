@@ -306,7 +306,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
     nGrid = param.sim.Ncell  # number of grid cells
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
-    
+
     if catalog_dir is None :
         print('You should specify param.sim.halo_catalogs. Should be a file containing the rockstar halo catalogs.')
 
@@ -539,7 +539,7 @@ def compute_PS(param):
 
 
 
-        delta_XHI = (1-Grid_xHII) / np.mean((1-Grid_xHII)) - 1
+        delta_XHI = Grid_xHII / np.mean(Grid_xHII) - 1
         delta_T   = Grid_Temp / np.mean(Grid_Temp) - 1
         delta_dTb = Grid_dTb / np.mean(Grid_dTb) - 1
         delta_x_al = Grid_xal / np.mean(Grid_xal) - 1
