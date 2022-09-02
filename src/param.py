@@ -100,7 +100,6 @@ def sim_par(): ## used when computing and painting profiles on a grid
     return Bunch(par)
 
 
-
 def cosmo_par():
     par = {
     'Om' : 0.3,
@@ -111,14 +110,13 @@ def cosmo_par():
     's8': None,
     'ps': pkg_resources.resource_filename('radtrans', "files/PCDM_Planck.dat"),      ### This is the path to the input Linear Power Spectrum
     'corr_fct' : pkg_resources.resource_filename('radtrans', "files/corr_fct.dat"),  ### This is the path where the corresponding correlation function will be stored. You can change it to anything.
-    'HI_frac' : 0.08,       # fraction of Hydrogen. Only used when running H_He_Final. 1-fraction is Helium then.  0.2453 of total mass is in He according to BBN, so in terms of number density it is  1/(1+4*(1-f_He_bymass)/f_He_bymass)  ~0.075
+    'HI_frac' : 1-0.08,       # fraction of Helium. Only used when running H_He_Final. 1-fraction is Helium then.  0.2453 of total mass is in He according to BBN, so in terms of number density it is  1/(1+4*(1-f_He_bymass)/f_He_bymass)  ~0.075.
     "clumping" : 1,         # to rescale the background density. set to 1 to get the normal 2h profile term.
     "profile" : 0,          # 0 for constant background density, 1 for 2h term profile
     "z_decoupl" : 135,      # redshift at which the gas decouples from CMB and starts cooling adiabatically according to Tcmb0*(1+z)**2/(1+zdecoupl)
     "Temp_IC" : 1,          # Initial conditions to compute the temperature profiles. 1 --> for adiabatic IC, 1e-50 or less --> for zero K IC.
     }
     return Bunch(par)
-
 
 
 def table_par():
