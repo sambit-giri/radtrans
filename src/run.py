@@ -16,13 +16,12 @@ import os
 import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel
 from radtrans.couplings import x_coll,rho_alpha, S_alpha
-from joblib import Parallel, delayed
-from radtrans.global_qty import J_alpha_n
+from radtrans.global_qty import J_alpha_n, ion_profile
 from os.path import exists
 
 
 
-def run_RT_single_source(Mhalo,parameters,Helium):
+def run_RT_single_source(Mhalo,parameters,Helium,simple_model):
     """
     This is to parallelize with job lib. Make a copy of parameters, set the halo mass to Mhalo, and run the solver (and store the profiles.)
     Regarding r_end : since we vectorized the radial direction, we can set r_end to the value that we want and increase dn if needed !
@@ -32,13 +31,12 @@ def run_RT_single_source(Mhalo,parameters,Helium):
     param = copy.deepcopy(parameters)
     param.source.M_halo = Mhalo
     LBox = param.sim.Lbox  # Mpc/h
-    nGrid = param.sim.Ncell  # number of grid cells
     z_start = param.solver.z
     model_name = param.sim.model_name
 
     pkl_name = './profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo)
     if exists(pkl_name):
-        print('Mhalo',Mhalo,'already computed.')
+        print('Mhalo', Mhalo, 'already computed.')
     else:
         ### Let's deal with r_end :
         cosmofile = param.cosmo.corr_fct
@@ -49,9 +47,14 @@ def run_RT_single_source(Mhalo,parameters,Helium):
         param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
 
         print('Solving the RT equations ..')
-        if Helium == True:
+        if simple_model :
+            print('--SIMPLE MODEL--')
+            grid_model = rad.simple_solver(param)
+        elif Helium == True:
+            print('--HELIUM--')
             grid_model = rad.Source_MAR_Helium(param)
         else :
+            print('--ONLY HYDROGEN--')
             grid_model = rad.Source_MAR(param)
         grid_model.solve(param)
         pickle.dump(file=open(pkl_name, 'wb'),obj=grid_model)
@@ -59,7 +62,7 @@ def run_RT_single_source(Mhalo,parameters,Helium):
         print(' ')
 
 
-def run_solver(parameters,Helium=False):
+def run_solver(parameters,Helium=False,simple_model = False):
     """
     This function loops over Mbin, initial halo masses and compute the RT equation from zstart to zend for each halo mass. It uses joblib to parallelize.
     Parameters
@@ -96,7 +99,7 @@ def run_solver(parameters,Helium=False):
 
     for ih, Mhalo in enumerate(M_Bin):
         if rank == ih % size:
-            run_RT_single_source(M_Bin[ih], parameters,Helium = Helium)
+            run_RT_single_source(M_Bin[ih], parameters,Helium = Helium,simple_model=simple_model)
 
     #def run_RT_single(M):
     #    return run_RT_single_source(M,parameters)
@@ -107,7 +110,7 @@ def run_solver(parameters,Helium=False):
 
 
 
-def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=True,ion=True,check_approx = True):
+def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simple_model = False):
     """
     Paint the Tk, xHII and Lyman alpha profiles on a grid for a single snapshot named filename.
 
@@ -130,25 +133,14 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
     nGrid = param.sim.Ncell  # number of grid cells
     catalog = catalog_dir + filename
     halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
-    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], \
-                                       halo_catalog['R']
+    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
     z = halo_catalog['z']
     T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
 
     ### Add up the adiabatic temperature
-    dens_field = param.sim.dens_field
-    if dens_field is not None and nGrid == 256:
-        dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
-        pkd = dens.reshape(256, 256, 256)
-        pkd = pkd.T  ### take the transpose to match X_ion map coordinates
-        V_total = LBox ** 3
-        V_cell = (LBox / nGrid) ** 3
-        mass = pkd * rhoc0 * V_total
-        rho_m = mass / V_cell
-        delta_b = (rho_m) / np.mean(rho_m)-1
-    else:
-        delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
+    delta_b = load_delta_b(param,filename) # rho/rhomean-1 (usual delta here..)
+
 
     # quick load to find matching redshift between solver output and simulation snapshot.
     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
@@ -177,9 +169,6 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
         Ionized_vol = 0
         if Ionized_vol > 2:  ###skip this step, We actually want the full Temperature and xal history
             print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
-        #    Grid_xHII = np.array([1])
-        #    Grid_Temp = np.array([1])
-        #    Grid_xal = np.array([1])
         else:
             Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
             Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
@@ -194,7 +183,11 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
                     grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
 
-                    if temp == 'neutral':
+                    radial_grid, x_HII_profile = ion_profile(grid_model,zgrid,simple_model) #pMpc/h
+
+                    if simple_model :
+                        Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
+                    elif temp == 'neutral':
                         Temp_profile = grid_model.T_neutral_hist[str(round(zgrid, 2))]
                     else:
                         Temp_profile = grid_model.T_history[str(round(zgrid, 2))]
@@ -204,14 +197,8 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                         Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=0)
 
 
-                    radial_grid = grid_model.r_grid_cell
-                    x_HII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
-                    # x_al_profile  = grid_model.x_al_history[str(round(zgrid, 2))]
-
                     r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile. Never goes further away than 100 pMpc/h (checked)
                     rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
-                    # T_extrap = np.interp(r_lyal, radial_grid, grid_model.T_history[str(round(zgrid, 2))])
-                    # xHII_extrap = np.interp(r_lyal, radial_grid, grid_model.xHII_history[str(round(zgrid, 2))])
                     x_alpha_prof = 1.81e11 * (rho_alpha_) / (1 + zgrid)  # * S_alpha(zgrid, T_extrap, 1 - xHII_extrap)
 
                     #### CAREFUL ! this step has to be done AFTER using Tk_profile to compute x_alpha (via Salpha)
@@ -224,10 +211,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
                     profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                     kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
 
-                    #profile_xal = interp1d(r_lyal * (1 + z),
-                    #                       x_alpha_prof * (r_lyal * (1 + z) / (r_lyal * (1 + z) + epsilon)) ** 2,
-                    #                       bounds_error=False, fill_value=0)  ##screening
-                    #kernel_xal = profile_to_3Dkernel(profile_xal, nGrid, LBox)
+
                     if lyal == True:
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
                         renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
@@ -290,7 +274,7 @@ def paint_profile_single_snap(filename,param,epsilon_factor=10,temp =True,lyal=T
 
 
 
-def paint_profiles(param,temp =True,lyal=True,ion=True):
+def paint_profiles(param,temp =True,lyal=True,ion=True,simple_model = False):
     """
     Parameters
     ----------
@@ -328,7 +312,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True):
             print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
         else:
             if rank == ii % size:
-                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion)
+                paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion,simple_model = simple_model)
 
     #def paint_single(filename):
     #    return paint_profile_single_snap(filename,param)
@@ -711,3 +695,22 @@ def grid_dTb_from_profile(filename, param):
 
     pickle.dump(file=open('./grid_output/dTb_Grid_from_prof' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_dTb)
 
+
+
+def load_delta_b(param,filename):
+    """
+    Load the delta_b grid profiles.
+    """
+    dens_field = param.sim.dens_field
+    if dens_field is not None and param.sim.Ncell == 256:
+        dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+        pkd = dens.reshape(256, 256, 256)
+        pkd = pkd.T  ### take the transpose to match X_ion map coordinates
+        V_total = LBox ** 3
+        V_cell = (LBox / nGrid) ** 3
+        mass = pkd * rhoc0 * V_total
+        rho_m = mass / V_cell
+        delta_b = (rho_m) / np.mean(rho_m)-1
+    else:
+        delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
+    return delta_b

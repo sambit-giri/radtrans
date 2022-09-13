@@ -16,7 +16,7 @@ from .couplings import J_xray_with_redshifting, J_xray_no_redshifting
 from .bias import bar_density_2h
 from .cross_sections import sigma_HI
 
-def global_signal(param,heat=None,redshifting = 'yes'):
+def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     catalog_dir = param.sim.halo_catalogs
     xHII = []
     G_heat = []
@@ -37,9 +37,9 @@ def global_signal(param,heat=None,redshifting = 'yes'):
 
 
         zz_, SFRD = sfrd_approx(param,halo_catalog)
-        zz_, x_HII = xHII_approx(param,halo_catalog)
-        Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog)
-        Erange, Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, density_normalization=1, redshifting=redshifting)
+        zz_, x_HII = xHII_approx(param,halo_catalog,simple_model)
+        Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog,simple_model)
+        Erange, Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, simple_model,density_normalization=1, redshifting=redshifting)
 
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
         #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
@@ -66,7 +66,7 @@ def global_signal(param,heat=None,redshifting = 'yes'):
 
 
 
-def xHII_approx(param,halo_catalog):
+def xHII_approx(param,halo_catalog,simple_model = False):
     """
     Approximation of the mean ionization fraction (maybe more correct to say volume filling factor.)
     We compute for each halo the volume of the surounding ionized bubble. Sum all these volumes and normalize to the total simulation volume.
@@ -90,13 +90,30 @@ def xHII_approx(param,halo_catalog):
         nbr_halos = np.where(Indexing == i)[0].size
         if nbr_halos > 0:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
-            xHII_profile = grid_model.xHII_history[str(round(zgrid, 2))]
-            r_grid_ = grid_model.r_grid_cell
+
+            r_grid_, xHII_profile = ion_profile(grid_model, zgrid, simple_model)
             bubble_volume = np.trapz(4 * np.pi * r_grid_ ** 2 * xHII_profile,r_grid_)
             Ionized_vol += bubble_volume * nbr_halos  ##physical volume !!
+
+        print(nbr_halos, 'halos in mass bin ', i)
     x_HII = Ionized_vol / (LBox / (1 + z)) ** 3  # normalize by total physical volume
     return zgrid, x_HII
 
+
+def ion_profile(grid_model,zgrid,simple_model):
+    """
+    Reads in grid_model (output of solver) and output the ionisation profile, with or without the "simple model" option.
+    Returns r_grid in physical Mpc/h and xHII profile
+    """
+    if not simple_model:
+        return grid_model.r_grid_cell, grid_model.xHII_history[str(round(zgrid, 2))]
+    else :
+        radial_grid = grid_model.r_grid_cell/(1+zgrid) # from co to phyz
+        ind_z = np.argmin(np.abs(grid_model.z_history - zgrid))
+        ion_front = grid_model.R_bubble[ind_z] # cMpc/h
+        x_HII_profile = np.zeros((len(radial_grid)))
+        x_HII_profile[np.where(radial_grid < ion_front/(1 + zgrid))] = 1  ## sharp ionisation front.
+        return radial_grid,x_HII_profile
 
 
 def sfrd_approx(param,halo_catalog):
@@ -135,7 +152,7 @@ def sfrd_approx(param,halo_catalog):
     return z, float(SFRD)
 
 
-def mean_Jalpha_approx(param,halo_catalog):
+def mean_Jalpha_approx(param,halo_catalog,simple_model):
     """
     Approximation of the Jalpha in x_alpha calculation. To compare to Halo Model and to our calculation when puting profiles on grid.
     """
@@ -153,7 +170,6 @@ def mean_Jalpha_approx(param,halo_catalog):
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1) ## values of Mh at z_start, binned via M_Bin.
 
-    r_grid = grid_model.r_grid_cell
     r_lyal = np.logspace(-5,2,1000,base=10)## physical distance for lyal profile
 
 
@@ -163,13 +179,14 @@ def mean_Jalpha_approx(param,halo_catalog):
         nbr_halos = np.where(Indexing == i)[0].size
         if nbr_halos > 0:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
-            r_grid = grid_model.r_grid_cell
+
+            r_grid, x_HII_profile = ion_profile(grid_model,zgrid,simple_model)
 
             #grid_model.rho_al_history[str(round(zgrid, 2))]
             #x_alpha = grid_model.x_al_history[str(round(zgrid, 2))]
             rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
             T_extrap  = np.interp(r_lyal,r_grid,grid_model.T_history[str(round(zgrid, 2))])
-            xHII_extrap  = np.interp(r_lyal,r_grid,grid_model.xHII_history[str(round(zgrid, 2))])
+            xHII_extrap  = np.interp(r_lyal,r_grid,x_HII_profile)
             x_alpha   = 1.81e11 * (rho_alpha_) * S_alpha(zgrid, T_extrap, 1-xHII_extrap) / (1 + zgrid)
             mean_rho = np.trapz(rho_alpha_* 4 * np.pi * r_lyal ** 2, r_lyal)
             Jal_mean += nbr_halos * mean_rho
@@ -308,7 +325,7 @@ def cum_optical_depth(zz,E,param):
     return tau
 
 
-def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifting = 'yes'):
+def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization = 1,redshifting = 'yes'):
     """
     X-ray flux per frequency nu. Same method as above (Jalpha_approx)
     """
@@ -325,7 +342,7 @@ def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifti
     ind_z = np.argmin(np.abs(grid_model.z_history - z))
     zgrid = grid_model.z_history[ind_z]
     Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))),axis=1)  ## values of Mh at z_start, binned via M_Bin.
-    Ob, Om, h0, alpha = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h, 0.79
+    Ob, Om, h0, alpha = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h, param.source.alpha_MAR
 
     mean_Gamma_heat = 0
     Jxray_mean = 0
@@ -334,8 +351,7 @@ def mean_J_xray_nu_approx(param,halo_catalog,density_normalization = 1,redshifti
         nbr_halos = np.where(Indexing == i)[0].size
         if nbr_halos > 0:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
-            r_grid = grid_model.r_grid_cell
-            xHII   = grid_model.xHII_history[str(round(zgrid, 2))]
+            r_grid, xHII = ion_profile(grid_model, zgrid, simple_model)
             Mh   = grid_model.Mh_history[ind_z]
             nB   = (1 + z) ** 3 * bar_density_2h(r_grid, param, z, Mh)
             n_HI = nB * (1 - xHII)

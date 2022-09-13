@@ -652,10 +652,10 @@ class Source_MAR:
                 #D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3   ###SIMPLE HEATING VERSION
                 D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
 
-
                 Cumul_heating+= D
                 if l * param.solver.time_step % 10 == 0 and l != 0:
-                    heat_history[str(round(zstep_l[0], 2))] = np.copy((2 / 3) * mu * f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/(nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3))
+                    heat_history[str(round(zstep_l[0], 2))] = np.copy(D)
+                        #np.copy((2 / 3) * mu * f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/(nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3))
                     #np.copy([f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)+heat_history sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb),(A1_HI + A2_HII + A4_HI + A5 + A6)])
 
                 n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
