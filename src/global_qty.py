@@ -86,6 +86,10 @@ def Tgas_from_profiles(param,halo_catalog):
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
             r_grid_, Temp_profile = grid_model.r_grid_cell,grid_model.T_history[str(round(zgrid, 2))]
+            if param.cosmo.Temp_IC == 1:  ## adiab IC
+                T_adiab_z_solver = Temp_profile[-1]
+                Temp_profile = (Temp_profile - T_adiab_z_solver).clip(min=0)
+                
             T_vol = np.trapz(4 * np.pi * r_grid_ ** 2 * Temp_profile, r_grid_)
             Tgas += T_vol * nbr_halos
 
