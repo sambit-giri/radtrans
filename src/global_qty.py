@@ -26,6 +26,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     Gheat_GS_style = []
     xal = []
     heat_per_baryon = []
+    T_gas = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         catalog = catalog_dir + filename
         halo_catalog = Read_Rockstar(catalog)
@@ -40,7 +41,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
         zz_, x_HII = xHII_approx(param,halo_catalog,simple_model)
         Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog,simple_model)
         Erange, Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, simple_model,density_normalization=1, redshifting=redshifting)
-
+        Tk = Tgas_from_profiles(param, halo_catalog)
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
         #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
         if np.any(Erange == 0): # similar to : if E is not 0
@@ -50,6 +51,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
             Gheat_GS_style.append(np.trapz(itlH, Erange * Hz_per_eV))  # eV/s
             # Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
 
+        T_gas.append(Tk)
         xal.append(x_alpha_)
         Jalpha.append(Jalpha_)
         xHII.append(min(x_HII, 1))
@@ -57,13 +59,38 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
         G_heat.append(Gam_heat)
         sfrd.append(SFRD)
 
-    sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon)
-    matrice = np.array([z_array, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon])
-    z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon = matrice[:, matrice[0].argsort()] ## sort according to zarray
+    sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon), np.array(T_gas)
+    matrice = np.array([z_array, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas])
+    z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon}
+    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas}
 
 
+def Tgas_from_profiles(param,halo_catalog):
+    LBox = param.sim.Lbox  # Mpc/h
+    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
+    z_start = param.solver.z
+    model_name = param.sim.model_name
+    H_Masses = halo_catalog['M']
+    z = halo_catalog['z']
+    # quick load to find matching redshift between solver output and simulation snapshot.
+    grid_model = pickle.load( file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
+    ind_z = np.argmin(np.abs(grid_model.z_history - z))
+    zgrid = grid_model.z_history[ind_z]
+    Indexing = np.argmin(np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)  ## values of Mh at z_start, binned via M_Bin.
+
+    Tgas = 0
+    for i in range(len(M_Bin)):
+        nbr_halos = np.where(Indexing == i)[0].size
+        if nbr_halos > 0:
+            grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+
+            r_grid_, Temp_profile = grid_model.r_grid_cell,grid_model.T_history[str(round(zgrid, 2))]
+            T_vol = np.trapz(4 * np.pi * r_grid_ ** 2 * Temp_profile, r_grid_)
+            Tgas += T_vol * nbr_halos
+
+    Tgas = Tgas / (LBox / (1 + z)) ** 3  # normalize by total physical volume
+    return Tgas
 
 
 def xHII_approx(param,halo_catalog,simple_model = False):
