@@ -443,7 +443,7 @@ def compute_GS(param,string=''):
 
 
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
-    GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+str(nGrid)+'.pkl', 'rb'))
+    GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+'.pkl', 'rb'))
     redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
     Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
     xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(z_, Tk_neutral, 1 - x_HII) * 1.81e11 / (1+redshifts)
@@ -701,6 +701,8 @@ def load_delta_b(param,filename):
     """
     Load the delta_b grid profiles.
     """
+    LBox = param.sim.Lbox
+    nGrid = param.sim.Ncell
     dens_field = param.sim.dens_field
     if dens_field is not None and param.sim.Ncell == 256:
         dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
