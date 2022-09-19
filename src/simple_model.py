@@ -117,6 +117,7 @@ def Ngdot_ion(param, zz, Mh):
     if (param.source.type == 'SED'):
         dMh_dt = param.source.alpha_MAR * Mh * (zz + 1) * Hubble(zz, param)  ## [(Msol/h) / yr]
         Ngam_dot_ion = dMh_dt / h0 * f_star_Halo(param, Mh) * Ob / Om * f_esc(param, Mh) * param.source.Nion / sec_per_year / m_H * M_sun
+        Ngam_dot_ion[np.where(Mh < param.source.M_min)] = 0
         return Ngam_dot_ion
 
     elif (param.source.type == 'Ross'):
@@ -226,8 +227,7 @@ def rho_xray(rr, M_accr, dMdt_accr, zz, param):
             heat_nu = pref_nu[:, None] * flux  # [cm^2*eV/s/Hz]
             heat_of_r = trapz(heat_nu, nu, axis=0)  # [cm^2*eV/s]
 
-
-            rho_xray[i, :] = heat_of_r / (4 * np.pi * (rr / (1 + zz[i])) ** 2) / (cm_per_Mpc/h0) ** 2  # [eV/s]
+            rho_xray[i, :] = heat_of_r / (4 * np.pi * (rr) ** 2) / (cm_per_Mpc/h0) ** 2  # [eV/s]  1/(rr/(1 + zz[i]))**2
 
     return rho_xray
 
