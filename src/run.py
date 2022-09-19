@@ -208,7 +208,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                     profile_xHII = interp1d(radial_grid * (1 + z), x_HII_profile, bounds_error=False, fill_value=(1, 0))
                     kernel_xHII = profile_to_3Dkernel(profile_xHII, nGrid, LBox)
                     if not np.any(kernel_xHII > 0): ### if the bubble volume is smaller than the grid size, the kernel will be zero. We deal with that here. Paint central cell with ion fraction value
-                        kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / Ncell / (1 + z)) ** 3
+                        kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
 
                     profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
                     kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
