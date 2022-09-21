@@ -108,6 +108,41 @@ def run_solver(parameters,Helium=False,simple_model = False):
     print('It took in total:', end_time - start_time)
 
 
+def convergence_check(Mhalo,parameters,Helium,simple_model):
+    param = copy.deepcopy(parameters)
+    z_start = 10
+    param.source.M_halo = Mhalo * np.exp(param.source.alpha_MAR * (param.solver.z-z_start)) # do the check starting at z = 10
+    LBox = param.sim.Lbox  # Mpc/h
+    param.solver.z_end = 9.5
+    param.solver.z  = z_start
+    model_name = param.sim.model_name+'_convergence_check'
+
+    pkl_name = './profiles_output/conv_check_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, Mhalo)
+    ### Let's deal with r_end :
+    cosmofile = param.cosmo.corr_fct
+    vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
+    r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
+
+    param.solver.r_end = max(LBox / 10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
+    param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,
+                                                                                                    round(z_start, 2))
+
+    print('Solving the RT equations ..')
+    if simple_model:
+        print('--SIMPLE MODEL--')
+        grid_model = rad.simple_solver(param)
+    elif Helium == True:
+        print('--HELIUM--')
+        grid_model = rad.Source_MAR_Helium(param)
+    else:
+        print('--ONLY HYDROGEN--')
+        grid_model = rad.Source_MAR(param)
+    grid_model.solve(param)
+    pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
+    print('... RT equations solved. Profiles stored.')
+    print(' ')
+
+
 
 
 def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simple_model = False):
@@ -217,12 +252,11 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                     if lyal == True:
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
                         renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
+                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
 
                     if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
-                        Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7
-
-                    if lyal == True:
-                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices],kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
+                        renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / ( LBox / (1 + z)) ** 3 / np.mean(kernel_T)
+                        Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
 
                     # if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                     if np.any(kernel_xHII > 0) and ion == True:
@@ -459,7 +493,7 @@ def compute_GS(param,string=''):
     dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
     beta_a_coda_style = (xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
 
-    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
+    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a_coda_style,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 

@@ -12,7 +12,7 @@ from .couplings import eps_lyal, S_alpha, rho_alpha
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
 from .astro import Read_Rockstar, f_star_Halo
-from .couplings import J_xray_with_redshifting, J_xray_no_redshifting
+from .couplings import J_xray_with_redshifting, J_xray_no_redshifting,S_alpha
 from .bias import bar_density_2h
 from .cross_sections import sigma_HI
 
@@ -36,20 +36,19 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
         else :
             heat_per_baryon.append(0)
 
-
         zz_, SFRD = sfrd_approx(param,halo_catalog)
         zz_, x_HII = xHII_approx(param,halo_catalog,simple_model)
         Jalpha_, x_alpha_ = mean_Jalpha_approx(param,halo_catalog,simple_model)
         Erange, Jal, Gam_heat = mean_J_xray_nu_approx(param, halo_catalog, simple_model,density_normalization=1, redshifting=redshifting)
-        Tk = Tgas_from_profiles(param, halo_catalog)
+        Tk = Tgas_from_profiles(param, halo_catalog, simple_model = simple_model)
         itlH = sigma_HI(Erange) * Jal * (Erange - E_HI)
         #itl_2 = sigma_s * min(x_HII, 1) / m_e_eV * (I2_Ta + T_grid * I2_Tb)
+
         if np.any(Erange == 0): # similar to : if E is not 0
             Gheat_GS_style.append(0)
-
         else :
             Gheat_GS_style.append(np.trapz(itlH, Erange * Hz_per_eV))  # eV/s
-            # Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
+            #Gheat_GS_style.append(np.trapz(itlH,Erange*Hz_per_eV)) # eV/s
 
         T_gas.append(Tk)
         xal.append(x_alpha_)
@@ -59,14 +58,25 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
         G_heat.append(Gam_heat)
         sfrd.append(SFRD)
 
+
+
     sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon), np.array(T_gas)
     matrice = np.array([z_array, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas])
     z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas}
+
+    Jal_coda_style = J_alpha_n(z, sfrd, param)
+    xal_coda_style = np.sum(Jal_coda_style[1::], axis=0) * S_alpha(z, T_gas, 1 - xHII) * 1.81e11 / (1 + z)
+
+    Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
+    factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
+    dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / T_gas) * xal_coda_style/(1 + xal_coda_style) * (1-xHII)
+
+    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal_coda_style, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas,'dTb':dTb}
 
 
-def Tgas_from_profiles(param,halo_catalog):
+
+def Tgas_from_profiles(param,halo_catalog,simple_model):
     LBox = param.sim.Lbox  # Mpc/h
     M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
     z_start = param.solver.z
@@ -86,6 +96,9 @@ def Tgas_from_profiles(param,halo_catalog):
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
             r_grid_, Temp_profile = grid_model.r_grid_cell,grid_model.T_history[str(round(zgrid, 2))]
+            if simple_model :
+                r_grid_ = r_grid_/(1+z)
+
             if param.cosmo.Temp_IC == 1:  ## adiab IC
                 T_adiab_z_solver = Temp_profile[-1]
                 Temp_profile = (Temp_profile - T_adiab_z_solver).clip(min=0)
@@ -94,6 +107,7 @@ def Tgas_from_profiles(param,halo_catalog):
             Tgas += T_vol * nbr_halos
 
     Tgas = Tgas / (LBox / (1 + z)) ** 3  # normalize by total physical volume
+
     return Tgas
 
 

@@ -30,7 +30,7 @@ def sigma_HI(E):
 # Ionization and Recombination coefficients. Expressions taken from Fukugita and Kawasaki 1994.
 def alpha_HII(T):
     """
-    Recombination coefficient for Hydrogen :  [cm3.s-1]
+    Case B recombination coefficient for Hydrogen :  [cm3.s-1]
     Input : temperature in K
     """
     return 2.6 * 10 ** -13 * (T / 10 ** 4) ** -0.85
