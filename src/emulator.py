@@ -16,21 +16,25 @@ from skopt import sampler
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group
 
 
-def run_RT_for_emul(param,Helium,simple_model):
+def run_RT_for_emul(parameters,mcmc_par,Helium,simple_model):
     """
     This is to parallelize with job lib. Make a copy of parameters, set the halo mass to Mhalo, and run the solver (and store the profiles.)
     Regarding r_end : since we vectorized the radial direction, we can set r_end to the value that we want and increase dn if needed !
     So no need to do as we previously did (estimate r_end from the Stromgren sphere radius...)
     """
+    fstar, f0_esc, pl_esc, Mt, cX,Emin,Mhalo = mcmc_par
+    param = copy.deepcopy(parameters)
+    param.source.M_halo = Mhalo
+    param.source.f_st = fstar
+    param.source.f0_esc = f0_esc
+    param.source.pl_esc = pl_esc
+    param.source.Mt = Mt
+    param.source.cX = cX
+    param.source.E_min_sed_xray = Emin
+    param.source.E_min_xray = Emin
+
     z_start = param.solver.z
 
-    fstar = param.source.f_st
-    f0_esc = param.source.f0_esc
-    pl_esc = param.source.pl_esc
-    Mt = param.source.Mt
-    cX = param.source.cX
-    Emin = param.source.E_min_xray
-    Mhalo = param.source.M_halo
     param.table.filename_table = './gamma_tables/gamma_fst_' + str(round(fstar,2)) + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
     print('Solving the RT equations ..', )
 
@@ -102,18 +106,8 @@ def gen_training_set(param,Sampling, Helium = True,simple_model = False):
         for i in range(len(Sampling)):
             nbr = m * len(Sampling) + i
             if rank == nbr % size:
-                param_ = copy.deepcopy(param)
-                param_.source.M_halo = M_Bin[m]
-                param_.source.f_st   = 10 ** Sampling[i][0]
-                param_.source.f0_esc = 10 ** Sampling[i][1]
-                param_.source.pl_esc = Sampling[i][2]
-                param_.source.Mt     = 10 ** Sampling[i][3]
-                param_.source.cX     = 10 ** Sampling[i][4]
-
-                param_.source.E_min_sed_xray = Sampling[i][5]
-                param_.source.E_min_xray     = Sampling[i][5]
-
-                run_RT_for_emul(param_,Helium,simple_model)
+                mcmc_par = 10 ** Sampling[i][0], 10 ** Sampling[i][1], Sampling[i][2], 10 ** Sampling[i][3], 10 ** Sampling[i][4], Sampling[i][5], M_Bin[m]
+                run_RT_for_emul(param,mcmc_par,Helium,simple_model)
 
 
 
