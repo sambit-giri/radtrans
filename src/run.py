@@ -214,9 +214,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
 
             for i in range(len(M_Bin)):
                 indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
-                if len(indices[0]) > 0:
-
-                    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
+                grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
+                Mh_ = grid_model.Mh_history[ind_z]
+                if len(indices[0]) > 0 and Mh_>param.source.M_min:
 
                     radial_grid, x_HII_profile = ion_profile(grid_model,zgrid,simple_model) #pMpc/h
 
@@ -483,7 +483,7 @@ def compute_GS(param,string=''):
     GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+'.pkl', 'rb'))
     redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
     Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
-    xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(z_, Tk_neutral, 1 - x_HII) * 1.81e11 / (1+redshifts)
+    xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(redshifts, Tk , 1 - x_HII) * 1.81e11 / (1+redshifts)
 
 
     ### dTb formula similar to coda HM code.

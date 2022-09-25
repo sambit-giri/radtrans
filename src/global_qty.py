@@ -92,7 +92,7 @@ def Tgas_from_profiles(param,halo_catalog,simple_model):
     Tgas = 0
     for i in range(len(M_Bin)):
         nbr_halos = np.where(Indexing == i)[0].size
-        if nbr_halos > 0:
+        if nbr_halos > 0 and M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))>param.source.M_min:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
             r_grid_, Temp_profile = grid_model.r_grid_cell,grid_model.T_history[str(round(zgrid, 2))]
@@ -133,7 +133,7 @@ def xHII_approx(param,halo_catalog,simple_model = False):
     Ionized_vol = 0
     for i in range(len(M_Bin)):
         nbr_halos = np.where(Indexing == i)[0].size
-        if nbr_halos > 0:
+        if nbr_halos > 0 and M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))>param.source.M_min:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
             r_grid_, xHII_profile = ion_profile(grid_model, zgrid, simple_model)
@@ -222,7 +222,7 @@ def mean_Jalpha_approx(param,halo_catalog,simple_model):
     X_al_mean = 0
     for i in range(len(M_Bin) ):
         nbr_halos = np.where(Indexing == i)[0].size
-        if nbr_halos > 0:
+        if nbr_halos > 0 and M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start)) > param.source.M_min :
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
 
             r_grid, x_HII_profile = ion_profile(grid_model,zgrid,simple_model)
@@ -264,7 +264,7 @@ def G_heat_approx(param, halo_catalog):
     heat_per_baryon = 0
     for i in range(len(M_Bin)):
         nbr_halos = np.where(Indexing == i)[0].size
-        if nbr_halos > 0:
+        if nbr_halos > 0 and M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))>param.source.M_min:
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
             heat_profile = grid_model.heat_history[str(round(zgrid, 2))]
             r_grid_ = grid_model.r_grid_cell
@@ -394,7 +394,7 @@ def mean_J_xray_nu_approx(param,halo_catalog, simple_model,density_normalization
     E_range = 0
     for i in range(len(M_Bin)):
         nbr_halos = np.where(Indexing == i)[0].size
-        if nbr_halos > 0:
+        if nbr_halos > 0 and M_Bin[i] * np.exp(-param.source.alpha_MAR * (z - z_start))>param.source.M_min :
             grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]), 'rb'))
             r_grid, xHII = ion_profile(grid_model, zgrid, simple_model)
             Mh   = grid_model.Mh_history[ind_z]
