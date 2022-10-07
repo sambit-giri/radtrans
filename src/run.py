@@ -460,7 +460,6 @@ def compute_GS(param,string=''):
         Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
 
         #T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
-        T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(xal_)
         x_coll.append(xcol_)
