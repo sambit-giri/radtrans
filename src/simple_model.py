@@ -97,6 +97,7 @@ class simple_solver:
         self.R_bubble = R_bubble_     # cMpc/h
         #self.T_profile = rho_heat_    # Kelvins
         self.T_history = T_history    # Kelvins
+        self.T_neutral_hist = T_history    # Kelvins
         self.r_grid_cell = self.r_grid
         self.time = np.array(time)
 

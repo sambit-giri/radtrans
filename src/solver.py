@@ -401,7 +401,7 @@ class Source_MAR:
         # Column densities in physical Mpc/h.cm**-3.
         nH_column = np.trapz( self.profiles(param, self.z_initial, Mass = self.M_initial), self.r_grid_cell) * (1 + self.z_initial) ** 3
         print('n_H_column max : ', '{:.2e}'.format(nH_column), 'Mpc/h.cm**-3.')
-        n_HI  = logspace(log10(nH_column  * 1e-6),  log10(1.05 * nH_column), dn_table, base=10)
+        n_HI  = logspace(log10(nH_column  * 1e-16),  log10(1.05 * nH_column), dn_table, base=10)
         n_HI  = np.concatenate((np.array([0]), n_HI))
 
         Gamma_grid_info = generate_table(param, self.z_initial, n_HI)
@@ -477,6 +477,7 @@ class Source_MAR:
             # create a dictionnary to store the profiles at the desired redshifts
             #A_grid_hist,D_grid_hist = {},{}
             T_history = {}
+            T_neutral_hist = {}
             T_spin_history = {}
             xHII_history = {}
             dTb_history = {}
@@ -544,7 +545,8 @@ class Source_MAR:
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(zstep_l,param)
+            T_grid += T_adiab(zstep_l,param) * param.cosmo.Temp_IC
+            T_neutral_grid = np.copy(T_grid)
 
             while zstep_l > param.solver.z_end :
                 z_previous = zstep_l
@@ -617,16 +619,24 @@ class Source_MAR:
 
 
 
+
                 I1_HI[ionized_indices] = 0
                 I2_HI[ionized_indices] = 0
                 I1_T_HI[ionized_indices] = 0
                 n_HI_cell[ionized_indices] = 0
 
+                ##### neutral phase
+                n_HI_cell_neutral = nB_profile_z
+                n_HI_edge_neutral = (n_HI_cell_neutral[:-1] + n_HI_cell_neutral[1:]) / 2
+                n_HI_edge_neutral = np.concatenate((np.array([0]), n_HI_edge_neutral, np.array([n_HI_cell_neutral[-1]])))
+                K_HI_neutral = cumtrapz(n_HI_edge_neutral, self.r_grid, initial=0.0)
+                I1_T_HI_neutral = (np.interp(K_HI_neutral[:-1], n_HI, JT_HI_1) - np.interp(K_HI_neutral[1:], n_HI, JT_HI_1)) / r2 / dr / n_HI_cell_neutral / cm_per_Mpc ** 3 / 4 / pi * h0 ** 3
 
 
                 if param.source.type == 'SED':
                     I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion / Ng_dot_initial_ion # to account for source growth (via MAR)
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * E_dot_step_l_xray / E_dot_initial_xray
+                    I1_T_HI_neutral = np.nan_to_num((I1_T_HI_neutral)) * E_dot_step_l_xray / E_dot_initial_xray
                 elif param.source.type == 'Ross':
                     I1_HI, I2_HI = np.nan_to_num((I1_HI, I2_HI)) * Ngam_dot_step_l_ion /Ng_dot_initial_ion  # to account for source growth (via MAR in Ngamma dot formula Ross et al)
                     I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_T_HI, I2_Ta, I2_Tb)) * Mh_step_l / self.M_initial # no change in g_gamma in HMXB. see ross et al 2019..
@@ -634,6 +644,8 @@ class Source_MAR:
                     I1_HI, I2_HI, I1_T_HI, I2_Ta, I2_Tb = np.nan_to_num((I1_HI, I2_HI, I1_T_HI, I2_Ta,I2_Tb)) * Ngam_dot_step_l / Ng_dot_initial_ion  ### added correctrion for halo growth
 
 
+                if np.any(I1_HI *n_HI_cell *  dt_init.value > 1):
+                    print('WARNING : I1_HI *n_HI_cell *  dt_init.value > 1. You need larger dn.')
 
                 n_ee = n_HII_cell  #e- density
                 mu = nB_profile_z/ (nB_profile_z + n_HII_cell)  #molecular weigth
@@ -646,17 +658,19 @@ class Source_MAR:
                 H = pl.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
+                A6_neutral = (15 / 2 * H * kb_eV_per_K * T_neutral_grid * nB_profile_z / mu)
 
                 A = gamma_HI(n_HII_cell, n_HI_cell, T_grid, I1_HI, I2_HI, gamma_2c) * n_HI_cell - alpha_HII(T_grid) * n_HII_cell * n_ee
+                #A = I1_HI * n_HI_cell - alpha_HII(1e4) * n_HII_cell * n_ee
 
                 #D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) - A6 )  # sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3   ###SIMPLE HEATING VERSION
-                D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
+                D = (2 / 3) * mu / kb_eV_per_K * (f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A2_HII + A4_HI + A5 + A6)) ##K/s/cm**3
+                D_neutral = (2 / 3) * mu / kb_eV_per_K * (f_Heat(0) * n_HI_cell_neutral * I1_T_HI_neutral - A6_neutral)
 
                 Cumul_heating+= D
                 if l * param.solver.time_step % 10 == 0 and l != 0:
                     heat_history[str(round(zstep_l[0], 2))] = np.copy(D)
-                        #np.copy((2 / 3) * mu * f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/(nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3))
-                    #np.copy([f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)+heat_history sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb),(A1_HI + A2_HII + A4_HI + A5 + A6)])
+
 
                 n_HII_cell = n_HII_cell + dt_init.value * A # discretize the diff equation.
                 n_HII_cell[np.where(n_HII_cell<0)] = 0
@@ -664,7 +678,12 @@ class Source_MAR:
                 T_nB = T_grid * nB_profile_z + dt_init.value * D #product of Tk * baryon physical density
                 T_grid = T_nB/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) # to get the correct T~(1+z)**2 adiabatic regime, you need to account for the shift in baryon density
 
-                n_HII_cell, T_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(T_grid)
+                T_nB_neutral = T_neutral_grid * nB_profile_z + dt_init.value * D_neutral
+                T_neutral_grid = T_nB_neutral / (nB_profile_z * (1 + zstep_l) ** 3 / (1 + z_previous) ** 3)
+                T_neutral_grid = T_neutral_grid.clip(min=T_neutral_grid[-1])
+
+
+                n_HII_cell, T_grid,T_neutral_grid = np.nan_to_num(n_HII_cell), np.nan_to_num(T_grid),np.nan_to_num(T_neutral_grid)
 
                 n_HII_cell[n_HII_cell>nB_profile_z] = nB_profile_z[n_HII_cell>nB_profile_z]   ## xHII can't be >1
 
@@ -711,8 +730,9 @@ class Source_MAR:
                     dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
                     Nh_history.append(Ngam_dot_step_l_ion)
                     Ngdot_ratio.append(Ngam_dot_step_l_ion / Ng_dot_initial_ion)
+                    T_neutral_hist[str(round(zstep_l[0], 2))] = np.copy(T_neutral_grid)
                    # A_grid_hist[str(round(zstep_l[0], 2))], D_grid_hist[str(round(zstep_l[0], 2))] =A, D
-                    I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = I1_HI, I2_HI
+                    I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = A, I2_HI
                 l += 1
 
 
@@ -738,6 +758,7 @@ class Source_MAR:
         self.Mh_history = np.array(Mh_history)
 
         self.T_history  = T_history
+        self.T_neutral_hist = T_neutral_hist
         self.heat_history = heat_history
        # self.rho_al_history = rho_al_history
         #self.rho_xray_history = , rho_xray_history
