@@ -60,7 +60,7 @@ def x_coll(z, Tk, xHI, rho_b):
 
     x_HH = prefac * kappa_HH * n_HI
     x_eH = prefac * kappa_eH * n_HII
-    return x_HH + x_eH
+    return x_HH  + x_eH
 
 
 def S_alpha(zz, Tgas, xHI):
