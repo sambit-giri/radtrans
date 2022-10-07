@@ -405,12 +405,12 @@ def grid_dTb(param):
         Grid_xal = Grid_xal #* Grid_Sal
         Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= (delta_b+1) * rhoc0 * h0**2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
 
-        Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
+        #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
         Grid_xtot = Grid_xcoll+Grid_xal
 
         #Grid_dTb = factor * np.sqrt(1+zz_) * (1-T_cmb_z/Grid_Tspin) * Grid_xHI * (delta_b+1)    # this is dTb*(1+deltab)
         Grid_dTb = factor * np.sqrt(1 + zz_) * (1 - T_cmb_z / Grid_Temp) * Grid_xtot / (1 + Grid_xtot) * Grid_xHI * (delta_b+1)
-        pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
+        #pickle.dump(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_Tspin)
         pickle.dump(file=open('./grid_output/dTb_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_dTb)
         pickle.dump(file=open('./grid_output/xcoll_Grid'+str(nGrid)+'MAR_'+model_name+'_snap'+filename[4:-5],'wb'),obj = Grid_xcoll)
 
@@ -443,7 +443,7 @@ def compute_GS(param,string=''):
             file.readline()
             a = float(file.readline()[4:])
             zz_ = 1 / a - 1
-        Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+        #Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov       = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -459,6 +459,7 @@ def compute_GS(param,string=''):
         Tk.append(np.mean(Grid_Temp))
         Tk_neutral.append(np.mean(Grid_Temp[np.where(Grid_xHII < param.sim.thresh_xHII)]))
 
+        #T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         T_spin.append(np.mean(Grid_Tspin[np.where(Grid_xHII < param.sim.thresh_xHII)]))
         x_HII.append(np.mean(Grid_xHII))
         x_al.append(xal_)
@@ -474,7 +475,11 @@ def compute_GS(param,string=''):
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(T_spin), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+
+    Tgam = (1 + z_) * Tcmb0
+    T_spin = ((1 / Tgam + ( x_al +  x_coll) / Tk_neutral) / (1 +x_al +  x_coll)) ** -1
+
     matrice = np.array([z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r])
     z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r = matrice[:, matrice[0].argsort()]  ## sort according to z_
 
