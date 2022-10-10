@@ -501,15 +501,16 @@ def compute_GS(param,string=''):
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
-def compute_PS(param):
+def compute_PS(param,Tspin = False):
     """
     Parameters
     ----------
     param : dictionnary containing all the input parameters
-
+    Tspin : if True, will compute the spin temperature Power Spectrum as well as cross correlation with matter field and xHII field.
     Returns
     -------
     Computes the power spectra of the desired quantities
+
     """
 
     import tools21cm as t2c
@@ -543,6 +544,14 @@ def compute_PS(param):
     PS_rho_T   = np.zeros((nbr_snap,len(kbins)-1))
     PS_lyal_xHII = np.zeros((nbr_snap,len(kbins)-1))
 
+
+    if Tspin :
+        PS_Ts      = np.zeros((nbr_snap,len(kbins)-1))
+        PS_rho_Ts  = np.zeros((nbr_snap,len(kbins)-1))
+        PS_Ts_xHII = np.zeros((nbr_snap,len(kbins)-1))
+
+
+
     for filename in os.listdir(catalog_dir):
         with open(catalog_dir+filename, "r") as file:
             file.readline()
@@ -552,6 +561,11 @@ def compute_PS(param):
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xal            = pickle.load(file=open('./grid_output/xal_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+
+        if Tspin:
+            T_cmb_z = Tcmb0*(1+zz_)
+            Grid_xcoll = pickle.load(file=open('./grid_output/xcoll_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
+            Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll + Grid_xal) / Grid_Temp) / (1 + Grid_xcoll + Grid_xal)) ** -1
 
         if Grid_Temp.size == 1: ## to avoid error when measuring power spectrum
             Grid_Temp = np.full((nGrid, nGrid, nGrid),1)
@@ -602,8 +616,19 @@ def compute_PS(param):
         PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
         PS_lyal_xHII[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
 
+        if Tspin:
+            delta_Tspin = Grid_Tspin/np.mean(Grid_Tspin) - 1
+            PS_Ts[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Tspin, box_dims=Lbox, kbins=kbins)
+            PS_rho_Ts[ii]= t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
+            PS_Ts_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
+
+
+
     Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
                 'PS_rho': PS_rho, 'PS_rho_xHII': PS_rho_xHII, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHII':PS_lyal_xHII}
+
+    if Tspin:
+        Dict['PS_Ts'], Dict['PS_rho_Ts'], Dict['PS_Ts_xHII'] = PS_Ts, PS_rho_Ts, PS_Ts_xHII
 
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
