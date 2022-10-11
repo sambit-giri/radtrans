@@ -27,6 +27,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     xal = []
     heat_per_baryon = []
     T_gas = []
+    T_gas_neutral = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         catalog = catalog_dir + filename
         halo_catalog = Read_Rockstar(catalog)
