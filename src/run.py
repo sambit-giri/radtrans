@@ -549,7 +549,7 @@ def compute_PS(param,Tspin = False):
         PS_Ts      = np.zeros((nbr_snap,len(kbins)-1))
         PS_rho_Ts  = np.zeros((nbr_snap,len(kbins)-1))
         PS_Ts_xHII = np.zeros((nbr_snap,len(kbins)-1))
-
+        PS_T_Ts = np.zeros((nbr_snap,len(kbins)-1))
 
 
     for filename in os.listdir(catalog_dir):
@@ -621,14 +621,14 @@ def compute_PS(param,Tspin = False):
             PS_Ts[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Tspin, box_dims=Lbox, kbins=kbins)[0]
             PS_rho_Ts[ii]= t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             PS_Ts_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
-
+            PS_T_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_T, box_dims=Lbox, kbins=kbins)[0]
 
 
     Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
                 'PS_rho': PS_rho, 'PS_rho_xHII': PS_rho_xHII, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHII':PS_lyal_xHII}
 
     if Tspin:
-        Dict['PS_Ts'], Dict['PS_rho_Ts'], Dict['PS_Ts_xHII'] = PS_Ts, PS_rho_Ts, PS_Ts_xHII
+        Dict['PS_Ts'], Dict['PS_rho_Ts'], Dict['PS_xHII_Ts'],Dict['PS_T_Ts'] = PS_Ts, PS_rho_Ts, PS_Ts_xHII,PS_T_Ts
 
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 

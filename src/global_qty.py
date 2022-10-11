@@ -105,7 +105,7 @@ def Tgas_from_profiles(param,halo_catalog,simple_model):
             if param.cosmo.Temp_IC == 1:  ## adiab IC
                 T_adiab_z_solver = Temp_profile[-1]
                 Temp_profile = (Temp_profile - T_adiab_z_solver).clip(min=0)
-                Temp_neutral = (Temp_neutral - T_adiab_z_solver[-1]).clip(min=0)
+                Temp_neutral = (Temp_neutral - T_adiab_z_solver).clip(min=0)
             T_vol = np.trapz(4 * np.pi * r_grid_ ** 2 * Temp_profile, r_grid_)
             T_vol_neutral = np.trapz(4 * np.pi * r_grid_ ** 2 * Temp_neutral, r_grid_)
             Tgas += T_vol * nbr_halos
