@@ -216,19 +216,21 @@ def rho_xray(rr, M_accr, dMdt_accr, zz, param):
             dMdt_int = interp1d(zz[:i+1], (Ob / Om) * f_star_Halo(param,M_accr[:i+1]) * dMdt_accr[:i+1], fill_value='extrapolate')
 
             flux = np.zeros((len(nu), len(rr)))
+
             for j in range(len(nu)):
                 tau_prime = cum_optical_depth(z_prime, nu[j] * h_eV_sec, param)
                 eps_X = eps_xray(nu[j] * (1 + z_prime) / (1 + zz[i]), param) * np.exp(-tau_prime) * dMdt_int(z_prime)  # [1/s/Hz]
                 eps_int = interp1d(rcom_prime, eps_X, axis=0, fill_value=0.0, bounds_error=False)
                 flux[j, :] = np.array(eps_int(rr))
 
-            fXh = 1.0 #0.13
-            pref_nu = 4 * np.pi * fXh * ((nH0 / nb0) * sigma_HI(nu * h_eV_sec) * (nu * h_eV_sec - E_HI) + (nHe0 / nb0) * sigma_HeI(nu * h_eV_sec) * (nu * h_eV_sec - E_HeI))   # [cm^2 * eV]
+
+            fXh = 0.15 #1.0 #0.13
+            pref_nu = fXh * ((nH0 / nb0) * sigma_HI(nu * h_eV_sec) * (nu * h_eV_sec - E_HI) + (nHe0 / nb0) * sigma_HeI(nu * h_eV_sec) * (nu * h_eV_sec - E_HeI))   # [cm^2 * eV] 4 * np.pi *
 
             heat_nu = pref_nu[:, None] * flux  # [cm^2*eV/s/Hz]
             heat_of_r = trapz(heat_nu, nu, axis=0)  # [cm^2*eV/s]
 
-            rho_xray[i, :] = heat_of_r / (4 * np.pi * (rr) ** 2) / (cm_per_Mpc/h0) ** 2  # [eV/s]  1/(rr/(1 + zz[i]))**2
+            rho_xray[i, :] = heat_of_r / (4 * np.pi * (rr/(1+zz[i])) ** 2) / (cm_per_Mpc/h0) ** 2  # [eV/s]  1/(rr/(1 + zz[i]))**2
 
     return rho_xray
 
