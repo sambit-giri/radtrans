@@ -471,7 +471,7 @@ def compute_GS(param,string='',RSD = False):
 
         Tadiab.append(Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
-        if dTb_RSD:
+        if RSD:
             dTb_RSD.append(np.mean(Grid_dTb /  RSD_field(param, load_delta_b(param,filename), zz_)))
         else :
             dTb_RSD.append(0)
