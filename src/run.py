@@ -11,7 +11,7 @@ import pickle
 import datetime
 from radtrans.constants import cm_per_Mpc, sec_per_year, M_sun, m_H, rhoc0, Tcmb0
 from radtrans.astro import Read_Rockstar
-from radtrans.cosmo import T_adiab
+from radtrans.cosmo import T_adiab, Hubble, D
 import os
 import copy
 from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel
@@ -416,7 +416,7 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param,string=''):
+def compute_GS(param,string='',RSD = False):
     """
     Reads in the grids and compute the global quantities averaged.
     """
@@ -437,6 +437,7 @@ def compute_GS(param,string=''):
     beta_a = []
     beta_T = []
     beta_r = []
+    dTb_RSD = []
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         with open(catalog_dir+filename, "r") as file:
@@ -470,17 +471,21 @@ def compute_GS(param,string=''):
 
         Tadiab.append(Tcmb0 * (1+zz_)**2/(1+param.cosmo.z_decoupl) )
 
+        if dTb_RSD:
+            dTb_RSD.append(np.mean(Grid_dTb /  RSD_field(param, load_delta_b(param,filename), zz_)))
+        else :
+            dTb_RSD.append(0)
 
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb,dTb_RSD, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
 
     Tgam = (1 + z_) * Tcmb0
     T_spin = ((1 / Tgam + ( x_al +  x_coll) / Tk_neutral) / (1 +x_al +  x_coll)) ** -1
 
-    matrice = np.array([z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r])
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, beta_a, beta_T, beta_r = matrice[:, matrice[0].argsort()]  ## sort according to z_
+    matrice = np.array([z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, dTb_RSD,beta_a, beta_T, beta_r])
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, T_spin, dTb, dTb_RSD,beta_a, beta_T, beta_r = matrice[:, matrice[0].argsort()]  ## sort according to z_
 
 
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
@@ -497,7 +502,7 @@ def compute_GS(param,string=''):
     dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
     beta_a_coda_style = (xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
 
-    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a_coda_style,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
+    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a_coda_style,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
@@ -537,6 +542,7 @@ def compute_PS(param,Tspin = False):
     PS_xal = np.zeros((nbr_snap,len(kbins)-1))
     PS_rho = np.zeros((nbr_snap,len(kbins)-1))
     PS_dTb = np.zeros((nbr_snap,len(kbins)-1))
+    PS_dTb_RSD = np.zeros((nbr_snap,len(kbins)-1))
     PS_T_lyal = np.zeros((nbr_snap,len(kbins)-1))
     PS_T_xHII  = np.zeros((nbr_snap,len(kbins)-1))
     PS_rho_xHII = np.zeros((nbr_snap,len(kbins)-1))
@@ -587,16 +593,7 @@ def compute_PS(param,Tspin = False):
 
         dens_field = param.sim.dens_field
         if dens_field is not None and param.sim.Ncell == 256:
-            dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
-            pkd = dens.reshape(256, 256, 256)
-            pkd = pkd.T  ### take the transpose to match X_ion map coordinates
-            Lbox = param.sim.Lbox
-            N_cell = param.sim.Ncell
-            V_total = Lbox ** 3
-            V_cell = (Lbox / N_cell) ** 3
-            mass = pkd * rhoc0 * V_total
-            rho_m = mass / V_cell
-            delta_rho  = (rho_m - np.mean(rho_m)) / np.mean(rho_m)
+            delta_rho = load_delta_b(param,filename)
             PS_rho[ii]      = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)[0]
             PS_rho_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHII, delta_rho,box_dims=Lbox, kbins=kbins)[0]
             PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
@@ -606,11 +603,15 @@ def compute_PS(param,Tspin = False):
             delta_rho = 0,0  #  rho/rhomean-1
             print('no density field provided.')
 
+
+        Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
+
         z_arr[ii]  = zz_
         PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
         PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T, box_dims=Lbox, kbins=kbins)[0]
         PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
+        PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1, box_dims=Lbox, kbins=kbins)[0]
 
         PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
@@ -624,7 +625,7 @@ def compute_PS(param,Tspin = False):
             PS_T_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_T, box_dims=Lbox, kbins=kbins)[0]
 
 
-    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
+    Dict = {'z':z_arr,'k':k_bins,'PS_xHII': PS_xHII, 'PS_T': PS_T, 'PS_xal': PS_xal, 'PS_dTb': PS_dTb, 'PS_dTb_RSD':PS_dTb_RSD,'PS_T_lyal': PS_T_lyal, 'PS_T_xHII': PS_T_xHII,
                 'PS_rho': PS_rho, 'PS_rho_xHII': PS_rho_xHII, 'PS_rho_xal': PS_rho_xal, 'PS_rho_T': PS_rho_T, 'PS_lyal_xHII':PS_lyal_xHII}
 
     if Tspin:
@@ -700,69 +701,6 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
 
 
 
-
-
-
-def grid_dTb_from_profile(filename, param):
-    """
-    THIS DOES NOT MAKE SENSE SINCE dTb IS NOT ADDITIVE AT ALL. BUT IT WAS NICE TO TRY..... :)
-
-    Paint the  Lyman alpha profiles on a grid for a single snapshot named filename.
-
-    Parameters
-    ----------
-    param : dictionnary containing all the input parameters
-    filename : the name of the snapshot, contained in param.sim.halo_catalogs.
-
-    Returns
-    -------
-    Does not return anything. Paints and stores the grids on the directory grid_outputs.
-    """
-    catalog_dir = param.sim.halo_catalogs
-    z_start = param.solver.z
-    model_name = param.sim.model_name
-    M_Bin = np.logspace(np.log10(param.sim.M_i_min), np.log10(param.sim.M_i_max), param.sim.binn, base=10)
-
-    LBox = param.sim.Lbox  # Mpc/h
-    nGrid = param.sim.Ncell  # number of grid cells
-    catalog = catalog_dir + filename
-    halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
-    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
-    z = halo_catalog['z']
-
-    # quick load to find matching redshift between solver output and simulation snapshot.
-    grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[0]), 'rb'))
-    ind_z = np.argmin(np.abs(grid_model.z_history - z))
-    zgrid = grid_model.z_history[ind_z]
-
-    Indexing = np.argmin( np.abs(np.log10(H_Masses[:, None] / (M_Bin * np.exp(-param.source.alpha_MAR * (z - z_start))))), axis=1)
-    print('There are', H_Masses.size, 'halos at z=', z, )
-
-    if H_Masses.size == 0:
-        print('There aint no sources')
-        Grid_dTb = np.array([0])
-
-    else:
-        Pos_Bubles = np.vstack((H_X, H_Y, H_Z)).T  # Halo positions.
-        Pos_Bubbles_Grid = np.array([Pos_Bubles / LBox * nGrid]).astype(int)[0]
-        Pos_Bubbles_Grid[np.where(Pos_Bubbles_Grid == nGrid)] = nGrid - 1  # you don't want Pos_Bubbles_Grid==nGrid
-        Grid_dTb = np.zeros((nGrid, nGrid, nGrid))
-        radial_grid = grid_model.r_grid_cell
-        for i in range(len(M_Bin)):
-            indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
-            if len(indices[0]) > 0:
-                grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
-                dTb_profile = grid_model.dTb_history[str(round(zgrid, 2))]
-                profile_dTb = interp1d(radial_grid * (1 + z), dTb_profile, bounds_error=False, fill_value=0)
-                kernel_dTb = profile_to_3Dkernel(profile_dTb, nGrid, LBox)
-
-                if not np.sum(kernel_dTb) < 1e-8 :
-                    Grid_dTb += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_dTb)
-
-    pickle.dump(file=open('./grid_output/dTb_Grid_from_prof' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_dTb)
-
-
-
 def load_delta_b(param,filename):
     """
     Load the delta_b grid profiles.
@@ -772,13 +710,48 @@ def load_delta_b(param,filename):
     dens_field = param.sim.dens_field
     if dens_field is not None and param.sim.Ncell == 256:
         dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
-        pkd = dens.reshape(256, 256, 256)
-        pkd = pkd.T  ### take the transpose to match X_ion map coordinates
+        pkd  = dens.reshape(256, 256, 256)
+        pkd  = pkd.T  ### take the transpose to match X_ion map coordinates
         V_total = LBox ** 3
-        V_cell = (LBox / nGrid) ** 3
-        mass = pkd * rhoc0 * V_total
-        rho_m = mass / V_cell
+        V_cell  = (LBox / nGrid) ** 3
+        mass    = pkd * rhoc0 * V_total
+        rho_m   = mass / V_cell
         delta_b = (rho_m) / np.mean(rho_m)-1
     else:
         delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
     return delta_b
+
+
+
+def RSD_field(param,density_field,zz):
+    """
+    density_field : delta_b, output of laod_delta_b
+    output a meshgrid containing values of --> dv/dr/H <--. Dimensionless. (dD/da = dD/dt/H)
+    eq 4 from 411, 955–972 (Mesinger 2011, 21cmFAST..): dv/dr(k) = -kr**2/k**2 * dD/dt(z)*delta_nl(k)
+    You should then divide dTb by the output of this function.
+    """
+    import scipy
+    Ncell = param.sim.Ncell
+    Lbox  = param.sim.Lbox
+    delta_k = scipy.fft.fftn(density_field)
+
+    scale_factor = np.linspace(1 /40, 1 / 7, 100)
+    growth_factor = np.zeros(len(scale_factor))
+    for i in range(len(scale_factor)):
+        growth_factor[i] = D(scale_factor[i], param)
+    dD_da = np.gradient(growth_factor, scale_factor)
+
+    kx_meshgrid = np.zeros((density_field.shape))
+    ky_meshgrid = np.zeros((density_field.shape))
+    kz_meshgrid = np.zeros((density_field.shape))
+
+    kx_meshgrid[np.arange(0, Ncell, 1), :, :] = np.arange(1, Ncell + 1, 1)[:, None, None] * 2 * np.pi / Lbox
+    ky_meshgrid[:, np.arange(0, Ncell, 1), :] = np.arange(1, Ncell + 1, 1)[None, :, None] * 2 * np.pi / Lbox
+    kz_meshgrid[:, :, np.arange(0, Ncell, 1)] = np.arange(1, Ncell + 1, 1)[None, None, :] * 2 * np.pi / Lbox
+
+    k_sq = np.sqrt(kx_meshgrid ** 2 + ky_meshgrid ** 2 + kz_meshgrid ** 2)
+
+
+    dv_dr_k = -kx_meshgrid ** 2 / k_sq * np.interp(1/(zz+1), scale_factor, dD_da) * delta_k
+
+    return np.real(scipy.fft.ifftn(dv_dr_k))
