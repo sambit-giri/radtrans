@@ -479,7 +479,7 @@ def compute_GS(param,string='',RSD = False):
     if not os.path.isdir('./physics'):
         os.mkdir('./physics')
 
-    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb,dTb_RSD, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb), np.array(beta_a), np.array(beta_T), np.array(beta_r)
+    z_, Tk, Tk_neutral, x_HII, x_al, x_coll, Tadiab, dTb,dTb_RSD, beta_a, beta_T, beta_r = np.array(z_),np.array(Tk),np.array(Tk_neutral),np.array(x_HII),np.array(x_al),np.array(x_coll),np.array(Tadiab), np.array(dTb),np.array(dTb_RSD), np.array(beta_a), np.array(beta_T), np.array(beta_r)
 
     Tgam = (1 + z_) * Tcmb0
     T_spin = ((1 / Tgam + ( x_al +  x_coll) / Tk_neutral) / (1 +x_al +  x_coll)) ** -1
