@@ -538,7 +538,7 @@ def compute_GS(param,string='',RSD = False):
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
-def compute_PS(param,Tspin = False):
+def compute_PS(param,Tspin = False,RSD = False):
     """
     Parameters
     ----------
@@ -635,15 +635,17 @@ def compute_PS(param,Tspin = False):
             delta_rho = 0,0  #  rho/rhomean-1
             print('no density field provided.')
 
-
-        Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
-
+        if RDS :
+            Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
+        else :
+            Grid_dTb_RSD = 0
         z_arr[ii]  = zz_
         PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
         PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T, box_dims=Lbox, kbins=kbins)[0]
         PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
-        PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1, box_dims=Lbox, kbins=kbins)[0]
+        if RDS:
+            PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1, box_dims=Lbox, kbins=kbins)[0]
 
         PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
