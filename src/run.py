@@ -108,8 +108,15 @@ def run_solver(parameters,Helium=False,simple_model = False):
     print('It took in total:', end_time - start_time)
 
 
-def convergence_check(Mhalo,parameters,Helium,simple_model):
-    param = copy.deepcopy(parameters)
+
+def Ifront(rr,xHII):  # return the ionization front of the profile
+    m = np.argmin(abs(0.5 - xHII))
+    return rr[m]
+
+
+
+
+def convergence_check(Mhalo,param,Helium,simple_model,save):
     z_start = 10
     param.source.M_halo = Mhalo * np.exp(param.source.alpha_MAR * (param.solver.z-z_start)) # do the check starting at z = 10
     LBox = param.sim.Lbox  # Mpc/h
@@ -122,10 +129,8 @@ def convergence_check(Mhalo,parameters,Helium,simple_model):
     cosmofile = param.cosmo.corr_fct
     vc_r, vc_corr = np.loadtxt(cosmofile, usecols=(0, 1), unpack=True)
     r_MaxiMal = max(vc_r) / (1 + z_start)  ## Minimum k-value available in cosmofct.dat
-
     param.solver.r_end = max(LBox / 10, r_MaxiMal)  # in case r_End is too small, we set it to LBox/10.
-    param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,
-                                                                                                    round(z_start, 2))
+    param.table.filename_table = './gamma_tables/gamma_' + model_name + '_Mh_{:.1e}_z{}.pkl'.format(Mhalo,round(z_start, 2))
 
     print('Solving the RT equations ..')
     if simple_model:
@@ -137,11 +142,38 @@ def convergence_check(Mhalo,parameters,Helium,simple_model):
     else:
         print('--ONLY HYDROGEN--')
         grid_model = rad.Source_MAR(param)
-    grid_model.solve(param)
-    pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
-    print('... RT equations solved. Profiles stored.')
-    print(' ')
 
+    grid_model.solve(param)
+
+    zz   = grid_model.z_history[-1]
+    xHII = grid_model.xHII_history[str(round(zz,2))]
+    ion_front = Ifront(grid_model.r_grid_cell,xHII)
+    ion_front_HR = ion_front
+    i=0
+
+    while np.abs((ion_front - ion_front_HR)) > 0.05 * ion_front or i==0:
+        param.solver.dn = param.solver.dn * 2
+        param.solver.dn_table = param.solver.dn_table * 2
+        param.solver.time_step = param.solver.time_step / 2
+        if simple_model:
+            grid_model = rad.simple_solver(param)
+        elif Helium == True:
+            grid_model = rad.Source_MAR_Helium(param)
+        else:
+            grid_model = rad.Source_MAR(param)
+        grid_model.solve(param)
+        ion_front = ion_front_HR
+        ion_front_HR = Ifront(grid_model.r_grid_cell,grid_model.xHII_history[str(round(zz,2))])
+        i+=1
+        if save:
+            pickle.dump(open('./grid_convrg_chck_Mh_{:.1e}'.format(Mhalo)+'_i_'+str(i)+'.pkl'))
+        print('ion_front : ',ion_front,'ion_front_HR :',ion_front_HR,'i :',i)
+
+    #pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
+    print('----------')
+    print('... convergence_check ended. i final is', i-1, 'corresponding to dn = ', param.solver.dn/2, 'dt = ', param.solver.time_step / 2)
+    print('----------')
+    print(' ')
 
 
 
