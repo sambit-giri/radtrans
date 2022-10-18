@@ -635,10 +635,11 @@ def compute_PS(param,Tspin = False,RSD = False):
             delta_rho = 0,0  #  rho/rhomean-1
             print('no density field provided.')
 
-        if RDS :
+        if RSD:
             Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
         else :
             Grid_dTb_RSD = 0
+
         z_arr[ii]  = zz_
         PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
         PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T, box_dims=Lbox, kbins=kbins)[0]
