@@ -630,6 +630,9 @@ def compute_PS(param,Tspin = False,RSD = False):
             PS_rho_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHII, delta_rho,box_dims=Lbox, kbins=kbins)[0]
             PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
+            if Tspin :
+                delta_Tspin = Grid_Tspin / np.mean(Grid_Tspin) - 1
+                PS_rho_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
 
         else:
             delta_rho = 0,0  #  rho/rhomean-1
@@ -653,9 +656,7 @@ def compute_PS(param,Tspin = False,RSD = False):
         PS_lyal_xHII[ii]  = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
 
         if Tspin:
-            delta_Tspin = Grid_Tspin/np.mean(Grid_Tspin) - 1
             PS_Ts[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Tspin, box_dims=Lbox, kbins=kbins)[0]
-            PS_rho_Ts[ii]= t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             PS_Ts_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
             PS_T_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_T, box_dims=Lbox, kbins=kbins)[0]
 
