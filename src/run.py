@@ -623,6 +623,9 @@ def compute_PS(param,Tspin = False,RSD = False):
 
         ii = np.where(z_arr == zz_)
 
+        if Tspin :
+            delta_Tspin = Grid_Tspin / np.mean(Grid_Tspin) - 1
+
         dens_field = param.sim.dens_field
         if dens_field is not None and param.sim.Ncell == 256:
             delta_rho = load_delta_b(param,filename)
@@ -631,7 +634,6 @@ def compute_PS(param,Tspin = False,RSD = False):
             PS_rho_xal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_x_al, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             PS_rho_T[ii]   = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_rho, box_dims=Lbox, kbins=kbins)[0]
             if Tspin :
-                delta_Tspin = Grid_Tspin / np.mean(Grid_Tspin) - 1
                 PS_rho_Ts[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_Tspin, delta_rho, box_dims=Lbox, kbins=kbins)[0]
 
         else:
