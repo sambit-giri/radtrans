@@ -645,7 +645,7 @@ def compute_PS(param,Tspin = False,RSD = False):
         PS_T[ii]   = t2c.power_spectrum.power_spectrum_1d(delta_T, box_dims=Lbox, kbins=kbins)[0]
         PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
-        if RDS:
+        if RSD:
             PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1, box_dims=Lbox, kbins=kbins)[0]
 
         PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
