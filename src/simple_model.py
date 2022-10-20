@@ -89,9 +89,12 @@ class simple_solver:
 
 
         T_history = {}
+        rhox_history = {}
         for i in range(len(zz)):
             T_history[str(zz[i])] = rho_heat_[i]
+            rhox_history[str(zz[i])] =rho_xray_[i]
 
+        self.rhox_history = rhox_history
         self.Mh_history = Mh_history
         self.z_history = zz
         self.R_bubble = R_bubble_     # cMpc/h
@@ -130,7 +133,6 @@ def Ngdot_ion(param, zz, Mh):
 
 def dMh_dt_EXP(param,Mh,z):
     return param.source.alpha_MAR * Mh * (z + 1) * Hubble(z, param)
-
 
 
 def R_bubble(param, time, zz, M_accr):
@@ -224,7 +226,7 @@ def rho_xray(rr, M_accr, dMdt_accr, zz, param):
                 flux[j, :] = np.array(eps_int(rr))
 
 
-            fXh = 0.15 #1.0 #0.13
+            fXh = 1.0 #0.13 # 0.15
             pref_nu = fXh * ((nH0 / nb0) * sigma_HI(nu * h_eV_sec) * (nu * h_eV_sec - E_HI) + (nHe0 / nb0) * sigma_HeI(nu * h_eV_sec) * (nu * h_eV_sec - E_HeI))   # [cm^2 * eV] 4 * np.pi *
 
             heat_nu = pref_nu[:, None] * flux  # [cm^2*eV/s/Hz]
