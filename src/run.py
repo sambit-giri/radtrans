@@ -1,4 +1,5 @@
 
+
 """
 In this script we define functions that can be called to :
 1. run the RT solver and compute the evolution of the T, x_HI profiles, and store them
@@ -278,7 +279,8 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                         kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
 
                     profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
-                    kernel_T = profile_to_3Dkernel(profile_T, nGrid, LBox)
+                    kernel_T = stacked_lyal_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=32)
+                       # profile_to_3Dkernel(profile_T, nGrid, LBox)
 
 
                     if lyal == True:
