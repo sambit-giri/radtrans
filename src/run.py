@@ -279,14 +279,15 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                         kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
 
                     profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
-                    kernel_T = stacked_lyal_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=32)
-                       # profile_to_3Dkernel(profile_T, nGrid, LBox)
+                   # kernel_T = stacked_lyal_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=32)
+                    kernel_T =  profile_to_3Dkernel(profile_T, nGrid, LBox)
 
 
                     if lyal == True:
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
                         renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
-                        Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
+                        if np.any(kernel_xal > 0):
+                            Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
 
                     if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
                         renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / ( LBox / (1 + z)) ** 3 / np.mean(kernel_T)
