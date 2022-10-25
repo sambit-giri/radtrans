@@ -73,7 +73,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
     dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / T_gas) * xal_coda_style/(1 + xal_coda_style) * (1-xHII)
-    return {'z':z,'xHII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal_coda_style, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas,'T_gas_neutral':T_gas_neutral ,'dTb':dTb}
+    return {'z':z,'x_HII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal_coda_style, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas,'T_gas_neutral':T_gas_neutral ,'dTb':dTb}
 
 
 

@@ -766,11 +766,19 @@ def load_delta_b(param,filename):
 
 def RSD_field(param,density_field,zz):
     """
-    density_field : delta_b, output of laod_delta_b
-    output a meshgrid containing values of --> dv/dr/H <--. Dimensionless. (dD/da = dD/dt/H)
-    eq 4 from 411, 955–972 (Mesinger 2011, 21cmFAST..): dv/dr(k) = -kr**2/k**2 * dD/dt(z)*delta_nl(k)
-    You should then divide dTb by the output of this function.
+    eq 4 from 411, 955–972 (Mesinger 2011, 21cmFAST..): dv/dr(k) = -kr**2/k**2 * dD/da(z)/D(z) * a * delta_nl(k) * da/dt
+    And da/dt = H * a
+    You should then divide dTb by the output of this function
+
+    Parameters
+    ----------
+    density_field : delta_b, output of load_delta_b
+
+    Returns
+    ---------
+    Returns a meshgrid containing values of -->(dv/dr/H+1) <--. Dimensionless.
     """
+
     import scipy
     Ncell = param.sim.Ncell
     Lbox  = param.sim.Lbox
@@ -786,13 +794,15 @@ def RSD_field(param,density_field,zz):
     ky_meshgrid = np.zeros((density_field.shape))
     kz_meshgrid = np.zeros((density_field.shape))
 
-    kx_meshgrid[np.arange(0, Ncell, 1), :, :] = np.arange(1, Ncell + 1, 1)[:, None, None] * 2 * np.pi / Lbox
-    ky_meshgrid[:, np.arange(0, Ncell, 1), :] = np.arange(1, Ncell + 1, 1)[None, :, None] * 2 * np.pi / Lbox
-    kz_meshgrid[:, :, np.arange(0, Ncell, 1)] = np.arange(1, Ncell + 1, 1)[None, None, :] * 2 * np.pi / Lbox
+    kx_meshgrid[np.arange(0, Ncell, 1), :, :] = np.arange(0, Ncell, 1)[:, None, None] * 2 * np.pi / Lbox
+    ky_meshgrid[:, np.arange(0, Ncell, 1), :] = np.arange(0, Ncell, 1)[None, :, None] * 2 * np.pi / Lbox
+    kz_meshgrid[:, :, np.arange(0, Ncell, 1)] = np.arange(0, Ncell, 1)[None, None, :] * 2 * np.pi / Lbox
 
     k_sq = np.sqrt(kx_meshgrid ** 2 + ky_meshgrid ** 2 + kz_meshgrid ** 2)
 
+    aa = 1/(zz+1)
+    dv_dr_k = -kx_meshgrid ** 2 / k_sq * np.interp(aa, scale_factor, dD_da) * delta_k / D(aa,param) * aa
+    dv_dr_k[np.where(np.isnan(dv_dr_k))] = np.interp(aa, scale_factor, dD_da) * aa * delta_k[np.where(np.isnan(dv_dr_k))] /  D(aa,param) ## to deal with nan value for k=0
+    dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k)) * aa  #### THIS IS dv_dr/H
 
-    dv_dr_k = -kx_meshgrid ** 2 / k_sq * np.interp(1/(zz+1), scale_factor, dD_da) * delta_k
-
-    return np.real(scipy.fft.ifftn(dv_dr_k))
+    return dv_dr_over_H + 1
