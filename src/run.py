@@ -766,9 +766,10 @@ def load_delta_b(param,filename):
 
 def RSD_field(param,density_field,zz):
     """
-    eq 4 from 411, 955–972 (Mesinger 2011, 21cmFAST..): dv/dr(k) = -kr**2/k**2 * dD/da(z)/D(z) * a * delta_nl(k) * da/dt
+    eq 4 from 411, 955–972 (Mesinger 2011, 21cmFAST..):  dvr/dr(k) = -kr**2/k**2 * dD/da(z)/D(z) * a * delta_nl(k) * da/dt
     And da/dt = H * a
-    You should then divide dTb by the output of this function
+    Take density field, go in Fourier space, transform it, go back to real space to get dvr/dr.
+    Divide dTb to the output of this function to add RSD corrections.
 
     Parameters
     ----------
@@ -801,8 +802,9 @@ def RSD_field(param,density_field,zz):
     k_sq = np.sqrt(kx_meshgrid ** 2 + ky_meshgrid ** 2 + kz_meshgrid ** 2)
 
     aa = 1/(zz+1)
-    dv_dr_k = -kx_meshgrid ** 2 / k_sq * np.interp(aa, scale_factor, dD_da) * delta_k / D(aa,param) * aa
-    dv_dr_k[np.where(np.isnan(dv_dr_k))] = np.interp(aa, scale_factor, dD_da) * aa * delta_k[np.where(np.isnan(dv_dr_k))] /  D(aa,param) ## to deal with nan value for k=0
-    dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k)) * aa  #### THIS IS dv_dr/H
+    dv_dr_k_over_H  = -kx_meshgrid ** 2 / k_sq * np.interp(aa, scale_factor, dD_da) * delta_k / D(aa,param) * aa * aa
+    dv_dr_k_over_H[np.where(np.isnan(dv_dr_k_over_H))] = np.interp(aa, scale_factor, dD_da) *  delta_k[np.where(np.isnan(dv_dr_k_over_H))] / D(aa,param) * aa * aa   ## to deal with nan value for k=0
+
+    dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k_over_H))  #### THIS IS dv_dr/H
 
     return dv_dr_over_H + 1
