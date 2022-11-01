@@ -6,7 +6,7 @@ Global quantity computed directly from halo catalog
 import os.path
 import numpy as np
 import pkg_resources
-from .cosmo import Hubble, hubble
+from .cosmo import Hubble, hubble, T_adiab
 import pickle
 from .couplings import eps_lyal, S_alpha, rho_alpha
 from scipy.interpolate import splrep,splev,interp1d
@@ -61,19 +61,21 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
         sfrd.append(SFRD)
 
 
-
     sfrd, xHII, z_array, G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas, T_gas_neutral= np.array(sfrd), np.array(xHII), np.array(z), np.array(G_heat), np.array(Jalpha), np.array(xal), np.array(Gheat_GS_style),np.array(heat_per_baryon), np.array(T_gas), np.array(T_gas_neutral)
     matrice = np.array([z_array, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas, T_gas_neutral])
     z, xHII,sfrd,G_heat, Jalpha, xal, Gheat_GS_style,heat_per_baryon, T_gas, T_gas_neutral = matrice[:, matrice[0].argsort()] ## sort according to zarray
 
+    T_gas+= T_adiab(z, param)
+    T_gas_neutral += T_adiab(z, param)
+    x_col = x_coll(z=z, Tk=T_gas, xHI=1-xHII, rho_b= rhoc0 * param.cosmo.h ** 2 * param.cosmo.Ob * (1 + z) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H)
 
     Jal_coda_style = J_alpha_n(z, sfrd, param)
     xal_coda_style = np.sum(Jal_coda_style[1::], axis=0) * S_alpha(z, T_gas, 1 - xHII) * 1.81e11 / (1 + z)
 
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
-    dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / T_gas) * xal_coda_style/(1 + xal_coda_style) * (1-xHII)
-    return {'z':z,'x_HII':xHII,'sfrd':sfrd,'Gamma_heat':G_heat,'Jalpha':Jalpha,'xal':xal_coda_style, 'Gheat_GS_style':Gheat_GS_style,'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas,'T_gas_neutral':T_gas_neutral ,'dTb':dTb}
+    dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / T_gas) * (x_col+xal_coda_style)/(1 + x_col+ xal_coda_style) * (1-xHII)
+    return {'z':z, 'x_HII':xHII, 'sfrd':sfrd, 'Gamma_heat':G_heat, 'Jalpha':Jalpha, 'x_al':xal_coda_style, 'x_coll':x_coll,'Gheat_GS_style':Gheat_GS_style, 'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas, 'T_gas_neutral':T_gas_neutral, 'dTb':dTb}
 
 
 

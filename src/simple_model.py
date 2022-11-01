@@ -7,18 +7,14 @@ from .cross_sections import sigma_HI, sigma_HeI
 import numpy as np
 from scipy.integrate import cumtrapz, trapz, odeint
 from scipy.interpolate import splrep, splev, interp1d
-from .cosmo import comoving_distance, Hubble, hubble
+from .cosmo import comoving_distance, Hubble, hubble, cosmo_astropy
 from scipy.optimize import fsolve
 from astropy import units as u
-from astropy.cosmology import WMAP7 as pl
+#from astropy.cosmology import WMAP7 as pl
 from astropy.cosmology import FlatLambdaCDM
 from radtrans.cross_sections import alpha_HII
 
 
-def cosmo_astropy(param):
-    Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
-    cosmo = FlatLambdaCDM(H0=100 * h0, Om0= Om, Ob0 = Ob, Tcmb0=2.725)
-    return cosmo
 
 
 class simple_solver:

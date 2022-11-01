@@ -5,14 +5,14 @@ from scipy.interpolate import interpn
 from numpy import *
 import numpy as np
 from astropy import units as u
-from astropy.cosmology import WMAP7 as pl
+#from astropy.cosmology import WMAP7 as pl
 from scipy.optimize import fsolve
 from sys import exit
 import datetime
 from .bias import *
 from .astro import *
 from .cross_sections import *
-from .cosmo import T_adiab, correlation_fct
+from .cosmo import T_adiab, correlation_fct, cosmo_astropy
 from .couplings import x_coll, rho_alpha, S_alpha, J0_xray_lyal
 import copy
 from scipy.optimize import curve_fit
@@ -457,7 +457,7 @@ class Source_MAR_Helium:
         h0 = param.cosmo.h
         HI_frac = param.cosmo.HI_frac
         dt_init = self.dt_init
-
+        cosmo = cosmo_astropy(param)
         # r_grid0 = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
         # r_grid  = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
         r_grid = self.r_grid
@@ -524,10 +524,10 @@ class Source_MAR_Helium:
             Mh_step_l = self.M_initial
 
             while Mh_step_l < param.source.M_min and zstep_l > param.solver.z_end  : ## while Mh(z) <Mmin, nothing happens
-                age  = pl.age(self.z_initial)
+                age  = cosmo.age(self.z_initial)
                 age  = age.to(u.s)
                 age += l * self.dt_init
-                func = lambda z: pl.age(z).to(u.s).value - age.value
+                func = lambda z: cosmo.age(z).to(u.s).value - age.value
                 zstep_l = round(fsolve(func, x0 = zstep_l)[0],2) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
@@ -562,17 +562,17 @@ class Source_MAR_Helium:
                 l += 1
 
             T_grid = zeros_like(self.r_grid_cell)
-            T_grid += T_adiab(zstep_l,param)*param.cosmo.Temp_IC
+            T_grid += T_adiab(zstep_l,param) * param.cosmo.Temp_IC
             print('FULL D VALUE IN SOLVER_MAR_HELIUM')
             T_neutral_grid = np.copy(T_grid)
 
             while zstep_l > param.solver.z_end :
                 z_previous = zstep_l
                 # Calculate the redshift z(t)
-                age  = pl.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
+                age  = cosmo.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
                 age  = age.to(u.s)
                 age += l * self.dt_init
-                func = lambda z: pl.age(z).to(u.s).value - age.value
+                func = lambda z: cosmo.age(z).to(u.s).value - age.value
                 zstep_l = round(fsolve(func, x0 = zstep_l)[0],2) ### zstep_l for initial guess
 
                 ##### CMB temperature for the collisional coupling
@@ -729,7 +729,7 @@ class Source_MAR_Helium:
 
                 A5      = theta_ff(T_grid) * (n_HII_cell + n_HeII_cell + 4 * n_HeIII_cell) * n_ee
 
-                H = pl.H(zstep_l)
+                H = cosmo.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
                 A6_neutral = (15 / 2 * H * kb_eV_per_K * T_neutral_grid * nB_profile_z / mu)
@@ -757,6 +757,7 @@ class Source_MAR_Helium:
 
                 D = (2 / 3) * mu / (kb_eV_per_K) * (f_Heat(n_HII_cell / (nB_profile_z*HI_frac)) * (n_HI_cell * I1_T_HI + n_HeI_cell * I1_T_HeI + n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * ( I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
               #  print('WARNING ONLY PARTIAAL D VALUE IN SOLVER_MAR_HELIUM')
+
                 D_neutral = (2 / 3) * (4-3*HI_frac) / (kb_eV_per_K) * (f_Heat(0) * (n_HI_cell_neutral * I1_T_HI_neutral + n_HeI_cell_neutral * I1_T_HeI_neutral) -A6_neutral )######+ n_HeII_cell * I1_T_HeII) + sigma_s * n_ee / m_e_eV * (I2_Ta + T_grid * I2_Tb) - (A1_HI + A1_HeI + A1_HeII + A2_HII + A2_HeII + A2_HeIII + A3 + A4_HI + A4_HeI + A4_HeII + A5 + A6))
 
 
@@ -815,6 +816,7 @@ class Source_MAR_Helium:
 
 
                     if param.solver.full_output == True :
+
                         front_step = find_Ifront(n_HII_cell / (nB_profile_z * HI_frac), self.r_grid_cell)
                         Ion_front_grid.append(front_step)
 
@@ -840,7 +842,7 @@ class Source_MAR_Helium:
 
                         dTb_history[str(zstep_l)] = dTb(zstep_l, T_spin_history[str(zstep_l)], nHI_norm[str(zstep_l)], param)
 
-                        A_hist[str(zstep_l)], B_hist[str(zstep_l)], D_hist[str(zstep_l)] = A,B,D
+                        A_hist[str(zstep_l)], B_hist[str(zstep_l)], D_hist[str(zstep_l)] = A,B,D_neutral
 
                 l += 1
 
