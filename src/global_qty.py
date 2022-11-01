@@ -8,7 +8,7 @@ import numpy as np
 import pkg_resources
 from .cosmo import Hubble, hubble, T_adiab
 import pickle
-from .couplings import eps_lyal, S_alpha, rho_alpha
+from .couplings import eps_lyal, S_alpha, rho_alpha, x_coll
 from scipy.interpolate import splrep,splev,interp1d
 from .constants import *
 from .astro import Read_Rockstar, f_star_Halo
