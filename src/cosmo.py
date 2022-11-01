@@ -9,6 +9,7 @@ from scipy.integrate import cumtrapz, trapz, quad
 from scipy.interpolate import splrep,splev
 from .constants import rhoc0,c_km_s, Tcmb0, sec_per_year, km_per_Mpc
 import scipy.integrate as integrate
+from astropy.cosmology import FlatLambdaCDM
 
 
 def hubble(z,param):
@@ -106,6 +107,12 @@ def siny_ov_y(y):
     s[np.where(y > 100)] = 0
     return s
 
+def cosmo_astropy(param):
+    Ob, Om, h0 = param.cosmo.Ob, param.cosmo.Om, param.cosmo.h
+    cosmo = FlatLambdaCDM(H0=100 * h0, Om0= Om, Ob0 = Ob, Tcmb0=2.725)
+    return cosmo
+
+
 
 def correlation_fct(param):
     """
@@ -121,24 +128,19 @@ def correlation_fct(param):
 
     if os.path.isfile(path_to_corr_file):
         print('Correlation function already computed : par.cosmo.corr_fct')
-
     else:
-
         try:
             names = "k, PS"
             Power_Spec = np.loadtxt(PS_)
         except IOError:
             print('IOERROR: Cannot read power spec. Try: par.cosmo.ps = "/path/to/file"')
             exit()
-
         print('Computing the z=0 correlation function from the PS given in par.cosmo.ps')
         bin_N = 200
         bin_r = np.logspace(np.log(rmin), np.log(rmax), bin_N, base=np.e)
         krange = Power_Spec[:, 0]
         PS_values = Power_Spec[:, 1]
-        bin_corr = np.trapz(krange ** 3 * PS_values * siny_ov_y(krange * bin_r[:, None]) / 2 / np.pi ** 2,
-                            np.log(krange))
-
+        bin_corr = np.trapz(krange ** 3 * PS_values * siny_ov_y(krange * bin_r[:, None]) / 2 / np.pi ** 2,np.log(krange))
         try:
             np.savetxt(path_to_corr_file, np.transpose([bin_r, bin_corr]))
             print('Saving the correlation function in ' + path_to_corr_file)

@@ -31,6 +31,8 @@ def BB_Planck( nu , T):
     return intensity
 
 
+
+
 def NGamDot(param,zz, Mass = None ):
     """
     zz : redshift. Matters for the mass accretion rate!!
@@ -77,14 +79,13 @@ def NGamDot(param,zz, Mass = None ):
         return Ngam_dot_ion, E_dot_xray * eV_per_erg
 
     elif (param.source.type == 'Ross'):
-        Mhalo = param.source.M_halo   
+        Mhalo = param.source.M_halo
         #### We do that for XRays to avoid having zeros (not to have nans when updating halo mass in the solver..)
         return Mhalo / h0 * Ob / Om / ( 10 * 1e6 * sec_per_year) / m_p_in_Msun, 0.086 / 7.1 * Mhalo / h0 * Ob / Om / (10 * 1e6 * sec_per_year) / m_p_in_Msun    # [s**-1], [s**-1]
 
     else:
         print('Source Type not available. Should be SED or Ross.')
         exit()
-
 
 
 def eps_xray(nu_,param):
@@ -179,8 +180,10 @@ def Read_Rockstar(file,Nmin = 10,Mmin = 1e5,Mmax = 1e15 ,keep_subhalos=True):
 
     return Dict
 
+
 def S_fct(Mh, Mt, g3, g4):
     return (1 + (Mt / Mh) ** g3) ** g4
+
 
 def f_star_Halo(param,Mh):
     """

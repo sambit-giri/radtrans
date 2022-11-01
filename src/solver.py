@@ -4,13 +4,13 @@ import scipy.integrate as integrate
 from numpy import *
 import numpy as np
 from astropy import units as u
-from astropy.cosmology import WMAP7 as pl
+#from astropy.cosmology import WMAP7 as pl
 from scipy.optimize import fsolve
 from sys import exit
 import datetime
 from .bias import *
 from .astro import *
-from .cosmo import T_adiab, correlation_fct
+from .cosmo import T_adiab, correlation_fct, cosmo_astropy
 from .cross_sections import *
 from .couplings import x_coll, rho_alpha, S_alpha, J0_xray_lyal
 import copy
@@ -449,7 +449,7 @@ class Source_MAR:
         t_start_solver = datetime.datetime.now()
         z = self.z  #starting redshift
         h0 = param.cosmo.h
-
+        cosmo = cosmo_astropy(param)
         dt_init = self.dt_init
 
         # r_grid0 = logspace(log10(self.grid_param['r_start']), log10(self.grid_param['r_end']), dn,base=10)
@@ -509,10 +509,10 @@ class Source_MAR:
             Mh_step_l = self.M_initial
 
             while Mh_step_l < param.source.M_min and zstep_l > param.solver.z_end  : ## while Mh(z) <Mmin, nothing happens
-                age  = pl.age(self.z_initial)
+                age  = cosmo.age(self.z_initial)
                 age  = age.to(u.s)
                 age += l * self.dt_init
-                func = lambda z: pl.age(z).to(u.s).value - age.value
+                func = lambda z: cosmo.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
@@ -551,10 +551,10 @@ class Source_MAR:
             while zstep_l > param.solver.z_end :
                 z_previous = zstep_l
                 # Calculate the redshift z(t)
-                age  = pl.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
+                age  = cosmo.age(self.z_initial) # careful. Here you add to z_initial l*dt_init and find the corresponding z.
                 age  = age.to(u.s)
                 age += l * self.dt_init
-                func = lambda z: pl.age(z).to(u.s).value - age.value
+                func = lambda z: cosmo.age(z).to(u.s).value - age.value
                 zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
 
                 ##### CMB temperature for the collisional coupling
@@ -655,7 +655,7 @@ class Source_MAR:
                 A2_HII = eta_HII(T_grid) * n_HII_cell * n_ee
                 A4_HI = psi_HI(T_grid) * n_HI_cell * n_ee
                 A5 = theta_ff(T_grid) * (n_HII_cell) * n_ee # eV/s/cm**3
-                H = pl.H(zstep_l)
+                H = cosmo.H(zstep_l)
                 H = H.to(u.s ** -1).value
                 A6 = (15 / 2 * H * kb_eV_per_K * T_grid * nB_profile_z / mu)
                 A6_neutral = (15 / 2 * H * kb_eV_per_K * T_neutral_grid * nB_profile_z / mu)
