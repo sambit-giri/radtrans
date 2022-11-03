@@ -386,6 +386,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True,simple_model = False):
         if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
             print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
         else:
+            print('----- Painting for snapshot nbr :',filename[4:-5],'-------')
             if rank == ii % size:
                 paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion,simple_model = simple_model)
 
