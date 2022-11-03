@@ -411,10 +411,11 @@ def grid_dTb(param):
     factor = 27 * Ob * h0 ** 2 / 0.023 * np.sqrt(0.15 / Om / h0 ** 2 / 10)  # factor used in dTb calculation
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        with open(catalog_dir+filename, "r") as file:
-            file.readline()
-            a = float(file.readline()[4:])
-            zz_ = 1 / a - 1
+        #with open(catalog_dir+filename, "r") as file:
+        #    file.readline()
+        #    a = float(file.readline()[4:])
+        #    zz_ = 1 / a - 1
+        zz_ = load_f(catalog)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         #Grid_xtot_ov        = pickle.load(file=open('./grid_output/xtot_ov_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -479,10 +480,11 @@ def compute_GS(param,string='',RSD = False):
     dTb_RSD = []
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        with open(catalog_dir+filename, "r") as file:
-            file.readline()
-            a = float(file.readline()[4:])
-            zz_ = 1 / a - 1
+       # with open(catalog_dir+filename, "r") as file:
+        #    file.readline()
+        #    a = float(file.readline()[4:])
+        #    zz_ = 1 / a - 1
+        zz_ = load_f(catalog)['z']
         #Grid_Tspin          = pickle.load(file=open('./grid_output/Tspin_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
@@ -567,10 +569,11 @@ def compute_PS(param,Tspin = False,RSD = False):
 
     z_arr = []
     for filename in os.listdir(catalog_dir): #count the number of snapshots
-        with open(catalog_dir+filename, "r") as file:
-            file.readline()
-            a = float(file.readline()[4:])
-            zz_ = 1 / a - 1
+        #with open(catalog_dir+filename, "r") as file:
+        #    file.readline()
+        #    a = float(file.readline()[4:])
+        #    zz_ = 1 / a - 1
+        zz_ = load_f(catalog)['z']
         z_arr.append(zz_)
 
     z_arr = np.sort(z_arr)
@@ -598,10 +601,11 @@ def compute_PS(param,Tspin = False,RSD = False):
 
 
     for filename in os.listdir(catalog_dir):
-        with open(catalog_dir+filename, "r") as file:
-            file.readline()
-            a = float(file.readline()[4:])
-            zz_ = 1 / a - 1
+        #with open(catalog_dir+filename, "r") as file:
+        #    file.readline()
+        #    a = float(file.readline()[4:])
+        #    zz_ = 1 / a - 1
+        zz_ = zz_ = load_f(catalog)['z']
         Grid_Temp           = pickle.load(file=open('./grid_output/T_Grid'    + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_xHII           = pickle.load(file=open('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
         Grid_dTb            = pickle.load(file=open('./grid_output/dTb_Grid'  + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
