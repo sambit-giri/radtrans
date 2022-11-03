@@ -15,6 +15,7 @@ from .astro import Read_Rockstar, f_star_Halo
 from .couplings import J_xray_with_redshifting, J_xray_no_redshifting,S_alpha
 from .bias import bar_density_2h
 from .cross_sections import sigma_HI
+from .python_functions import load_f
 
 def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     catalog_dir = param.sim.halo_catalogs
@@ -30,7 +31,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     T_gas_neutral = []
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         catalog = catalog_dir + filename
-        halo_catalog = Read_Rockstar(catalog)
+        halo_catalog = load_f(catalog) #Read_Rockstar(catalog)
 
         if heat is not None :
             heat_per_baryon.append(G_heat_approx(param,halo_catalog))
@@ -75,7 +76,7 @@ def global_signal(param,heat=None,redshifting = 'yes',simple_model = False):
     Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     factor = 27 * (1 / 10) ** 0.5 * (Ob * h0 ** 2 / 0.023) * (Om * h0 ** 2 / 0.15) ** (-0.5)
     dTb = factor * np.sqrt(1 + z) * (1 - Tcmb0*(1+z) / T_gas) * (x_col+xal_coda_style)/(1 + x_col+ xal_coda_style) * (1-xHII)
-    return {'z':z, 'x_HII':xHII, 'sfrd':sfrd, 'Gamma_heat':G_heat, 'Jalpha':Jalpha, 'x_al':xal_coda_style, 'x_coll':x_coll,'Gheat_GS_style':Gheat_GS_style, 'heat_per_baryon':heat_per_baryon, 'T_gas':T_gas, 'T_gas_neutral':T_gas_neutral, 'dTb':dTb}
+    return {'z':z, 'x_HII':xHII, 'sfrd':sfrd, 'Gamma_heat':G_heat, 'Jalpha':Jalpha, 'x_al':xal_coda_style, 'x_coll':x_coll,'Gheat_GS_style':Gheat_GS_style, 'heat_per_baryon':heat_per_baryon, 'Tk':T_gas, 'T_gas_neutral':T_gas_neutral, 'dTb':dTb}
 
 
 
@@ -168,6 +169,7 @@ def ion_profile(grid_model,zgrid,simple_model):
         x_HII_profile = np.zeros((len(radial_grid)))
         x_HII_profile[np.where(radial_grid < ion_front/(1 + zgrid))] = 1  ## sharp ionisation front.
         return radial_grid,x_HII_profile
+
 
 
 def sfrd_approx(param,halo_catalog):

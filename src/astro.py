@@ -104,8 +104,6 @@ def eps_xray(nu_,param):
 
 
 
-
-
 def UV_emissivity(z,zprime,Mhalo,nu,param) :
     """
     UV SED of the stellar component. [photons / s**-1 Hz**-1]
@@ -123,7 +121,6 @@ def UV_emissivity(z,zprime,Mhalo,nu,param) :
     - nu_prime photon frequency at emission
     - Mhalo * np.exp(alpha*(z-zprime)) halo mass at emission according to exp MAR
     """
-
 
     nu_prime = nu * (1+zprime) / (1+z)  ## redshift at emission
     alpha = param.source.alpha_MAR
@@ -180,6 +177,23 @@ def Read_Rockstar(file,Nmin = 10,Mmin = 1e5,Mmax = 1e15 ,keep_subhalos=True):
 
     return Dict
 
+
+
+def from_Rockstar_to_Dict(rockstar_folder,output_folder):
+    """
+    rockstar_folder : path to the folder where the rockstar halo catalogs are stored.
+    output_folder : where you want to store the dictionnaries.
+
+    This functions reads in Rockstar halo catalogs and store the information we need as a dictionnary (halo masses etc..). Used to speed up.
+    """
+    from .python_functions import save_f
+    import os
+
+
+    for ii, filename in enumerate(os.listdir(rockstar_folder)):
+        catalog = rockstar_folder + filename
+        halo_catalog = Read_Rockstar(catalog)
+        save_f(file = output_folder +'dict_'+ filename,obj=halo_catalog)
 
 def S_fct(Mh, Mt, g3, g4):
     return (1 + (Mt / Mh) ** g3) ** g4

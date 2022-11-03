@@ -8,4 +8,5 @@ from .solver_Helium import Source_MAR_Helium
 from .solver_RK45 import Source_MAR_RK45
 from .simple_model import simple_solver
 from .emulator import gen_training_set, gen_Sampling
+from .python_functions import *
 #from .run_Ross19 import  *

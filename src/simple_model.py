@@ -222,7 +222,7 @@ def rho_xray(rr, M_accr, dMdt_accr, zz, param):
                 flux[j, :] = np.array(eps_int(rr))
 
 
-            fXh = 1.0 #0.13 # 0.15
+            fXh =  0.15 #1.0 #0.13 # 0.15
             pref_nu = fXh * ((nH0 / nb0) * sigma_HI(nu * h_eV_sec) * (nu * h_eV_sec - E_HI) + (nHe0 / nb0) * sigma_HeI(nu * h_eV_sec) * (nu * h_eV_sec - E_HeI))   # [cm^2 * eV] 4 * np.pi *
 
             heat_nu = pref_nu[:, None] * flux  # [cm^2*eV/s/Hz]

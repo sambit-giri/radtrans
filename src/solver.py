@@ -513,34 +513,34 @@ class Source_MAR:
                 age  = age.to(u.s)
                 age += l * self.dt_init
                 func = lambda z: cosmo.age(z).to(u.s).value - age.value
-                zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
+                zstep_l = fsolve(func, x0 = zstep_l)[0] ### zstep_l for initial guess
                 Mh_step_l = self.M_initial * np.exp(param.source.alpha_MAR * (self.z_initial-zstep_l))
                 self.nB_profile = self.profiles(param, zstep_l, Mass=Mh_step_l)
                 if l*param.solver.time_step % 10 == 0 and l != 0:
                     #time_grid.append(l * self.dt_init.value)
                     Ion_front_grid.append(0)
                     Mh_history.append(Mh_step_l)
-                    z_grid.append(zstep_l[0])
+                    z_grid.append(zstep_l)
                     #Ng_dot_history.append(0)
                     Tadiab = 2.725 * (1 + zstep_l) ** 2 / (1 + param.cosmo.z_decoupl)
                     nB_profile_z = self.nB_profile* (1 + zstep_l) ** 3
-                    nHI_norm[str(round(zstep_l[0], 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
-                    T_history[str(round(zstep_l[0],2))] = Tadiab
+                    nHI_norm[str(round(zstep_l, 2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
+                    T_history[str(round(zstep_l,2))] = Tadiab
                     #x_al_history[str(round(zstep_l[0], 2))] = 0
-                    rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l[0]) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
-                    xcoll_ = x_coll(zstep_l[0], Tadiab, 1, rho_bar_mean)
+                    rho_bar_mean = rhoc0 * h0**2 * Ob * (1 + zstep_l) ** 3 * M_sun / (cm_per_Mpc) ** 3 / m_H  #mean physical bar density in [baryons /co-cm**3]
+                    xcoll_ = x_coll(zstep_l, Tadiab, 1, rho_bar_mean)
                     #x_coll_history[str(round(zstep_l[0], 2))] = xcoll_
                     #x_tot_history[str(round(zstep_l[0], 2))] = xcoll_
 
-                    T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1+zstep_l[0]), Tadiab,xcoll_ )
+                    T_spin_history[str(round(zstep_l, 2))] = Tspin(Tcmb0 * (1+zstep_l), Tadiab,xcoll_)
 
-                    xHII_history[str(round(zstep_l[0], 2))] = 0
-                    heat_history[str(round(zstep_l[0], 2))] = 0
-                    dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    xHII_history[str(round(zstep_l, 2))] = 0
+                    heat_history[str(round(zstep_l, 2))] = 0
+                    dTb_history[str(round(zstep_l, 2))] = dTb(zstep_l, T_spin_history[str(round(zstep_l, 2))], nHI_norm[str(round(zstep_l, 2))], param)
                     Nh_history.append(0)
                     Ngdot_ratio.append(1)
                     #A_grid_hist[str(round(zstep_l[0], 2))], D_grid_hist[str(round(zstep_l[0], 2))] = 0,0
-                    I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = 0,0
+                    I1_HI_history[str(round(zstep_l, 2))], I2_HI_history[str(round(zstep_l, 2))] = 0,0
 
                 l += 1
 
@@ -555,7 +555,7 @@ class Source_MAR:
                 age  = age.to(u.s)
                 age += l * self.dt_init
                 func = lambda z: cosmo.age(z).to(u.s).value - age.value
-                zstep_l = fsolve(func, x0 = zstep_l) ### zstep_l for initial guess
+                zstep_l = fsolve(func, x0 = zstep_l)[0] ### zstep_l for initial guess
 
                 ##### CMB temperature for the collisional coupling
                 T_gamma = 2.725 * (1 + zstep_l)  # [K]
@@ -700,39 +700,39 @@ class Source_MAR:
 
                     Ion_front_grid.append(front_step)
                     Mh_history.append(Mh_step_l)
-                    z_grid.append(zstep_l[0])
-                    T_history[str(round(zstep_l[0],2))] = np.copy(T_grid)
-                    xHII_history[str(round(zstep_l[0], 2))] = 1-ydata
+                    z_grid.append(zstep_l)
+                    T_history[str(round(zstep_l,2))] = np.copy(T_grid)
+                    xHII_history[str(round(zstep_l, 2))] = 1-ydata
 
-                    nHI_norm[str(round(zstep_l[0],2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
+                    nHI_norm[str(round(zstep_l,2))] = (nB_profile_z - n_HII_cell) * m_p_in_Msun * cm_per_Mpc ** 3 / rhoc_of_z(param, z) / Ob / (1 + z) ** 3
 
 
                     # xray contrib to Lya coupling
                     #J0xray = J0_xray_lyal(self.r_grid_cell, (1-ydata), (nB_profile_z - n_HII_cell) , E_dot_step_l_xray, z, param)
 
                     ### x_alpha
-                    rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l[0], Mh_step_l) * (1 + zstep_l[0]) ** 3 #bar/physical cm**3
+                    rho_bar = bar_density_2h(self.r_grid_cell, param, zstep_l, Mh_step_l) * (1 + zstep_l) ** 3 #bar/physical cm**3
                     xHI_    = ydata   ### neutral fraction
-                    xcoll_  = x_coll(zstep_l[0], T_grid, xHI_, rho_bar)
-                    rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l[0], param)[0]
-                    x_alpha_ = 1.81e11 * rho_alpha_ * S_alpha(zstep_l[0], T_grid, xHI_) / (1 + zstep_l[0])  #(rho_alpha_ + J0xray)
+                    xcoll_  = x_coll(zstep_l, T_grid, xHI_, rho_bar)
+                    rho_alpha_ = rho_alpha(self.r_grid_cell, Mh_step_l[0], zstep_l, param)[0]
+                    x_alpha_ = 1.81e11 * rho_alpha_ * S_alpha(zstep_l, T_grid, xHI_) / (1 + zstep_l)  #(rho_alpha_ + J0xray)
                     x_tot_   = (x_alpha_ + xcoll_)
                     #x_tot_history[str(round(zstep_l[0],2))]   = np.copy(x_tot_)
                     #x_al_history[str(round(zstep_l[0], 2))]   = np.copy(x_alpha_)
                     #x_coll_history[str(round(zstep_l[0], 2))] = np.copy(xcoll_)
-                    T_spin_history[str(round(zstep_l[0], 2))] = Tspin(Tcmb0 * (1 + zstep_l[0]), T_grid, x_tot_)
+                    T_spin_history[str(round(zstep_l, 2))] = Tspin(Tcmb0 * (1 + zstep_l), T_grid, x_tot_)
 
                         #np.copy(f_Heat(n_HII_cell / nB_profile_z) * (n_HI_cell * I1_T_HI)/( nB_profile_z *(1+zstep_l)**3/(1+z_previous)**3 ) ) # eV/s
 
                     #rho_al_history[str(round(zstep_l[0], 2))] = np.copy(rho_alpha_)
                     #rho_xray_history[str(round(zstep_l[0], 2))] = np.copy(J0xray)
 
-                    dTb_history[str(round(zstep_l[0], 2))] = dTb(zstep_l[0], T_spin_history[str(round(zstep_l[0], 2))], nHI_norm[str(round(zstep_l[0], 2))], param)
+                    dTb_history[str(round(zstep_l, 2))] = dTb(zstep_l, T_spin_history[str(round(zstep_l, 2))], nHI_norm[str(round(zstep_l, 2))], param)
                     Nh_history.append(Ngam_dot_step_l_ion)
                     Ngdot_ratio.append(Ngam_dot_step_l_ion / Ng_dot_initial_ion)
-                    T_neutral_hist[str(round(zstep_l[0], 2))] = np.copy(T_neutral_grid)
+                    T_neutral_hist[str(round(zstep_l, 2))] = np.copy(T_neutral_grid)
                    # A_grid_hist[str(round(zstep_l[0], 2))], D_grid_hist[str(round(zstep_l[0], 2))] =A, D
-                    I1_HI_history[str(round(zstep_l[0], 2))], I2_HI_history[str(round(zstep_l[0], 2))] = A, I2_HI
+                    I1_HI_history[str(round(zstep_l, 2))], I2_HI_history[str(round(zstep_l, 2))] = A, I2_HI
                 l += 1
 
 

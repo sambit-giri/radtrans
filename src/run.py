@@ -19,6 +19,7 @@ from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast
 from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from radtrans.global_qty import J_alpha_n, ion_profile
 from os.path import exists
+from .python_functions import load_f
 
 
 
@@ -200,7 +201,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
     LBox = param.sim.Lbox  # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
     catalog = catalog_dir + filename
-    halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    #halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    halo_catalog = load_f(catalog)
+
     H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
     z = halo_catalog['z']
     T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
@@ -645,8 +648,9 @@ def compute_PS(param,Tspin = False,RSD = False):
 
         if RSD:
             Grid_dTb_RSD = Grid_dTb / RSD_field(param, delta_rho, zz_)
+            delta_Grid_dTb_RSD = Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1
         else :
-            Grid_dTb_RSD = 0
+            delta_Grid_dTb_RSD = 0
 
         z_arr[ii]  = zz_
         PS_xHII[ii], k_bins = t2c.power_spectrum.power_spectrum_1d(delta_XHII, box_dims=Lbox, kbins=kbins)
@@ -654,7 +658,7 @@ def compute_PS(param,Tspin = False,RSD = False):
         PS_xal[ii] = t2c.power_spectrum.power_spectrum_1d(delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_dTb[ii] = t2c.power_spectrum.power_spectrum_1d(delta_dTb, box_dims=Lbox, kbins=kbins)[0]
         if RSD:
-            PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(Grid_dTb_RSD/np.mean(Grid_dTb_RSD)-1, box_dims=Lbox, kbins=kbins)[0]
+            PS_dTb_RSD[ii] = t2c.power_spectrum.power_spectrum_1d(delta_Grid_dTb_RSD, box_dims=Lbox, kbins=kbins)[0]
 
         PS_T_lyal[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_x_al, box_dims=Lbox, kbins=kbins)[0]
         PS_T_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_T, delta_XHII, box_dims=Lbox, kbins=kbins)[0]
@@ -696,7 +700,8 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
     LBox = param.sim.Lbox  # Mpc/h
     nGrid = param.sim.Ncell  # number of grid cells
     catalog = catalog_dir + filename
-    halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    #halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
+    halo_catalog = load_f(catalog)
     H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
     z = halo_catalog['z']
 
@@ -803,7 +808,7 @@ def RSD_field(param,density_field,zz):
 
     aa = 1/(zz+1)
     dv_dr_k_over_H  = -kx_meshgrid ** 2 / k_sq * np.interp(aa, scale_factor, dD_da) * delta_k / D(aa,param) * aa * aa
-    dv_dr_k_over_H[np.where(np.isnan(dv_dr_k_over_H))] = np.interp(aa, scale_factor, dD_da) *  delta_k[np.where(np.isnan(dv_dr_k_over_H))] / D(aa,param) * aa * aa   ## to deal with nan value for k=0
+    dv_dr_k_over_H[np.where(np.isnan(dv_dr_k_over_H))] = np.interp(aa, scale_factor, dD_da) * delta_k[np.where(np.isnan(dv_dr_k_over_H))] / D(aa,param) * aa * aa   ## to deal with nan value for k=0
 
     dv_dr_over_H = np.real(scipy.fft.ifftn(dv_dr_k_over_H))  #### THIS IS dv_dr/H
 
