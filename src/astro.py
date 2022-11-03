@@ -193,7 +193,7 @@ def from_Rockstar_to_Dict(rockstar_folder,output_folder):
     for ii, filename in enumerate(os.listdir(rockstar_folder)):
         catalog = rockstar_folder + filename
         halo_catalog = Read_Rockstar(catalog)
-        save_f(file = output_folder +'dict_'+ filename,obj=halo_catalog)
+        save_f(file = output_folder +'dct_'+ filename[4:],obj=halo_catalog)
 
 def S_fct(Mh, Mt, g3, g4):
     return (1 + (Mt / Mh) ** g3) ** g4
