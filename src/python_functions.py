@@ -8,7 +8,6 @@ import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
 from radtrans.constants import *
-import cosmicdawn as coda
 
 
 def load_f(file):
@@ -528,6 +527,7 @@ def Plot_heat_profiles(profile,HM_PS,zz,label,color,rho='heat'):
 
 def default_par_UpperLim(fst, g1, g2, g4, Mp, bias, g3=4, Nion=4000, Nal=9690, Mt=1e9, c=2.7, fX=0.2, fesc0=0.15,
                          Emin=273, q=0.8, Emax_sed=8000, Emax=10000, M_min=1e4):  #
+    import cosmicdawn as coda
     par = coda.par()
     par.code.bias = bias
     par.cosmo.h0 = 0.68
