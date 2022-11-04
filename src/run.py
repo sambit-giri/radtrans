@@ -383,12 +383,13 @@ def paint_profiles(param,temp =True,lyal=True,ion=True,simple_model = False):
         print('param.sim.mpi4py should be yes or no')
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
-        if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
-            print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
-        else:
-            print('----- Painting for snapshot nbr :',filename[4:-5],'-------')
-            if rank == ii % size:
+        if rank == ii % size:
+            if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
+                print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
+            else:
+                print('----- Painting for snapshot nbr :', filename[4:-5], '-------')
                 paint_profile_single_snap(filename,param,temp=temp, lyal=lyal, ion=ion,simple_model = simple_model)
+                print('----- Snapshot nbr :', filename[4:-5], ' is done -------')
 
     #def paint_single(filename):
     #    return paint_profile_single_snap(filename,param)
