@@ -384,6 +384,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True,simple_model = False):
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
         if rank == ii % size:
+            print('Core nbr',size,'is taking care of snap',ii)
             if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
                 print('xHII map for snapshot ',filename[4:-5],'already painted. Skiping.')
             else:
