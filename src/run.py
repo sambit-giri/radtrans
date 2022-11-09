@@ -15,7 +15,7 @@ from radtrans.astro import Read_Rockstar
 from radtrans.cosmo import T_adiab, Hubble, D
 import os
 import copy
-from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel
+from radtrans.profiles_on_grid import profile_to_3Dkernel, Spreading_Excess_Fast, put_profiles_group, stacked_lyal_kernel, stacked_T_kernel
 from radtrans.couplings import x_coll,rho_alpha, S_alpha
 from radtrans.global_qty import J_alpha_n, ion_profile
 from os.path import exists
@@ -281,9 +281,9 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                     if not np.any(kernel_xHII > 0): ### if the bubble volume is smaller than the grid size, the kernel will be zero. We deal with that here. Paint central cell with ion fraction value
                         kernel_xHII[int(nGrid / 2), int(nGrid / 2), int(nGrid / 2)] = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / nGrid / (1 + z)) ** 3
 
-                    profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
-                   # kernel_T = stacked_lyal_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=32)
-                    kernel_T =  profile_to_3Dkernel(profile_T, nGrid, LBox)
+                    #profile_T = interp1d(radial_grid * (1 + z), Temp_profile, bounds_error=False, fill_value=0)  # rgrid*(1+z) is in comoving coordinate, box too.
+                    kernel_T = stacked_T_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=4)
+                    #kernel_T =  profile_to_3Dkernel(profile_T, nGrid, LBox)
 
 
                     if lyal == True:
@@ -302,8 +302,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                         Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
 
                 endtimeprofile = datetime.datetime.now()
-                print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,
-                      'to paint profiles')
+                print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
 
             Grid_Storage = np.copy(Grid_xHII_i)
             # Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
@@ -383,6 +382,7 @@ def paint_profiles(param,temp =True,lyal=True,ion=True,simple_model = False):
         print('param.sim.mpi4py should be yes or no')
 
     for ii, filename in enumerate(os.listdir(catalog_dir)):
+
         if rank == ii % size:
             print('Core nbr',rank,'is taking care of snap',filename[4:-5])
             if exists('./grid_output/xHII_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5]):
@@ -534,7 +534,7 @@ def compute_GS(param,string='',RSD = False):
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
     GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+'.pkl', 'rb'))
     redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
-    Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
+    Jal_coda_style = J_alpha_n(redshifts, x, param)
     xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(redshifts, Tk , 1 - x_HII) * 1.81e11 / (1+redshifts)
 
 
