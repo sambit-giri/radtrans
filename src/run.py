@@ -534,7 +534,7 @@ def compute_GS(param,string='',RSD = False):
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
     GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+'.pkl', 'rb'))
     redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
-    Jal_coda_style = J_alpha_n(redshifts, x, param)
+    Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
     xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(redshifts, Tk , 1 - x_HII) * 1.81e11 / (1+redshifts)
 
 
