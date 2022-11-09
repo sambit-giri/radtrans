@@ -644,7 +644,13 @@ def stacked_T_kernel(rr_T, T_array, LBox, nGrid, nGrid_min):
     LBox,nGrid : the box size and grid rez of the current run.
     """
     profile_T_HM = interp1d(rr_T, T_array, bounds_error=False, fill_value=0)  ##screening
-    ind_T_0 = np.min(np.where(T_array < 1e-6))  ## indice where the T profile drops, xray haven't reached that scale
+
+    zero_K_indices = np.where(T_array < 1e-6)[0]
+    if len(zero_K_indices)>0:
+        ind_T_0 = np.min(zero_K_indices)  ## indice where the T profile drops, xray haven't reached that scale
+    else :
+        ind_T_0 = -1 ## if T_array is always > 1e-6, we just take the whole profile...
+
     rr_T_max = rr_T[ind_T_0]  ### max radius that we need to consider to fully include the extended T profile
     box_extension = int(rr_T_max / (LBox / 2))
 
