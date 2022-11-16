@@ -117,12 +117,17 @@ def Ifront(rr,xHII):  # return the ionization front of the profile
 
 
 
+def convergence_check(Mhalo, param, Helium, simple_model, simplified_H,save,zz=[10,9.5], conv_criterion=0.05):
+    """
+    Check the convergence of the profiles when varying the time step dt.
+    Choose one of your halo mass bin value, at param.solver.z. This function will pick the corresponding halo mass (exp mar) at zz[0] and compute the profiles down to zz[1].
 
-def convergence_check(Mhalo,param,Helium,simple_model,save):
-    z_start = 10
+    """
+
+    z_start = zz[0]
     param.source.M_halo = Mhalo * np.exp(param.source.alpha_MAR * (param.solver.z-z_start)) # do the check starting at z = 10
     LBox = param.sim.Lbox  # Mpc/h
-    param.solver.z_end = 9.5
+    param.solver.z_end = zz[1]
     param.solver.z  = z_start
     model_name = param.sim.model_name+'_convergence_check'
 
@@ -141,26 +146,32 @@ def convergence_check(Mhalo,param,Helium,simple_model,save):
     elif Helium == True:
         print('--HELIUM--')
         grid_model = rad.Source_MAR_Helium(param)
+    elif simplified_H == True:
+        print('--For test case, only drogen simplified (no cross-section freq dependence, no Temp in xHII equation)--')
+        grid_model = rad.Source_H_ion_simple(param)
     else:
         print('--ONLY HYDROGEN--')
         grid_model = rad.Source_MAR(param)
 
     grid_model.solve(param)
 
+    param.table.import_table = True
     zz   = grid_model.z_history[-1]
     xHII = grid_model.xHII_history[str(round(zz,2))]
     ion_front = Ifront(grid_model.r_grid_cell,xHII)
     ion_front_HR = ion_front
-    i=0
+    i = 0
 
-    while np.abs((ion_front - ion_front_HR)) > 0.05 * ion_front or i==0:
-        param.solver.dn = param.solver.dn * 2
-        param.solver.dn_table = param.solver.dn_table * 2
+    while np.abs((ion_front - ion_front_HR)) > conv_criterion * ion_front or i == 0:
+        #param.solver.dn = param.solver.dn * 2
+        #param.solver.dn_table = param.solver.dn_table * 2
         param.solver.time_step = param.solver.time_step / 2
         if simple_model:
             grid_model = rad.simple_solver(param)
         elif Helium == True:
             grid_model = rad.Source_MAR_Helium(param)
+        elif simplified_H == True:
+            grid_model = rad.Source_H_ion_simple(param)
         else:
             grid_model = rad.Source_MAR(param)
         grid_model.solve(param)
@@ -168,7 +179,7 @@ def convergence_check(Mhalo,param,Helium,simple_model,save):
         ion_front_HR = Ifront(grid_model.r_grid_cell,grid_model.xHII_history[str(round(zz,2))])
         i+=1
         if save:
-            pickle.dump(open('./grid_convrg_chck_Mh_{:.1e}'.format(Mhalo)+'_i_'+str(i)+'.pkl'))
+            pickle.dump(file = open('./grid_convrg_chck_Mh_{:.1e}'.format(Mhalo)+'_i_'+str(i)+'.pkl','wb'),obj = grid_model)
         print('ion_front : ',ion_front,'ion_front_HR :',ion_front_HR,'i :',i)
 
     #pickle.dump(file=open(pkl_name, 'wb'), obj=grid_model)
