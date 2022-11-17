@@ -1,5 +1,3 @@
-
-
 """
 In this script we define functions that can be called to :
 1. run the RT solver and compute the evolution of the T, x_HI profiles, and store them
@@ -316,7 +314,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
             # Grid_Temp[np.where(Grid_Temp < T_adiab_z + 0.2)] = T_adiab_z
 
             if np.sum(Grid_Storage) < nGrid ** 3 and ion == True:
-                Grid_xHII = Spreading_Excess_Fast(Grid_Storage)
+                Grid_xHII = Spreading_Excess_Fast(Grid_Storage, pix_thresh=param.sim.thresh_pixel)
             else:
                 Grid_xHII = np.array([1])
 

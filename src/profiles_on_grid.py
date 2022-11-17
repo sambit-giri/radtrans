@@ -362,7 +362,7 @@ def Spreading_Excess_HR(Grid_Storage):
     return Grid
 
 
-def Spreading_Excess_Fast(Grid_input,plot__=False):
+def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None):
     """
     Last and fastest version of the function.
     Input : Grid_Storage, the cosmological mesh grid (X,X,X) with the ionized fractions, with overlap (pixels where x_ion>1). (X can be 256, 512 ..)
@@ -400,8 +400,10 @@ def Spreading_Excess_Fast(Grid_input,plot__=False):
         print('Universe not fully ionized : xHII is', x_ion_tot_i / Grid.size)
 
         region_nbr, size_of_region = np.unique(connected_regions, return_counts=True)
-        pix_thresh = int(nGrid/12.8) # group all the connected regions that have less than pix_thresh pixels together for the spreading.. to go faster. ==10 for nGrid=128pixels..
-        small_regions = np.where(np.isin(connected_regions, region_nbr[np.where(size_of_region < pix_thresh)[0]]))        ## small_regions : Gridmesh indices gathering all the connected regions that have less than 10 pixels
+        if pix_thresh is None:
+            pix_thresh  = 10 * (256/128)**3 # group all the connected regions that have less than pix_thresh pixels together for the spreading.. to go faster. ==10 for nGrid=128pixels..
+
+        small_regions  = np.where(np.isin(connected_regions, region_nbr[np.where(size_of_region < pix_thresh)[0]]))        ## small_regions : Gridmesh indices gathering all the connected regions that have less than 10 pixels
         Small_regions_labels = region_nbr[np.where(size_of_region < pix_thresh)[0]]                                     ## labels of the small regions. Use this to exclude them from the for loop
 
         initial_excess = np.sum(Grid[small_regions] - 1)
@@ -523,10 +525,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
                 Sub_Grid[:] = Grid[np.max((Center_X - int(N_subgrid / 2), 0)) - np.max(
                     (0, Center_X + int(N_subgrid / 2) + 0 - nGrid)): np.min(
                     (nGrid, Center_X + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_X)),
-                              np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max(
-                                  (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min(
-                                  (nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max(
-                                  (0, int(N_subgrid / 2) - Center_Y)),
+                              np.max((Center_Y - int(N_subgrid / 2), 0)) - np.max( (0, Center_Y + int(N_subgrid / 2) + 0 - nGrid)): np.min((nGrid, Center_Y + int(N_subgrid / 2) + 0)) + np.max((0, int(N_subgrid / 2) - Center_Y)),
                               np.max((Center_Z - int(N_subgrid / 2), 0)) - np.max(
                                   (0, Center_Z + int(N_subgrid / 2) + 0 - nGrid)): np.min(
                                   (nGrid, Center_Z + int(N_subgrid / 2) + 0)) + np.max(
