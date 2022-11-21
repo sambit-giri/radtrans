@@ -89,6 +89,7 @@ def sim_par(): ## used when computing and painting profiles on a grid
         "halo_catalogs": None,      # path to the directory containing all the halo catalogs.
         "store_grids": True,        # whether or not to store the grids. If not, will just store the power spectra.
         "dens_field": None,         # path and name of the gridded density field. Used in run.py to compute dTb
+        "dens_field_type": 'pkdgrav',  # Can be either 21cmFAST of pkdgrav. It adapts the format and normalization of the density field... 
         "Nh_part_min":50,           # Minimum number of particles in halo to trust
         "cores" : 2,                # number of cores used in parallelisation
         "kmin": 3e-2,

@@ -767,17 +767,22 @@ def load_delta_b(param,filename):
     LBox = param.sim.Lbox
     nGrid = param.sim.Ncell
     dens_field = param.sim.dens_field
-    if dens_field is not None :
-        dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
-        pkd  = dens.reshape(nGrid, nGrid, nGrid)
-        pkd  = pkd.T  ### take the transpose to match X_ion map coordinates
-        V_total = LBox ** 3
-        V_cell  = (LBox / nGrid) ** 3
-        mass    = pkd * rhoc0 * V_total
-        rho_m   = mass / V_cell
-        delta_b = (rho_m) / np.mean(rho_m)-1
-    else:
-        delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
+
+    if param.sim.dens_field_type == 'pkdgrav':
+        if dens_field is not None :
+            dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
+            pkd  = dens.reshape(nGrid, nGrid, nGrid)
+            pkd  = pkd.T  ### take the transpose to match X_ion map coordinates
+            V_total = LBox ** 3
+            V_cell  = (LBox / nGrid) ** 3
+            mass    = pkd * rhoc0 * V_total
+            rho_m   = mass / V_cell
+            delta_b = (rho_m) / np.mean(rho_m)-1
+        else:
+            delta_b = np.array([0])  # rho/rhomean-1 (usual delta here..)
+
+    elif param.sim.dens_field_type == '21cmFAST':
+        delta_b = load_f(dens_field + filename[4:-5] + '.0')
     return delta_b
 
 
