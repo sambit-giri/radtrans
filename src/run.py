@@ -210,7 +210,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
     #halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
     halo_catalog = load_f(catalog)
 
-    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
+    H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
     z = halo_catalog['z']
     T_adiab_z = T_adiab(z,param)  # to consistently put to T_adiab the large scale IGM regions (pb with overlaps)
 
@@ -715,7 +715,7 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
     catalog = catalog_dir + filename
     #halo_catalog = Read_Rockstar(catalog, Nmin=param.sim.Nh_part_min)
     halo_catalog = load_f(catalog)
-    H_Masses, H_X, H_Y, H_Z, H_Radii = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z'], halo_catalog['R']
+    H_Masses, H_X, H_Y, H_Z = halo_catalog['M'], halo_catalog['X'], halo_catalog['Y'], halo_catalog['Z']
     z = halo_catalog['z']
 
     # quick load to find matching redshift between solver output and simulation snapshot.
@@ -767,9 +767,9 @@ def load_delta_b(param,filename):
     LBox = param.sim.Lbox
     nGrid = param.sim.Ncell
     dens_field = param.sim.dens_field
-    if dens_field is not None and param.sim.Ncell == 256:
+    if dens_field is not None :
         dens = np.fromfile(dens_field + filename[4:-5] + '.0', dtype=np.float32)
-        pkd  = dens.reshape(256, 256, 256)
+        pkd  = dens.reshape(nGrid, nGrid, nGrid)
         pkd  = pkd.T  ### take the transpose to match X_ion map coordinates
         V_total = LBox ** 3
         V_cell  = (LBox / nGrid) ** 3
