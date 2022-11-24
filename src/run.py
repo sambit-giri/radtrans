@@ -430,17 +430,8 @@ def grid_dTb(param):
         Grid_xal             = pickle.load(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'rb'))
 
         dens_field = param.sim.dens_field
-        if dens_field is not None and param.sim.Ncell == 256:
-            dens = np.fromfile(dens_field + filename[4:-5] + '.0',dtype=np.float32)
-            pkd=dens.reshape(256,256,256)
-            pkd = pkd.T  ### take the transpose to match X_ion map coordinates
-            Lbox = param.sim.Lbox
-            N_cell = param.sim.Ncell
-            V_total = Lbox**3
-            V_cell = (Lbox/N_cell)**3
-            mass = pkd * rhoc0 * V_total
-            rho_m = mass / V_cell
-            delta_b = (rho_m)/np.mean(rho_m)-1
+        if dens_field is not None:
+            delta_b = load_delta_b(param, filename)
         else :
             delta_b = 0 #rho/rhomean -1
 
@@ -655,7 +646,7 @@ def compute_PS(param,Tspin = False,RSD = False):
             delta_Tspin = Grid_Tspin / np.mean(Grid_Tspin) - 1
 
         dens_field = param.sim.dens_field
-        if dens_field is not None and param.sim.Ncell == 256:
+        if dens_field is not None:
             delta_rho = load_delta_b(param,filename)
             PS_rho[ii]      = t2c.power_spectrum.power_spectrum_1d(delta_rho, box_dims=Lbox , kbins=kbins)[0]
             PS_rho_xHII[ii] = t2c.power_spectrum.cross_power_spectrum_1d(delta_XHII, delta_rho,box_dims=Lbox, kbins=kbins)[0]
