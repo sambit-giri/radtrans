@@ -442,7 +442,7 @@ def grid_dTb(param):
         print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
         #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
         Grid_xal = Grid_xal #* Grid_Sal
-        coef =  * rhoc0 * h0**2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
+        coef =  rhoc0 * h0**2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
         Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= (delta_b+1)*coef)
 
         #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
