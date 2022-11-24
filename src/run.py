@@ -464,9 +464,11 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param,string='',RSD = False):
+def compute_GS(param,string='',RSD = False,lyal_from_sfrd = False ):
     """
     Reads in the grids and compute the global quantities averaged.
+    If RSD is True, will add RSD calculation
+    If lyal_from_sfrd is True, we will compute xalpha from the sfrd (see eq 19. and 23. from HM paper 2011.12308) and then correct dTb to match this xalpha.
     """
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
@@ -543,15 +545,22 @@ def compute_GS(param,string='',RSD = False):
     Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
     xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(redshifts, Tk , 1 - x_HII) * 1.81e11 / (1+redshifts)
 
+    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
+    dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk_neutral) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
+    beta_a = (x_al / (x_coll + x_al) / (1 + x_coll + x_al))
 
     ### dTb formula similar to coda HM code.
-    xtot = (xal_coda_style + x_coll)
-    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk) * xtot/(1 + xtot) * (1-x_HII)
-    dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0*(1+z_) / Tk_neutral) * xtot/(1 + xtot) * (1-x_HII)
-    dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
-    beta_a_coda_style = (xal_ / (xcol_ + xal_) / (1 + xcol_ + xal_))
+    if lyal_from_sfrd :
+        print('YOU CHOSE TO COMPUTE XALPHA FROM THE SFRD')
+        xtot = (xal_coda_style + x_coll)
+        dTb_GS = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
+        dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot/(1 + xtot) /((x_coll + x_al) / (1 + x_coll + x_al))
+        dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
 
-    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a_coda_style,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
+    else :
+        print('YOU CHOSE TO COMPUTE XALPHA FROM THE GRID')
+
+    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
@@ -783,6 +792,8 @@ def load_delta_b(param,filename):
 
     elif param.sim.dens_field_type == '21cmFAST':
         delta_b = load_f(dens_field + filename[4:-5] + '.0')
+    else :
+        print('param.sim.dens_field_type should be either 21cmFAST or pkdgrav.')
     return delta_b
 
 
