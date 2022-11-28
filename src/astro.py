@@ -92,6 +92,7 @@ def eps_xray(nu_,param):
     """
     Spectral distribution function of x-ray emission.
     In  [1/s/Hz*(yr*h/Msun)]
+    Note : we include fX in cX in this code.
     See Eq.2 in arXiv:1406.4120
     """
     # param.source.cX  ## [erg / s /SFR]
@@ -102,6 +103,22 @@ def eps_xray(nu_,param):
 
     return param.source.cX/param.cosmo.h * eV_per_erg * norm_xray * nu_ ** (-sed_xray) /(nu_*h_eV_sec)   # [photons/Hz/s/SFR]
 
+
+def eps_ion(nu_,param):
+    """
+    Spectral distribution function of ionising photons emission.
+    In  [1/s/Hz*(yr*h/Msun)]
+    """
+    #sed_ion = param.source.alS_ion
+    #norm_ion = (1 - sed_ion) / ((param.source.E_max_sed_ion / h_eV_sec) ** (1 - sed_ion) - (param.source.E_min_sed_ion / h_eV_sec) ** (1 - sed_ion)) ## nu ** (sed-1)
+
+    T_Galaxy = param.source.T_gal
+    nu_range = np.logspace(np.log10(param.source.E_min_sed_ion / h_eV_sec),np.log10(param.source.E_max_sed_ion / h_eV_sec), 1000, base=10)
+    norm_ion = np.trapz(BB_Planck(nu_range, T_Galaxy) / h__, np.log(nu_range))
+    Ngam_dot_ion_per_sfr = param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h  # photons/s/SFR
+
+    return  Ngam_dot_ion_per_sfr / norm_ion * BB_Planck(nu_,  T_Galaxy) / h__ /nu_
+        # power law  : param.source.Nion / sec_per_year / m_H * M_sun / param.cosmo.h * nu_ ** (-sed_ion) * norm_ion   # [photons/Hz/s/SFR] with SFR in Msol/h/yr
 
 
 def UV_emissivity(z,zprime,Mhalo,nu,param) :
@@ -210,7 +227,7 @@ def f_star_Halo(param,Mh):
     Mt = param.source.Mt
     g3 = param.source.g3
     g4 = param.source.g4
-    return 2 * f_st / ((Mh / Mp) ** g1 + (Mh / Mp) ** g2) * S_fct(Mh, Mt, g3, g4)
+    return np.minimum(2 * f_st / ((Mh / Mp) ** g1 + (Mh / Mp) ** g2) * S_fct(Mh, Mt, g3, g4),1)
 
 
 def f_esc(param,Mh):

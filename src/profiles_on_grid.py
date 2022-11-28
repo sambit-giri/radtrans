@@ -15,6 +15,8 @@ from scipy.interpolate import splrep,splev, interp1d
 
 
 
+
+
 def profile_1D_ion(r, c1=2, c2=5):  #
     """
     1D ionization profile, sigmoid function. 1 when ionized, 0 when neutral.
@@ -85,6 +87,7 @@ def put_profiles_group(source_pos, profile_kern, nGrid=None):
     '''
     if nGrid is None: nGrid = profile_kern.shape[0]
     source_grid = np.zeros((nGrid, nGrid, nGrid))
+
     for i, j, k in source_pos:
         source_grid[i, j, k] = 1
     out = convolve_fft(source_grid, profile_kern,boundary='wrap',normalize_kernel = False,allow_huge=True)
@@ -401,7 +404,7 @@ def Spreading_Excess_Fast(Grid_input,plot__=False,pix_thresh=None):
 
         region_nbr, size_of_region = np.unique(connected_regions, return_counts=True)
         if pix_thresh is None:
-            pix_thresh  = 10 * (256/128)**3 # group all the connected regions that have less than pix_thresh pixels together for the spreading.. to go faster. ==10 for nGrid=128pixels..
+            pix_thresh  = 10 * (nGrid/128)**3 # group all the connected regions that have less than pix_thresh pixels together for the spreading.. to go faster. ==10 for nGrid=128pixels..
 
         small_regions  = np.where(np.isin(connected_regions, region_nbr[np.where(size_of_region < pix_thresh)[0]]))        ## small_regions : Gridmesh indices gathering all the connected regions that have less than 10 pixels
         Small_regions_labels = region_nbr[np.where(size_of_region < pix_thresh)[0]]                                     ## labels of the small regions. Use this to exclude them from the for loop

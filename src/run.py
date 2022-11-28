@@ -108,7 +108,6 @@ def run_solver(parameters,Helium=False,simple_model = False):
     print('It took in total:', end_time - start_time)
 
 
-
 def Ifront(rr,xHII):  # return the ionization front of the profile
     m = np.argmin(abs(0.5 - xHII))
     return rr[m]
@@ -238,11 +237,6 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
 
     else:
 
-        ## Here we compute quickly the cumulative fraction of ionized volume and check if it largely exceeds the box volume
-        # if check_approx :
-        #    Ionized_vol = xHII_approx(param,halo_catalog)[1]
-        # else:
-        #    Ionized_vol = 0
         Ionized_vol = 0
         if Ionized_vol > 2:  ###skip this step, We actually want the full Temperature and xal history
             print('universe is fully inoinzed. Return [1] for the XHII, T and xtot grid.')
@@ -258,7 +252,7 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                 indices = np.where(Indexing == i)  ## indices in H_Masses of halos that have an initial mass at z=z_start between M_Bin[i-1] and M_Bin[i]
                 grid_model = pickle.load(file=open('./profiles_output/SolverMAR_' + model_name + '_zi{}_Mh_{:.1e}.pkl'.format(z_start, M_Bin[i]),'rb'))
                 Mh_ = grid_model.Mh_history[ind_z]
-                if len(indices[0]) > 0 and Mh_>param.source.M_min:
+                if len(indices[0]) > 0 and Mh_ > param.source.M_min:
 
                     radial_grid, x_HII_profile = ion_profile(grid_model,zgrid,simple_model) #pMpc/h
 
@@ -272,7 +266,6 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                     if param.cosmo.Temp_IC == 1: ## adiab IC
                         T_adiab_z_solver = Temp_profile[-1]
                         Temp_profile = (Temp_profile-T_adiab_z_solver).clip(min=0)
-
 
                     r_lyal = np.logspace(-5, 2, 1000, base=10)  ## physical distance for lyal profile. Never goes further away than 100 pMpc/h (checked)
                     rho_alpha_ = rho_alpha(r_lyal, grid_model.Mh_history[ind_z], zgrid, param)[0]
@@ -291,21 +284,19 @@ def paint_profile_single_snap(filename,param,temp =True,lyal=True,ion=True,simpl
                     kernel_T = stacked_T_kernel(radial_grid * (1 + z), Temp_profile, LBox, nGrid, nGrid_min=4)
                     #kernel_T =  profile_to_3Dkernel(profile_T, nGrid, LBox)
 
-
                     if lyal == True:
                         kernel_xal = stacked_lyal_kernel(r_lyal * (1 + z), x_alpha_prof, LBox, nGrid, nGrid_min=32)
                         renorm = np.trapz(x_alpha_prof * 4 * np.pi * r_lyal ** 2, r_lyal) / (LBox / (1 + z)) ** 3 / np.mean( kernel_xal)
                         if np.any(kernel_xal > 0):
                             Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal * 1e-7 / np.sum(kernel_xal)) * renorm * np.sum( kernel_xal) / 1e-7  # we do this trick to avoid error from the fft when np.sum(kernel) is too close to zero.
-
                     if (temp == True or temp == 'neutral') and np.any(kernel_T > 0):
                         renorm = np.trapz(Temp_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / ( LBox / (1 + z)) ** 3 / np.mean(kernel_T)
                         Grid_Temp += put_profiles_group(Pos_Bubbles_Grid[indices],  kernel_T * 1e-7 / np.sum(kernel_T)) * np.sum(kernel_T) / 1e-7 * renorm
-
                     # if np.any(kernel_xHII > 0) and np.max( kernel_xHII) > 1e-8 and ion==True:  ## To avoid error from convole_fft (renomalization)
                     if np.any(kernel_xHII > 0) and ion == True:
                         renorm = np.trapz(x_HII_profile * 4 * np.pi * radial_grid ** 2, radial_grid) / (LBox / (1 + z)) ** 3 / np.mean(kernel_xHII)
                         Grid_xHII_i += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xHII * 1e-7 / np.sum(kernel_xHII)) * np.sum(kernel_xHII) / 1e-7 * renorm
+
 
                 endtimeprofile = datetime.datetime.now()
                 print(len(indices[0]), 'halos in mass bin ', i, 'took : ', endtimeprofile - starttimeprofile,'to paint profiles')
@@ -442,8 +433,8 @@ def grid_dTb(param):
         print('Warning : No Salpha and no xcoll inncluded in the grid_dTb calculation')
         #Grid_Sal = S_alpha(zz_, Grid_Temp, 1 - Grid_xHII)
         Grid_xal = Grid_xal #* Grid_Sal
-        coef =  rhoc0 * h0**2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
-        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b= (delta_b+1)*coef)
+        coef =  rhoc0 * h0 ** 2 *  Ob * (1 + zz_) ** 3 * M_sun / cm_per_Mpc ** 3 / m_H
+        Grid_xcoll = x_coll(z=zz_, Tk=Grid_Temp, xHI=Grid_xHI, rho_b = (delta_b+1)*coef)
 
         #Grid_Tspin = ((1 / T_cmb_z + (Grid_xcoll+Grid_xal) / Grid_Temp) / (1 + Grid_xcoll+Grid_xal)) ** -1
         Grid_xtot = Grid_xcoll+Grid_xal
@@ -574,7 +565,12 @@ def compute_PS(param,Tspin = False,RSD = False):
     nGrid = param.sim.Ncell
     #Om, Ob, h0 = param.cosmo.Om, param.cosmo.Ob, param.cosmo.h
     Lbox = param.sim.Lbox  #Mpc/h
-    kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10) #h/Mpc
+    if isinstance(param.sim.kbin,int):
+        kbins = np.logspace(np.log10(param.sim.kmin), np.log10(param.sim.kmax), param.sim.kbin, base=10) #h/Mpc
+    elif isinstance(param.sim.kbin,str):
+        kbins = np.loadtxt(param.sim.kbin)
+    else :
+        print('param.sim.kbin should be either a path to a text files containing kbins edges values or it should be an int.')
 
     z_arr = []
     for filename in os.listdir(catalog_dir): #count the number of snapshots
