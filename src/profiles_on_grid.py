@@ -581,7 +581,7 @@ def Spread_Single(Grid, connected_indices, Grid_of_1, print_time=None):
             if np.any(Sub_Grid[boundary] > 1) or np.any(np.isnan(Sub_Grid[boundary])):
                 print('2. Thats where we trigger')
 
-            if round(np.sum(Sub_Grid) / int(np.sum(Sub_Grid_Initiale) + excess_ion_i)) != 1:
+            if round(int(np.sum(Sub_Grid)) / int(np.sum(Sub_Grid_Initiale) + excess_ion_i)) != 1:
                 print('loosing photons')
                 exit()
 
