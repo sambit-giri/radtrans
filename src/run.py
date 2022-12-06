@@ -447,7 +447,7 @@ def grid_dTb(param):
 
 
 
-def compute_GS(param,string='',RSD = False,lyal_from_sfrd = False ):
+def compute_GS(param,string='',RSD = False,global_approx = False):
     """
     Reads in the grids and compute the global quantities averaged.
     If RSD is True, will add RSD calculation
@@ -523,22 +523,23 @@ def compute_GS(param,string='',RSD = False,lyal_from_sfrd = False ):
 
 
     #### Here we compute Jalpha using HM formula. It is more precise since it accounts for halos at high redshift that mergerd and are not present at low redshift.
-    GS_approx = pickle.load(open('./physics/Glob_approx'+param.sim.model_name+'.pkl', 'rb'))
-    redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
-    Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
-    xal_coda_style = np.sum(Jal_coda_style[1::],axis=0) * S_alpha(redshifts, Tk , 1 - x_HII) * 1.81e11 / (1+redshifts)
-
-    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
+    dTb_GS = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)### dTb formula similar to coda HM code
     dTb_GS_Tkneutral = factor * np.sqrt(1 + z_) * (1 - Tcmb0 * (1 + z_) / Tk_neutral) * (1-x_HII) * (x_coll + x_al) / (1 + x_coll + x_al)
     beta_a = (x_al / (x_coll + x_al) / (1 + x_coll + x_al))
+    dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot / (1 + xtot) / ((x_coll + x_al) / (1 + x_coll + x_al))
 
-    ### dTb formula similar to coda HM code.
 
-    xtot = (xal_coda_style + x_coll)
-    dTb_GS_xal_from_sfrd = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
-    dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot/(1 + xtot) /((x_coll + x_al) / (1 + x_coll + x_al))
-    dTb_xal_from_sfrd = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
+    if global_approx:
+        GS_approx = pickle.load(open('./physics/Glob_approx' + param.sim.model_name + '.pkl', 'rb'))
+        redshifts, sfrd = GS_approx['z'], GS_approx['sfrd']
+        Jal_coda_style = J_alpha_n(redshifts, sfrd, param)
+        xal_coda_style = np.sum(Jal_coda_style[1::], axis=0) * S_alpha(redshifts, Tk, 1 - x_HII) * 1.81e11 / (1 + redshifts)
+        xtot = (xal_coda_style + x_coll)
+        dTb_GS_xal_from_sfrd = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
+        dTb_xal_from_sfrd = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
 
+    else :
+        dTb_GS_xal_from_sfrd, dTb_xal_from_sfrd, xal_coda_style = 0, 0, 0
 
     Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,
             'dTb_GS_xal_from_sfrd':dTb_GS_xal_from_sfrd,'dTb_xal_from_sfrd':dTb_xal_from_sfrd,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
