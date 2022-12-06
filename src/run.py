@@ -101,7 +101,7 @@ def run_solver(parameters,Helium=False,simple_model = False):
         if rank == ih % size:
             run_RT_single_source(M_Bin[ih], parameters,Helium = Helium,simple_model=simple_model)
 
-    #def run_RT_single(M):
+    #def run_RT_single(M):q
     #    return run_RT_single_source(M,parameters)
     #    Parallel(n_jobs=parameters.sim.cores, prefer="threads")(delayed(run_RT_single)(M_Bin[i]) for i in range(len(M_Bin)))
     end_time = datetime.datetime.now()
@@ -533,17 +533,15 @@ def compute_GS(param,string='',RSD = False,lyal_from_sfrd = False ):
     beta_a = (x_al / (x_coll + x_al) / (1 + x_coll + x_al))
 
     ### dTb formula similar to coda HM code.
-    if lyal_from_sfrd :
-        print('YOU CHOSE TO COMPUTE XALPHA FROM THE SFRD')
-        xtot = (xal_coda_style + x_coll)
-        dTb_GS = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
-        dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot/(1 + xtot) /((x_coll + x_al) / (1 + x_coll + x_al))
-        dTb = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
 
-    else :
-        print('YOU CHOSE TO COMPUTE XALPHA FROM THE GRID')
+    xtot = (xal_coda_style + x_coll)
+    dTb_GS_xal_from_sfrd = dTb_GS * xtot /(1 + xtot) / ( (x_coll + x_al) / (1 + x_coll + x_al))
+    dTb_GS_Tkneutral = dTb_GS_Tkneutral * xtot/(1 + xtot) /((x_coll + x_al) / (1 + x_coll + x_al))
+    dTb_xal_from_sfrd = dTb * xtot/(1 + xtot) * (x_al+x_coll+1) / (x_al+x_coll) #### to correct for our wrong xalpha.... and use the one computed from the sfrd....
 
-    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
+
+    Dict = {'Tk':Tk,'Tk_neutral_regions':Tk_neutral,'x_HII':x_HII,'x_al':x_al,'x_coll':x_coll,'dTb':dTb,'dTb_RSD':dTb_RSD,'dTb_GS_Tkneutral':dTb_GS_Tkneutral,
+            'dTb_GS_xal_from_sfrd':dTb_GS_xal_from_sfrd,'dTb_xal_from_sfrd':dTb_xal_from_sfrd,'Tadiab':Tadiab,'z':z_,'T_spin':T_spin,'dTb_GS':dTb_GS,'beta_a': beta_a,'beta_T': beta_T,'beta_r': beta_r ,'xal_coda_style':xal_coda_style}
     pickle.dump(file=open('./physics/GS_'+string + str(nGrid) + 'MAR_' + model_name+'.pkl', 'wb'),obj=Dict)
 
 
@@ -558,7 +556,7 @@ def compute_PS(param,Tspin = False,RSD = False):
     Computes the power spectra of the desired quantities
 
     """
-
+    start_time = datetime.datetime.now()
     import tools21cm as t2c
     catalog_dir = param.sim.halo_catalogs
     model_name = param.sim.model_name
@@ -685,7 +683,9 @@ def compute_PS(param,Tspin = False,RSD = False):
 
     if Tspin:
         Dict['PS_Ts'], Dict['PS_rho_Ts'], Dict['PS_xHII_Ts'],Dict['PS_T_Ts'] = PS_Ts, PS_rho_Ts, PS_Ts_xHII,PS_T_Ts
+    end_time = datetime.datetime.now()
 
+    print('Computing the power spectra took : ', start_time -end_time)
     pickle.dump(file=open('./physics/PS_' + str(nGrid) + 'MAR_' + model_name + '.pkl', 'wb'), obj=Dict)
 
 
@@ -750,6 +750,8 @@ def paint_ly_alpha_single_snap(filename, param, epsilon_factor=10):
                     Grid_xal += put_profiles_group(Pos_Bubbles_Grid[indices], kernel_xal) * renorm
 
     pickle.dump(file=open('./grid_output/xal_Grid' + str(nGrid) + 'MAR_' + model_name + '_snap' + filename[4:-5], 'wb'),obj=Grid_xal / 4 / np.pi)  #### WARNING : WE DIVIDE BY 4PI TO MATCH HM
+
+
 
 
 
