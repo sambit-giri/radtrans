@@ -127,6 +127,14 @@ def table_par():
         }
     return Bunch(par)
 
+def rt_par():
+    par = {
+        "LB": 100,     # Mpc  
+        "dL": 0.5,     # Mpc            
+        "dt": None,    # Myr
+        "t_evol": 500, # Myr
+        }
+    return Bunch(par)
 
 def par():
     par = Bunch({
@@ -135,5 +143,6 @@ def par():
         "solver": solver_par(),
         "cosmo" : cosmo_par(),
         "sim" : sim_par(),
+        "RTsolver": rt_par(),
         })
     return par
