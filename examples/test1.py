@@ -48,7 +48,19 @@ param.RTsolver.dL = param.RTsolver.LB/n_cells
 param.RTsolver.dt = dt_fine
 param.RTsolver.t_evol = t_evol
 
+input_files = {
+            1: '../inputs/test1.in',
+            2: '../inputs/test2.in',
+            3: '../inputs/test3.in',
+            4: '../inputs/test4.in',
+        }
 
+c2ray1d = radtrans.C2RAY_wrapper(param)
+Ifront1_test1 = c2ray1d.run_c2ray1D_inputfile(input_files[1])
+Ifront1_test1_xfs = np.array([xx for xx in Ifront1_test1.keys()])
+Ifront1_test1_rIs = np.array([Ifront1_test1[xx][np.abs(Ifront1_test1[xx][:,1]-0.5).argmin(),0]
+                            for xx in Ifront1_test1.keys()])
+Ifront1_test1_rIs_kpc = Ifront1_test1_rIs/Mpc_to_cm*1000
 ## Analytical solution
 alphaB = lambda T: 2.59e-13 * (T/1e4)**-0.7 #cm^3 s^-1
 R_St   = lambda nH, T, C, Ndot: np.cbrt(3*Ndot/4/np.pi/alphaB(T)/C/nH**2) #cm
@@ -67,8 +79,8 @@ print('r_S  = {:.2e} cm = {:.3f} Mpc'.format(R_St(nHI,T,C,Ndot),R_St_Mpc(nHI,T,C
 print('t_evol/t_rec = {:.2f}'.format(t_evol/t_rec_Myr(nHI, T, C)))
 
 ## one-dimension
-xHI_grid = np.ones_like(nHI_grid)
 nHI_grid = nHI*np.ones(n_cells)
+xHI_grid = np.ones_like(nHI_grid)
 nH_grid  = nHI_grid*xHI_grid
 xi_grid  = 1-xHI_grid
 dL_box   = L_box/n_cells # cm.
@@ -85,9 +97,11 @@ fig, axs = plt.subplots(3,2,figsize=(7,8))
 axs[1,0].plot(t_plot_grid/Myr_to_s, r_I(nHI, T, C, Ndot, t_plot_grid)/Mpc_to_cm*1000, 
                         ls='-', c='k', label='analytical')
 axs[1,0].set_xlabel('$t$ [Myr]')
-axs[1,0].set_ylabel('$r_I$ [kpc]')
+axs[1,0].set_ylabel('$r_I$ [kpc]') 
 axs[1,1].plot(t_plot_grid/Myr_to_s, r_I(nHI, T, C, Ndot, t_plot_grid)/Mpc_to_cm*1000, 
-                        ls='-', c='k', label='analytical')
+                    lw=3, ls='-', c='k', label='analytical')
+axs[1,1].plot(np.linspace(0,t_plot_grid[-1]/Myr_to_s,Ifront1_test1_rIs_kpc.size), 
+    Ifront1_test1_rIs_kpc, ls='--', c='b', label='C2Ray')                        
 axs[1,1].set_xlabel('$t$ [Myr]')
 axs[1,1].set_ylabel('$r_I$ [kpc]')
 plt.tight_layout()

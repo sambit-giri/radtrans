@@ -3,7 +3,7 @@ from glob import glob
 import os, scipy
 from scipy.interpolate import splev, splrep
 try: import pyccray
-except: print('Run bash makebashfile.sh in the C2Ray folder.')
+except: print('Run python wrap2py.py in the C2Ray folder.')
 
 class C2RAY_wrapper:
     '''
