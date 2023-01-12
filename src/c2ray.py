@@ -2,7 +2,8 @@ import numpy as np
 from glob import glob 
 import os, scipy
 from scipy.interpolate import splev, splrep
-from . import pyccray
+try: import pyccray
+except: print('Run bash makebashfile.sh in the C2Ray folder.')
 
 class C2RAY_wrapper:
     '''
