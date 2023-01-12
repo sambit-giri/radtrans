@@ -24,6 +24,7 @@ class SourceSpectrum:
         self.k_B = const.kb_eV_per_K  # [eV/K]
         self.h_P = const.h_eV_sec     # [eV.s]
         self.Emax = Emax              # eV
+        self.Emin = const.E_HI        # eV
 
     def test_source_model(self, L_nu=None):
         '''
@@ -44,8 +45,8 @@ class SourceSpectrum:
         '''
         if L_nu is None: L_nu = self.L_nu
         h_P = self.h_P
-        nuHI   = const.E_HI/h_P   # Hz
-        nu_max = self.Emax/h_P
+        nu_min = self.Emin/h_P   # Hz
+        nu_max = self.Emax/h_P   # Hz
         Ndot_est = self.spectrum_to_Ndot(L_nu=L_nu)
         if self.verbose:
             print('Estimated photon emission rate = {:.1e} s^-1'.format(Ndot_est))
@@ -55,7 +56,7 @@ class SourceSpectrum:
         import matplotlib.pyplot as plt 
         fig, ax = plt.subplots(1,1,figsize=(6,5))
         ax.loglog(nus, L_nu(nus), ls='-', c='k', label='Spectrum')
-        ax.axvline(nuHI, label='H ionisation', ls='--')
+        ax.axvline(nu_min, label='$\\nu_\mathrm{min}$', ls='--')
         ax.axvline(nu_max, label='$\\nu_\mathrm{max}$', ls='-.')
         ax.set_ylim(bottom=1)
         # ax.axis([1e10,1e15,1e5,1e27])
@@ -64,15 +65,15 @@ class SourceSpectrum:
 
     def spectrum_to_Ndot(self, L_nu=None):
         h_P = self.h_P
-        nuHI = const.E_HI/h_P   # Hz
-        nu_max = 200/h_P
+        nu_min = self.Emin/h_P   # Hz
+        nu_max = self.Emax/h_P   # Hz
         if L_nu is None: L_nu = self.L_nu 
         Itg = lambda x: L_nu(x)/h_P/x
-        # nus = 10**np.linspace(np.log10(nuHI),np.log(nu_max),100)  # Hz
+        # nus = 10**np.linspace(np.log10(nu_min),np.log(nu_max),100)  # Hz
         # Ndot_est = simpson(Itg(nus), nus)
-        Ndot_est = quad(Itg, nuHI, nu_max)[0]
+        Ndot_est = quad(Itg, nu_min, nu_max)[0]
         if self.verbose: 
-            print('Ionisation threshold of hydrogen: E={:.1f}eV and nu={:.1e}Hz'.format(const.E_HI,nuHI))
+            print('Ionisation threshold of hydrogen: E={:.1f}eV and nu={:.1e}Hz'.format(self.Emin,nu_min))
             print('Photon emission rate: {:.2e} s^-1'.format(Ndot_est))
         return Ndot_est
 

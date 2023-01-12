@@ -129,6 +129,7 @@ def table_par():
 
 def rt_par():
     par = {
+        "inputfile": None,
         "LB": 100,     # Mpc  
         "dL": 0.5,     # Mpc            
         "dt": None,    # Myr
