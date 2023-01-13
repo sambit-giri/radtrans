@@ -1,5 +1,5 @@
 #!/bin/sh
-rm -f *.o *~ *.mod fort* *.nfs0* *.so ccrayfortlib.a pyccray.so
+rm -f *.o *~ *.mod fort* *.nfs0* *.so ccrayfortlib.a pyc2ray1d.so
 
 gfortran -c -O -fPIC -shared  precision.f90
 gfortran -c -O -fPIC -shared  mathconstants.f90
@@ -32,6 +32,6 @@ gfortran -c -O -fPIC -shared  C2Ray.F90
 gfortran -c -O -fPIC -shared  subr_main.f90
 gfortran -c -O -fPIC -shared  controler.f90
 ar -rcs libccrayfortlib.a precision.o romberg.o string.o file_admin.o sizes.o no_mpi.o clocks.o grid.o tped.o cosmology.o material.o cooling.o radiation.o thermal.o time.o doric.o photonstatistics.o cosmological_evolution.o  evolve.o output.o C2Ray.o subr_main.o
-f2py -c controler.f90 -L. -lccrayfortlib -m pyccray
+f2py -c controler.f90 -L. -lccrayfortlib -m pyc2ray1d
 
 rm -f *.o *~ *.mod fort* *.nfs0*

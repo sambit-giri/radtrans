@@ -1,0 +1,9 @@
+*.o
+*.mod
+*.out
+C2Ray_1D
+*.log
+
+*.dat
+*.ipynb
+*.so

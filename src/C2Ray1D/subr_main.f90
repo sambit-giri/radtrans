@@ -1,16 +1,7 @@
 !>
-!! \brief Main program for C2Ray-1D
+!! \brief Contains version of all subroutines that does not need any I/O.
 !!
-!! C2Ray-1D does a one-dimensional photo-ionization calculation 
-!! one of a series of test problems.\n
-!! The main programme calls a number of initialization routines
-!! and then enters the main integration loop, which ends when one
-!! of the stopping conditions is met. At specified times it calls
-!! the output module routines to produce output.
-!! After the integration loop ends, a number of closing down routines
-!! are called and the programme stops.
-!!
-!! \b Author: Garrelt Mellema \n
+!! \b Author: Sambit K. Giri \n
 !!
 !! \b Date: 10-Jan-2023
 !<
@@ -18,7 +9,9 @@
 module subr_main
 contains
 
-subroutine grid_ini_subr(r_in,r_out)
+
+
+subroutine grid_ini_subr(r_in,r_out, dr)
 
 use precision, only: dp
 use sizes, only: Ndim, mesh
@@ -30,7 +23,7 @@ use astroconstants, only: pc,kpc,Mpc,AU
 
 implicit none
 
-real(kind=dp) :: dr !< cell size
+real(kind=dp), intent(out) :: dr !< cell size
 real(kind=dp),dimension(mesh) :: r !< spatial cooridnate
 real(kind=dp),dimension(mesh) :: vol !< volume of grid cell
 
